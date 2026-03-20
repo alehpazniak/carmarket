@@ -1,0 +1,67 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: car-service
+  main:
+    web-application-type: servlet
+  mvc:
+    pathmatch:
+      use-suffix-pattern: false
+  web:
+    resources:
+      add-mappings: false
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5435}/${DB_NAME:car_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+      acks: all
+      retries: 3
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD:admin}@${EUREKA_HOST:localhost}:8761/eureka/
+  instance:
+    prefer-ip-address: true
+    hostname: 127.0.0.1
+    ip-address: 127.0.0.1
+    lease-renewal-interval-in-seconds: 10
+
+aws:
+  s3:
+    bucket: avtovo-images-503561426315-eu-central-1-an
+    region: eu-central-1
+    access-key: AKIAXKPUZSWFZZVDDJLO
+    secret-key: 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
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.carmarket.car: DEBUG

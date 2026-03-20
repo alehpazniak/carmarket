@@ -1,0 +1,9 @@
+spring:
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: 563509052874-eh46tvion250mhfe4nh9odal0gqjluhd.apps.googleusercontent.com
+            client-secret: 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
+            redirect-uri: "http://localhost:8081/auth/oauth2/callback/google"

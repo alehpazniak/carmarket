@@ -1,0 +1,47 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: search-service
+
+  elasticsearch:
+    uris: http://${ES_HOST:localhost}:9200
+    username: ${ES_USER:}
+    password: ${ES_PASSWORD:}
+    connection-timeout: 5s
+    socket-timeout: 30s
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: search-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.value.default.type: java.util.Map
+      auto-offset-reset: earliest
+    listener:
+      # Retry 3 times before sending to DLT
+      ack-mode: batch
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD:admin}@${EUREKA_HOST:localhost}:8761/eureka/
+  instance:
+    prefer-ip-address: true
+    hostname: 127.0.0.1
+    ip-address: 127.0.0.1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.carmarket.search: DEBUG
+    org.springframework.data.elasticsearch: DEBUG

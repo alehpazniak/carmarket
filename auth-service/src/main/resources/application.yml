@@ -1,0 +1,102 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: auth-service
+  main:
+    web-application-type: servlet
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:auth_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: update       # use Flyway/Liquibase in prod; 'update' for dev
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+  # ── OAuth2 Clients ──────────────────────────────────────────────────────────
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: 563509052874-eh46tvion250mhfe4nh9odal0gqjluhd.apps.googleusercontent.com
+            client-secret: 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
+            redirect-uri: "http://localhost:8081/auth/oauth2/callback/google"
+            scope:
+              - email
+              - profile
+#          facebook:
+#            client-id: ${FACEBOOK_CLIENT_ID}
+#            client-secret: ${FACEBOOK_CLIENT_SECRET}
+#            redirect-uri: "{baseUrl}/auth/oauth2/callback/{registrationId}"
+#            scope:
+#              - email
+#              - public_profile
+#        provider:
+#          facebook:
+#            authorization-uri: https://www.facebook.com/v18.0/dialog/oauth
+#            token-uri: https://graph.facebook.com/v18.0/oauth/access_token
+#            user-info-uri: https://graph.facebook.com/v18.0/me?fields=id,name,email,picture
+#            user-name-attribute: id
+
+  # ── Kafka ────────────────────────────────────────────────────────────────────
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+      retries: 3
+      acks: all
+
+# ── JWT ────────────────────────────────────────────────────────────────────────
+jwt:
+  secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+  access-token-expiry-ms: 900000      # 15 minutes
+  refresh-token-expiry-ms: 604800000  # 7 days
+
+# ── Eureka ─────────────────────────────────────────────────────────────────────
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD:admin}@${EUREKA_HOST:localhost}:8761/eureka/
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 10
+
+# ── App config ─────────────────────────────────────────────────────────────────
+app:
+  oauth2:
+    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:5173/auth/callback}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.carmarket.auth: DEBUG
+    org.springframework.security: DEBUG

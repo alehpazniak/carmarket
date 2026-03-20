@@ -1,0 +1,11 @@
+{
+  "analysis": {
+    "analyzer": {
+      "car_analyzer": {
+        "type": "custom",
+        "tokenizer": "standard",
+        "filter": ["lowercase", "asciifolding"]
+      }
+    }
+  }
+}
