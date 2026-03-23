@@ -221,6 +221,7 @@ services:
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       JWT_SECRET: ${JWT_SECRET:-bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+      ALLOWED_ORIGINS: https://avtovo.pl
     restart: on-failure
 
   # ─── AUTH SERVICE ────────────────────────────────────────────────────────────
