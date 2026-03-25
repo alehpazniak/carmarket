@@ -13,15 +13,15 @@ import java.util.Map;
 
 /**
  * Auth REST endpoints exposed through the API Gateway at /api/auth/**
- *
+ * <p>
  * OAuth2 flow is handled by Spring Security (not these endpoints):
- *   Initiate:  GET  /api/auth/oauth2/authorization/{provider}  → redirect to Google/Facebook
- *   Callback:  GET  /api/auth/oauth2/callback/{provider}       → Spring Security handles it
- *
+ * Initiate:  GET  /api/auth/oauth2/authorization/{provider}  → redirect to Google/Facebook
+ * Callback:  GET  /api/auth/oauth2/callback/{provider}       → Spring Security handles it
+ * <p>
  * These endpoints handle token management:
- *   POST /api/auth/refresh                → exchange refresh token for new pair
- *   POST /api/auth/logout                 → revoke refresh token
- *   POST /api/auth/logout-all             → revoke all sessions (requires X-User-Id header)
+ * POST /api/auth/refresh                → exchange refresh token for new pair
+ * POST /api/auth/logout                 → revoke refresh token
+ * POST /api/auth/logout-all             → revoke all sessions (requires X-User-Id header)
  */
 @Slf4j
 @RestController
@@ -45,8 +45,7 @@ public class AuthController {
      * Logout — revokes the provided refresh token.
      */
     @PostMapping("/logout")
-    public ResponseEntity<Map<String, String>> logout(
-        @RequestBody Map<String, String> body) {
+    public ResponseEntity<Map<String, String>> logout(@RequestBody Map<String, String> body) {
         String refreshToken = body.get("refresh_token");
         if (refreshToken == null || refreshToken.isBlank()) {
             return ResponseEntity.badRequest()
@@ -61,8 +60,7 @@ public class AuthController {
      * Requires a valid access token (X-User-Id injected by gateway).
      */
     @PostMapping("/logout-all")
-    public ResponseEntity<Map<String, String>> logoutAll(
-        @RequestHeader("X-User-Id") String userId) {
+    public ResponseEntity<Map<String, String>> logoutAll(@RequestHeader("X-User-Id") String userId) {
         authService.logoutAllDevices(userId);
         return ResponseEntity.ok(Map.of("message", "All sessions terminated"));
     }
@@ -71,10 +69,9 @@ public class AuthController {
      * Health/debug — returns current user info from gateway headers.
      */
     @GetMapping("/me")
-    public ResponseEntity<Map<String, String>> me(
-        @RequestHeader(value = "X-User-Id", required = false) String userId,
-        @RequestHeader(value = "X-User-Email", required = false) String email,
-        @RequestHeader(value = "X-User-Roles", required = false) String roles) {
+    public ResponseEntity<Map<String, String>> me(@RequestHeader(value = "X-User-Id", required = false) String userId,
+                                                  @RequestHeader(value = "X-User-Email", required = false) String email,
+                                                  @RequestHeader(value = "X-User-Roles", required = false) String roles) {
         return ResponseEntity.ok(Map.of(
             "userId", userId != null ? userId : "",
             "email", email != null ? email : "",

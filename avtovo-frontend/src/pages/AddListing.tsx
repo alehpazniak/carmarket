@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { createCar, uploadCarImages } from '../api/cars';
+import {useState} from 'react';
+import {useNavigate} from 'react-router-dom';
+import {createCar, uploadCarImages} from '../api/cars';
 import type {CarListing} from '../types';
 import {Loader2, Upload, X} from "lucide-react";
 
@@ -24,7 +24,7 @@ export default function AddListing() {
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+        setForm(prev => ({...prev, [e.target.name]: e.target.value}));
     };
 
     const handleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,22 +79,25 @@ export default function AddListing() {
                         <h2 className="text-avtovo-text font-semibold mb-4">Zdjęcia</h2>
                         <div className="grid grid-cols-4 gap-3">
                             {previews.map((src, idx) => (
-                                <div key={idx} className="relative aspect-square rounded-lg overflow-hidden bg-avtovo-bg">
-                                    <img src={src} alt="" className="w-full h-full object-cover" />
+                                <div key={idx}
+                                     className="relative aspect-square rounded-lg overflow-hidden bg-avtovo-bg">
+                                    <img src={src} alt="" className="w-full h-full object-cover"/>
                                     <button
                                         type="button"
                                         onClick={() => removeImage(idx)}
                                         className="absolute top-1 right-1 bg-black/70 rounded-full p-0.5 hover:bg-black"
                                     >
-                                        <X size={12} className="text-white" />
+                                        <X size={12} className="text-white"/>
                                     </button>
                                 </div>
                             ))}
                             {previews.length < 8 && (
-                                <label className="aspect-square rounded-lg border-2 border-dashed border-avtovo-border hover:border-avtovo-accent cursor-pointer flex flex-col items-center justify-center gap-1 transition-colors">
-                                    <Upload size={20} className="text-avtovo-muted" />
+                                <label
+                                    className="aspect-square rounded-lg border-2 border-dashed border-avtovo-border hover:border-avtovo-accent cursor-pointer flex flex-col items-center justify-center gap-1 transition-colors">
+                                    <Upload size={20} className="text-avtovo-muted"/>
                                     <span className="text-xs text-avtovo-muted">Dodaj</span>
-                                    <input type="file" accept="image/*" multiple onChange={handleImages} className="hidden" />
+                                    <input type="file" accept="image/*" multiple onChange={handleImages}
+                                           className="hidden"/>
                                 </label>
                             )}
                         </div>
@@ -117,31 +120,32 @@ export default function AddListing() {
                                 <label className="block text-sm text-avtovo-text-secondary mb-1">Model *</label>
                                 <input name="model" value={form.model} onChange={handleChange} required
                                        placeholder="np. Golf, Corolla"
-                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted" />
+                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted"/>
                             </div>
                             <div>
                                 <label className="block text-sm text-avtovo-text-secondary mb-1">Rok *</label>
                                 <input name="year" type="number" value={form.year} onChange={handleChange} required
                                        min={1900} max={new Date().getFullYear() + 1}
-                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent" />
+                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent"/>
                             </div>
                             <div>
                                 <label className="block text-sm text-avtovo-text-secondary mb-1">Cena (zł) *</label>
                                 <input name="price" type="number" value={form.price} onChange={handleChange} required
                                        placeholder="np. 25000"
-                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted" />
+                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted"/>
                             </div>
                             <div>
                                 <label className="block text-sm text-avtovo-text-secondary mb-1">Przebieg (km) *</label>
-                                <input name="mileage" type="number" value={form.mileage} onChange={handleChange} required
+                                <input name="mileage" type="number" value={form.mileage} onChange={handleChange}
+                                       required
                                        placeholder="np. 50000"
-                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted" />
+                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted"/>
                             </div>
                             <div>
                                 <label className="block text-sm text-avtovo-text-secondary mb-1">Kolor</label>
                                 <input name="color" value={form.color} onChange={handleChange}
                                        placeholder="np. Czarny"
-                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted" />
+                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted"/>
                             </div>
                             <div>
                                 <label className="block text-sm text-avtovo-text-secondary mb-1">Paliwo *</label>
@@ -151,7 +155,8 @@ export default function AddListing() {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm text-avtovo-text-secondary mb-1">Skrzynia biegów *</label>
+                                <label className="block text-sm text-avtovo-text-secondary mb-1">Skrzynia biegów
+                                    *</label>
                                 <select name="transmission" value={form.transmission} onChange={handleChange}
                                         className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent">
                                     <option value="MANUAL">Manualna</option>
@@ -162,25 +167,25 @@ export default function AddListing() {
                                 <label className="block text-sm text-avtovo-text-secondary mb-1">Miasto *</label>
                                 <input name="city" value={form.city} onChange={handleChange} required
                                        placeholder="np. Warszawa"
-                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted" />
+                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted"/>
                             </div>
                             <div>
                                 <label className="block text-sm text-avtovo-text-secondary mb-1">Kraj</label>
                                 <input name="country" value={form.country} onChange={handleChange}
-                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent" />
+                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent"/>
                             </div>
                         </div>
                         <div className="mt-4">
                             <label className="block text-sm text-avtovo-text-secondary mb-1">Opis</label>
                             <textarea name="description" value={form.description} onChange={handleChange}
                                       rows={4} placeholder="Opisz swoje auto..."
-                                      className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted resize-none" />
+                                      className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted resize-none"/>
                         </div>
                     </div>
 
                     <button type="submit" disabled={loading}
                             className="w-full bg-avtovo-accent hover:bg-avtovo-accent-hover disabled:opacity-50 text-white py-3.5 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2">
-                        {loading ? <><Loader2 size={18} className="animate-spin" /> Dodawanie...</> : 'Dodaj ogłoszenie'}
+                        {loading ? <><Loader2 size={18} className="animate-spin"/> Dodawanie...</> : 'Dodaj ogłoszenie'}
                     </button>
                 </form>
             </div>

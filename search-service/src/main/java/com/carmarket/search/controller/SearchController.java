@@ -15,10 +15,10 @@ import java.util.List;
 /**
  * Search REST API — all endpoints are PUBLIC (no auth required).
  * Gateway routes /api/search/** → search-service.
- *
+ * <p>
  * GET /search?query=toyota&yearFrom=2015&priceFrom=5000&priceTo=20000
- *             &city=Warsaw&fuelType=DIESEL&page=0&size=20&sort=price,asc
- *
+ * &city=Warsaw&fuelType=DIESEL&page=0&size=20&sort=price,asc
+ * <p>
  * GET /search/{id}   — get single car document from Elasticsearch
  */
 @RestController
@@ -33,20 +33,19 @@ public class SearchController {
      * All params are optional — combine freely.
      */
     @GetMapping
-    public ResponseEntity<List<CarDocument>> search(
-        @RequestParam(required = false) String query,
-        @RequestParam(required = false) String make,
-        @RequestParam(required = false) String model,
-        @RequestParam(required = false) Integer yearFrom,
-        @RequestParam(required = false) Integer yearTo,
-        @RequestParam(required = false) BigDecimal priceFrom,
-        @RequestParam(required = false) BigDecimal priceTo,
-        @RequestParam(required = false) Integer mileageMax,
-        @RequestParam(required = false) String fuelType,
-        @RequestParam(required = false) String transmission,
-        @RequestParam(required = false) String city,
-        @RequestParam(required = false) String country,
-        @PageableDefault(size = 20) Pageable pageable) {
+    public ResponseEntity<List<CarDocument>> search(@RequestParam(required = false) String query,
+                                                    @RequestParam(required = false) String make,
+                                                    @RequestParam(required = false) String model,
+                                                    @RequestParam(required = false) Integer yearFrom,
+                                                    @RequestParam(required = false) Integer yearTo,
+                                                    @RequestParam(required = false) BigDecimal priceFrom,
+                                                    @RequestParam(required = false) BigDecimal priceTo,
+                                                    @RequestParam(required = false) Integer mileageMax,
+                                                    @RequestParam(required = false) String fuelType,
+                                                    @RequestParam(required = false) String transmission,
+                                                    @RequestParam(required = false) String city,
+                                                    @RequestParam(required = false) String country,
+                                                    @PageableDefault(size = 20) Pageable pageable) {
 
         SearchRequest req = SearchRequest.builder()
             .query(query)

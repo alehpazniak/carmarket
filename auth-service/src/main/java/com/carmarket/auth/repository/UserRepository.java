@@ -1,6 +1,7 @@
 package com.carmarket.auth.repository;
 
 import com.carmarket.auth.entity.User;
+import com.carmarket.auth.entity.ProviderType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,6 +18,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("SELECT u FROM User u JOIN u.providers p " +
         "WHERE p.provider = :provider AND p.providerUserId = :providerUserId")
     Optional<User> findByProviderAndProviderId(
-        @Param("provider") com.carmarket.auth.entity.OAuthProvider.ProviderType provider,
+        @Param("provider") ProviderType provider,
         @Param("providerUserId") String providerUserId);
 }

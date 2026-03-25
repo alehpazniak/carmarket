@@ -38,8 +38,4 @@ public class OAuthProvider {
 
     @Column(name = "linked_at")
     private LocalDateTime linkedAt;
-
-    public enum ProviderType {
-        GOOGLE, FACEBOOK
-    }
 }

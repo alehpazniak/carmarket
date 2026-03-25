@@ -3,7 +3,7 @@ package com.carmarket.auth.service;
 import com.carmarket.auth.dto.AuthResponse;
 import com.carmarket.auth.dto.RefreshRequest;
 import com.carmarket.auth.entity.OAuthProvider;
-import com.carmarket.auth.entity.OAuthProvider.ProviderType;
+import com.carmarket.auth.entity.ProviderType;
 import com.carmarket.auth.entity.User;
 import com.carmarket.auth.repository.UserRepository;
 import com.carmarket.auth.security.JwtTokenProvider;
@@ -22,11 +22,11 @@ import java.util.UUID;
 
 /**
  * Core authentication logic.
- *
+ * <p>
  * Handles:
- *  - OAuth2 login success (Google / Facebook) → find-or-create user → issue tokens
- *  - Token refresh
- *  - Logout (revoke refresh token)
+ * - OAuth2 login success (Google / Facebook) → find-or-create user → issue tokens
+ * - Token refresh
+ * - Logout (revoke refresh token)
  */
 @Slf4j
 @Service
@@ -182,8 +182,7 @@ public class AuthService {
         return userRepository.save(user);
     }
 
-    private void linkProvider(User user, ProviderType provider,
-                              String providerUserId, OAuth2User oAuth2User) {
+    private void linkProvider(User user, ProviderType provider, String providerUserId, OAuth2User oAuth2User) {
         OAuthProvider oauthProvider = OAuthProvider.builder()
             .user(user)
             .provider(provider)
