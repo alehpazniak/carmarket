@@ -1,12 +1,18 @@
 package com.carmarket.search.dto;
 
 import lombok.*;
+
 import java.math.BigDecimal;
 
 /**
  * All search parameters are optional — build a dynamic query from whatever is provided.
  */
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@ToString
 public class SearchRequest {
 
     private String query;          // full-text: searches make, model, description

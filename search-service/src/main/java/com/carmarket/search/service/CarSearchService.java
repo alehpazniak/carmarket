@@ -13,7 +13,8 @@ import org.springframework.data.elasticsearch.core.query.Criteria;
 import org.springframework.data.elasticsearch.core.query.CriteriaQuery;
 import org.springframework.data.elasticsearch.core.query.Query;
 import org.springframework.stereotype.Service;
-
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,11 +28,13 @@ public class CarSearchService {
 
     // ─── INDEX (called from Kafka consumer) ───────────────────────────────────
 
+    @CacheEvict(value = "car-search", allEntries = true)
     public void indexCar(CarDocument document) {
         searchRepository.save(document);
         log.debug("Indexed carId: {}", document.getId());
     }
 
+    @CacheEvict(value = "car-search", allEntries = true)
     public void removeCar(String carId) {
         searchRepository.deleteById(carId);
         log.info("Removed carId from index: {}", carId);
@@ -43,6 +46,7 @@ public class CarSearchService {
      * Dynamic multi-criteria search.
      * Builds Criteria query from whatever filters are provided in SearchRequest.
      */
+    @Cacheable(value = "car-search", key = "#req.toString() + #pageable.pageNumber")
     public List<CarDocument> search(SearchRequest req, Pageable pageable) {
         Criteria criteria = new Criteria();
 
