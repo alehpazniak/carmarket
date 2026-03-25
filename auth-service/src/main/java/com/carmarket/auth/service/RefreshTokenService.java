@@ -31,7 +31,7 @@ public class RefreshTokenService {
 
     public boolean isValid(String userId, String jti) {
         String key = buildKey(userId, jti);
-        return redisTemplate.hasKey(key);
+        return Boolean.TRUE.equals(redisTemplate.hasKey(key));
     }
 
     /**

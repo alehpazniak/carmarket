@@ -12,6 +12,15 @@ spring:
   web:
     resources:
       add-mappings: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+    cache:
+      type: redis
+      redis:
+        time-to-live: 300000  # 5 minut w milisekundach
 
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5435}/${DB_NAME:car_db}
