@@ -1,7 +1,7 @@
 package com.carmarket.auth.security;
 
 import com.carmarket.auth.dto.AuthResponse;
-import com.carmarket.auth.entity.OAuthProvider.ProviderType;
+import com.carmarket.auth.entity.ProviderType;
 import com.carmarket.auth.service.AuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;

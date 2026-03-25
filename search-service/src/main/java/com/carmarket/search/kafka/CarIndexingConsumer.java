@@ -28,24 +28,21 @@ public class CarIndexingConsumer {
     private final CarSearchService searchService;
 
     @KafkaListener(topics = "car.created", groupId = "search-service")
-    public void handleCarCreated(Map<String, Object> event,
-                                 @Header(KafkaHeaders.RECEIVED_KEY) String key) {
+    public void handleCarCreated(Map<String, Object> event, @Header(KafkaHeaders.RECEIVED_KEY) String key) {
         log.info("Received car.created event for carId: {}", key);
         CarDocument doc = toDocument(event);
         searchService.indexCar(doc);
     }
 
     @KafkaListener(topics = "car.updated", groupId = "search-service")
-    public void handleCarUpdated(Map<String, Object> event,
-                                 @Header(KafkaHeaders.RECEIVED_KEY) String key) {
+    public void handleCarUpdated(Map<String, Object> event, @Header(KafkaHeaders.RECEIVED_KEY) String key) {
         log.info("Received car.updated event for carId: {}", key);
         CarDocument doc = toDocument(event);
         searchService.indexCar(doc);
     }
 
     @KafkaListener(topics = "car.deleted", groupId = "search-service")
-    public void handleCarDeleted(Map<String, Object> event,
-                                 @Header(KafkaHeaders.RECEIVED_KEY) String key) {
+    public void handleCarDeleted(Map<String, Object> event, @Header(KafkaHeaders.RECEIVED_KEY) String key) {
         log.info("Received car.deleted event for carId: {}", key);
         String carId = (String) event.get("carId");
         searchService.removeCar(carId);
