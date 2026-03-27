@@ -1,12 +1,12 @@
 package com.carmarket.car.kafka;
 
+import com.carmarket.car.dto.CarUpdatedEvent;
 import com.carmarket.car.entity.CarListing;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -39,22 +39,20 @@ public class CarEventProducer {
         log.info("Published car.deleted for carId: {}", carId);
     }
 
-    private Map<String, Object> toEvent(CarListing car) {
-        Map<String, Object> event = new HashMap<>();
-        event.put("carId", car.getId().toString());
-        event.put("sellerId", car.getSellerId().toString());
-        event.put("make", car.getMake());
-        event.put("model", car.getModel());
-        event.put("year", car.getYear());
-        event.put("price", car.getPrice());
-        event.put("mileage", car.getMileage() != null ? car.getMileage() : 0);
-        event.put("fuelType", car.getFuelType() != null ? car.getFuelType().name() : "");
-        event.put("transmission", car.getTransmission() != null ? car.getTransmission().name() : "");
-        event.put("color", car.getColor() != null ? car.getColor() : "");
-        event.put("city", car.getCity() != null ? car.getCity() : "");
-        event.put("country", car.getCountry() != null ? car.getCountry() : "");
-        event.put("description", car.getDescription() != null ? car.getDescription() : "");
-        event.put("status", car.getStatus().name());
-        return event;
+    private CarUpdatedEvent toEvent(CarListing car) {
+        return new CarUpdatedEvent(
+            car.getId().toString(),
+            car.getSellerId().toString(),
+            car.getMake(),
+            car.getModel(),
+            car.getYear(),
+            car.getPrice(),
+            car.getMileage(),
+            car.getFuelType() != null ? car.getFuelType().name() : null,
+            car.getTransmission() != null ? car.getTransmission().name() : null,
+            car.getCity(),
+            car.getStatus().name(),
+            car.getCreatedAt()
+        );
     }
 }

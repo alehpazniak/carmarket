@@ -5,7 +5,7 @@ Step 4 → user-service         (profiles — created automatically after login)
 Step 5 → car-service          (core business logic — CRUD listings)
 Step 6 → search-service       (reads from Kafka — depends on car-service events)
 
-Step 7 → avtovo-frontend       (npm.cmd run dev --cmd or npm run dev --powershell)
+    Step 7 → avtovo-frontend       (npm.cmd run dev --cmd or npm run dev --powershell)
 
 # 🚗 CarMarket — Java Microservices
 

@@ -5,6 +5,9 @@ import com.carmarket.search.dto.SearchRequest;
 import com.carmarket.search.repository.CarSearchRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHit;
@@ -13,8 +16,7 @@ import org.springframework.data.elasticsearch.core.query.Criteria;
 import org.springframework.data.elasticsearch.core.query.CriteriaQuery;
 import org.springframework.data.elasticsearch.core.query.Query;
 import org.springframework.stereotype.Service;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -54,17 +56,17 @@ public class CarSearchService {
         criteria = criteria.and(new Criteria("status").is("ACTIVE"));
 
         // Full-text query across make, model, description
-        if (req.getQuery() != null && !req.getQuery().isBlank()) {
+        if (StringUtils.isNotEmpty(req.getQuery())) {
             Criteria textSearch = new Criteria("make").contains(req.getQuery())
                 .or(new Criteria("model").contains(req.getQuery()))
                 .or(new Criteria("description").contains(req.getQuery()));
             criteria = criteria.and(textSearch);
         }
 
-        if (req.getMake() != null && !req.getMake().isBlank()) {
+        if (StringUtils.isNotEmpty(req.getMake())) {
             criteria = criteria.and(new Criteria("make").is(req.getMake()));
         }
-        if (req.getModel() != null && !req.getModel().isBlank()) {
+        if (StringUtils.isNotEmpty(req.getModel())) {
             criteria = criteria.and(new Criteria("model").contains(req.getModel()));
         }
         if (req.getYearFrom() != null) {
@@ -82,16 +84,16 @@ public class CarSearchService {
         if (req.getMileageMax() != null) {
             criteria = criteria.and(new Criteria("mileage").lessThanEqual(req.getMileageMax()));
         }
-        if (req.getFuelType() != null && !req.getFuelType().isBlank()) {
+        if (StringUtils.isNotEmpty(req.getFuelType())) {
             criteria = criteria.and(new Criteria("fuelType").is(req.getFuelType().toUpperCase()));
         }
-        if (req.getTransmission() != null && !req.getTransmission().isBlank()) {
+        if (StringUtils.isNotEmpty(req.getTransmission())) {
             criteria = criteria.and(new Criteria("transmission").is(req.getTransmission().toUpperCase()));
         }
-        if (req.getCity() != null && !req.getCity().isBlank()) {
+        if (StringUtils.isNotEmpty(req.getCity())) {
             criteria = criteria.and(new Criteria("city").is(req.getCity()));
         }
-        if (req.getCountry() != null && !req.getCountry().isBlank()) {
+        if (StringUtils.isNotEmpty(req.getCountry())) {
             criteria = criteria.and(new Criteria("country").is(req.getCountry()));
         }
 
