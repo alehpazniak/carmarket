@@ -39,12 +39,15 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private UserRole role = UserRole.USER;
 
     @Column(name = "email_verified")
+    @Builder.Default
     private boolean emailVerified = false;
 
     @Column(name = "is_active")
+    @Builder.Default
     private boolean active = true;
 
     // Linked OAuth2 providers

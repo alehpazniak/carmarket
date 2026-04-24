@@ -3,7 +3,6 @@ package com.carmarket.car.controller;
 import com.carmarket.car.dto.CarListingRequest;
 import com.carmarket.car.dto.CarListingResponse;
 import com.carmarket.car.service.CarListingService;
-import com.carmarket.car.service.S3Service;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,7 +34,6 @@ import java.util.UUID;
 public class CarListingController {
 
     private final CarListingService service;
-    private final S3Service s3Service;
 
     @GetMapping
     public ResponseEntity<Page<CarListingResponse>> listAll(

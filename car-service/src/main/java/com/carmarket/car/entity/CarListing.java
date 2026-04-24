@@ -56,6 +56,7 @@ public class CarListing {
 
     private String country;
 
+    @Builder.Default
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "car_listing_images", joinColumns = @JoinColumn(name = "car_id"))
     @Column(name = "image_url")
@@ -63,6 +64,7 @@ public class CarListing {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private ListingStatus status = ListingStatus.ACTIVE;
 
     @CreationTimestamp
