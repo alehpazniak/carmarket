@@ -14,7 +14,11 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "user_profiles")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class UserProfile {
 
     @Id
@@ -44,9 +48,11 @@ public class UserProfile {
     @Column(nullable = false)
     private UserRole role;
 
+    @Builder.Default
     @Column(name = "is_active")
     private boolean active = true;
 
+    @Builder.Default
     @Column(name = "listings_count")
     private int listingsCount = 0;
 

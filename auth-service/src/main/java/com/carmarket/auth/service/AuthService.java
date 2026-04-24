@@ -50,8 +50,7 @@ public class AuthService {
         String avatar = extractAvatar(oAuth2User, provider);
 
         // 1. Find by provider identity
-        Optional<User> existingByProvider = userRepository
-            .findByProviderAndProviderId(provider, providerUserId);
+        Optional<User> existingByProvider = userRepository.findByProviderAndProviderId(provider, providerUserId);
 
         User user;
         boolean isNewUser = false;

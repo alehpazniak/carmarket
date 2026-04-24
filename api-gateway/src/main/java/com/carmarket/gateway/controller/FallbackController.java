@@ -1,4 +1,4 @@
-package com.carmarket.gateway.config;
+package com.carmarket.gateway.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
