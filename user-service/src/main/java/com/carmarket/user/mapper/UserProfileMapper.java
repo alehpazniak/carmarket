@@ -4,6 +4,7 @@ import com.carmarket.user.dto.UserProfileRequest;
 import com.carmarket.user.dto.UserProfileResponse;
 import com.carmarket.user.entity.UserProfile;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 
 /**
  * MapStruct mapper for UserProfile entity ↔ DTO conversions.
@@ -19,6 +20,12 @@ public interface UserProfileMapper {
     /**
      * Convert request DTO to UserProfile entity.
      */
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "role", ignore = true)
+    @Mapping(target = "active", ignore = true)
+    @Mapping(target = "listingsCount", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     UserProfile toEntity(UserProfileRequest request);
 
 }

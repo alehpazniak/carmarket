@@ -17,6 +17,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Global JWT filter — runs on every request before routing.
@@ -63,6 +64,10 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
         Claims claims = jwtUtil.validateAndGetClaims(token);
         String userId = claims.getSubject();
+        if (!isValidUuid(userId)) {
+            log.warn("JWT subject is not a valid UUID for path {}: {}", path, userId);
+            return onUnauthorized(exchange.getResponse(), "Invalid token subject");
+        }
         String roles = String.join(",", jwtUtil.extractRoles(token));
 
         // Mutate request — add user context headers for downstream services
@@ -90,6 +95,15 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         var body = response.bufferFactory()
             .wrap(("{\"error\":\"" + message + "\"}").getBytes());
         return response.writeWith(Mono.just(body));
+    }
+
+    private boolean isValidUuid(String value) {
+        try {
+            UUID.fromString(value);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     @Override
