@@ -48,6 +48,9 @@ spring:
       acks: all
       retries: 3
 
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET}
+
 eureka:
   client:
     service-url:

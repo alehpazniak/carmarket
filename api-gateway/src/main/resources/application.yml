@@ -17,6 +17,8 @@ spring:
       # Disable default filters if you want full control
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+      redis-rate-limiter:
+        include-headers: true   # Show X-RateLimit-* (default: true)
 
 eureka:
   client:
@@ -27,9 +29,14 @@ eureka:
     lease-renewal-interval-in-seconds: 10
     lease-expiration-duration-in-seconds: 30
 
-# JWT — must match the secret used in auth-service
+# JWT — must match the secret used in auth-service secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
 jwt:
-  secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+  secret: ${JWT_SECRET}
+
+# Shared secret for signing the internal identity header (X-Gateway-Signature)
+# Must match the value used by car-service / user-service
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET}
 
 # Resilience4j circuit breaker defaults
 resilience4j:

@@ -72,7 +72,8 @@ spring:
 
 # ── JWT ────────────────────────────────────────────────────────────────────────
 jwt:
-  secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+  # secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+  secret: ${JWT_SECRET}
   access-token-expiry-ms: 900000      # 15 minutes
   refresh-token-expiry-ms: 604800000  # 7 days
 
@@ -88,7 +89,9 @@ eureka:
 # ── App config ─────────────────────────────────────────────────────────────────
 app:
   oauth2:
-    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:5173/auth/callback}
+#    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:5173/auth/callback}
+    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:3000/auth/callback}
+    allowed-redirect-hosts: ${OAUTH2_ALLOWED_HOSTS:localhost}
 
 management:
   endpoints:

@@ -28,8 +28,17 @@ public class JwtUtil {
 
     @PostConstruct
     public void init() {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                "jwt.secret is not configured — refusing to start");
+        }
         byte[] keyBytes = Base64.getDecoder().decode(secret);
+        if (keyBytes.length < 32) { // HMAC-SHA256 requires >= 256 bit
+            throw new IllegalStateException(
+                "jwt.secret too short — must be at least 32 bytes after base64 decode");
+        }
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
+
     }
 
     /**

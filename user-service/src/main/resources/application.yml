@@ -23,6 +23,9 @@ spring:
         spring.json.value.default.type: java.util.Map
       auto-offset-reset: earliest
 
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET}
+
 eureka:
   client:
     service-url:
