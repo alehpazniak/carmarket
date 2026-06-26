@@ -20,7 +20,7 @@ import java.util.UUID;
 /**
  * Issues and validates JWTs.
  *
- * Access token  — short-lived (15 min), carries user id, email, role
+ * Access token — short-lived (15 min), carries user id, email, role
  * Refresh token — long-lived (7 days), carries only user id + jti for revocation
  */
 @Slf4j

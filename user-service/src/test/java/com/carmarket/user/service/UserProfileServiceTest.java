@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -86,5 +87,54 @@ class UserProfileServiceTest {
         assertTrue(result.isPresent());
         assertEquals(email, result.get().getEmail());
         verify(userProfileRepository, times(1)).findByEmail(email);
+    }
+
+    @Test
+    @DisplayName("getUserByEmail - should return empty when email not found")
+    void testGetUserByEmail_NotFound() {
+        // Arrange
+        String email = "nonexistent@example.com";
+        when(userProfileRepository.findByEmail(email))
+            .thenReturn(Optional.empty());
+
+        // Act
+        Optional<UserProfile> result = userProfileService.getUserByEmail(email);
+
+        // Assert
+        assertFalse(result.isPresent());
+        verify(userProfileRepository, times(1)).findByEmail(email);
+    }
+
+    @Test
+    @DisplayName("getUsersByRole - should return users with specific role")
+    void testGetUsersByRole_Success() {
+        UserProfile dealer = UserProfile.builder()
+            .id(UUID.randomUUID())
+            .email("dealer@example.com")
+            .role(UserRole.DEALER)
+            .active(true)
+            .build();
+        List<UserProfile> dealers = List.of(dealer);
+        when(userProfileRepository.findByRoleAndActive(UserRole.DEALER, true)).thenReturn(dealers);
+
+        List<UserProfile> result = userProfileService.getUsersByRole(UserRole.DEALER);
+
+        assertEquals(1, result.size());
+        assertEquals(UserRole.DEALER, result.get(0).getRole());
+        verify(userProfileRepository, times(1)).findByRoleAndActive(UserRole.DEALER, true);
+    }
+
+    @Test
+    @DisplayName("createProfile - should create new profile successfully")
+    void testCreateProfile_Success() {
+        when(userProfileRepository.findByEmail("test@example.com")).thenReturn(Optional.empty());
+        when(userProfileRepository.save(testUserProfile)).thenReturn(testUserProfile);
+
+        UserProfile result = userProfileService.createProfile(testUserProfile);
+
+        assertNotNull(result);
+        assertEquals("test@example.com", result.getEmail());
+        verify(userProfileRepository, times(1)).findByEmail("test@example.com");
+        verify((userProfileRepository), times(1)).save(testUserProfile);
     }
 }

@@ -42,9 +42,7 @@ public class UserController {
      * @return User profile or 401 if not found
      */
     @GetMapping("/me")
-    public ResponseEntity<UserProfileResponse> getMyProfile(
-        @RequestHeader("X-User-Id") String userId) {
-
+    public ResponseEntity<UserProfileResponse> getMyProfile(@RequestHeader("X-User-Id") String userId) {
         log.info("Fetching profile for user: {}", userId);
 
         return userProfileService.getUserProfile(UUID.fromString(userId))
@@ -67,7 +65,6 @@ public class UserController {
      */
     @GetMapping("/{id}")
     public ResponseEntity<UserProfileResponse> getProfile(@PathVariable UUID id) {
-
         log.info("Fetching public profile for user: {}", id);
 
         return userProfileService.getUserProfile(id)
@@ -90,10 +87,8 @@ public class UserController {
      * @return Updated profile or 404 if not found
      */
     @PatchMapping("/me")
-    public ResponseEntity<UserProfileResponse> updateProfile(
-        @RequestHeader("X-User-Id") String userId,
-        @Valid @RequestBody UserProfileRequest request) {
-
+    public ResponseEntity<UserProfileResponse> updateProfile(@RequestHeader("X-User-Id") String userId,
+                                                             @Valid @RequestBody UserProfileRequest request) {
         UUID id = UUID.fromString(userId);
         log.info("Updating profile for user: {}", id);
 
@@ -117,7 +112,6 @@ public class UserController {
      */
     @DeleteMapping("/me")
     public ResponseEntity<Void> deleteProfile(@RequestHeader("X-User-Id") String userId) {
-
         UUID id = UUID.fromString(userId);
         log.info("Deactivating account for user: {}", id);
 
@@ -139,9 +133,7 @@ public class UserController {
      * @return Updated profile
      */
     @PostMapping("/{userId}/increment-listings")
-    public ResponseEntity<UserProfileResponse> incrementListings(
-        @PathVariable UUID userId) {
-
+    public ResponseEntity<UserProfileResponse> incrementListings(@PathVariable UUID userId) {
         log.info("Incrementing listings count for user: {}", userId);
 
         try {
@@ -167,9 +159,7 @@ public class UserController {
      * @return Updated profile
      */
     @PostMapping("/{userId}/decrement-listings")
-    public ResponseEntity<UserProfileResponse> decrementListings(
-        @PathVariable UUID userId) {
-
+    public ResponseEntity<UserProfileResponse> decrementListings(@PathVariable UUID userId) {
         log.info("Decrementing listings count for user: {}", userId);
 
         try {

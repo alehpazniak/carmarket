@@ -60,7 +60,7 @@ public class CarListingService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CarListingResponse> getMySlistings(UUID sellerId, Pageable pageable) {
+    public Page<CarListingResponse> getMyListings(UUID sellerId, Pageable pageable) {
         return repository.findBySellerId(sellerId, pageable)
             .map(mapper::toResponse);
     }

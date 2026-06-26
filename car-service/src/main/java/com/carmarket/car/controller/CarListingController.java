@@ -47,10 +47,9 @@ public class CarListingController {
     }
 
     @GetMapping("/my")
-    public ResponseEntity<Page<CarListingResponse>> myListings(
-        @RequestHeader("X-User-Id") String userId,
-        @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
-        return ResponseEntity.ok(service.getMySlistings(UUID.fromString(userId), pageable));
+    public ResponseEntity<Page<CarListingResponse>> myListings(@RequestHeader("X-User-Id") String userId,
+                                                               @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
+        return ResponseEntity.ok(service.getMyListings(UUID.fromString(userId), pageable));
     }
 
     @PostMapping({"", "/"})
@@ -61,33 +60,27 @@ public class CarListingController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CarListingResponse> update(
-        @PathVariable UUID id,
-        @Valid @RequestBody CarListingRequest request,
-        @RequestHeader("X-User-Id") String userId) {
+    public ResponseEntity<CarListingResponse> update(@PathVariable UUID id,
+                                                     @Valid @RequestBody CarListingRequest request,
+                                                     @RequestHeader("X-User-Id") String userId) {
         return ResponseEntity.ok(service.update(id, request, UUID.fromString(userId)));
     }
 
     @PatchMapping("/{id}/sold")
-    public ResponseEntity<CarListingResponse> markAsSold(
-        @PathVariable UUID id,
-        @RequestHeader("X-User-Id") String userId) {
+    public ResponseEntity<CarListingResponse> markAsSold(@PathVariable UUID id,
+                                                         @RequestHeader("X-User-Id") String userId) {
         return ResponseEntity.ok(service.markAsSold(id, UUID.fromString(userId)));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(
-        @PathVariable UUID id,
-        @RequestHeader("X-User-Id") String userId) {
+    public ResponseEntity<Void> delete(@PathVariable UUID id, @RequestHeader("X-User-Id") String userId) {
         service.delete(id, UUID.fromString(userId));
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/images")
-    public ResponseEntity<List<String>> uploadImages(
-        @PathVariable UUID id,
-        @RequestHeader("X-User-Id") String userId,
-        @RequestParam("files") List<MultipartFile> files) {
+    public ResponseEntity<List<String>> uploadImages(@PathVariable UUID id, @RequestHeader("X-User-Id") String userId,
+                                                     @RequestParam("files") List<MultipartFile> files) {
         List<String> urls = service.uploadImages(id, UUID.fromString(userId), files);
         return ResponseEntity.ok(urls);
     }

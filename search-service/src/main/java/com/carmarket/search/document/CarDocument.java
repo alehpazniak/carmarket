@@ -2,24 +2,20 @@ package com.carmarket.search.document;
 
 import lombok.*;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.elasticsearch.annotations.DateFormat;
-import org.springframework.data.elasticsearch.annotations.Document;
-import org.springframework.data.elasticsearch.annotations.Field;
-import org.springframework.data.elasticsearch.annotations.FieldType;
-import org.springframework.data.elasticsearch.annotations.Setting;
+import org.springframework.data.elasticsearch.annotations.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 
 /**
  * Elasticsearch document for car listings.
- *
+ * <p>
  * Index: car_listings
  * Each field is typed for optimal search:
- *   - make/model: both keyword (exact) + text (full-text) via multi-field
- *   - price/mileage/year: integer/double for range queries
- *   - city: keyword for aggregations
- *   - description: analyzed text for full-text search
+ * - make/model: both keyword (exact) + text (full-text) via multi-field
+ * - price/mileage/year: integer/double for range queries
+ * - city: keyword for aggregations
+ * - description: analyzed text for full-text search
  */
 @Document(indexName = "car_listings")
 @Setting(settingPath = "elasticsearch/settings.json")
@@ -36,8 +32,7 @@ public class CarDocument {
     @Field(type = FieldType.Keyword)
     private String sellerId;
 
-    @Field(type = FieldType.Text, analyzer = "standard",
-        fielddata = true)
+    @Field(type = FieldType.Text, analyzer = "standard", fielddata = true)
     private String make;
 
     @Field(type = FieldType.Text, analyzer = "standard")
