@@ -1,5 +1,6 @@
 package com.carmarket.gateway.filter;
 
+import com.carmarket.gateway.secutity.GatewaySignatureService;
 import com.carmarket.gateway.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private static final String BEARER_PREFIX = "Bearer ";
     private final JwtUtil jwtUtil;
+    private final GatewaySignatureService signatureService;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
     private static final List<String> PUBLIC_ROUTES = List.of(
         "/api/auth/**",
@@ -46,6 +48,19 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
         String method = exchange.getRequest().getMethod().name();
+
+        if (isPublicRoute(path, method)) {
+            // Public route: still strip any spoofed identity headers before forwarding
+            ServerHttpRequest cleaned = exchange.getRequest().mutate()
+                .headers(headers -> {
+                    headers.remove("X-User-Id");
+                    headers.remove("X-User-Roles");
+                    headers.remove("X-User-Email");
+                })
+                .build();
+            return chain.filter(exchange.mutate().request(cleaned).build());
+        }
+
         if (isPublicRoute(path, method)) {
             return chain.filter(exchange);
         }
@@ -70,11 +85,18 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         }
         String roles = String.join(",", jwtUtil.extractRoles(token));
 
-        // Mutate request — add user context headers for downstream services
         ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
-            .header("X-User-Id", userId)
-            .header("X-User-Roles", roles)
-            .header("X-User-Email", claims.get("email", String.class))
+            .headers(headers -> {
+                headers.remove("X-User-Id");
+                headers.remove("X-User-Roles");
+                headers.remove("X-User-Email");
+                headers.remove("X-Gateway-Signature");
+                headers.set("X-User-Id", userId);
+                headers.set("X-User-Roles", roles);
+                headers.set("X-User-Email", claims.get("email", String.class));
+                headers.set("X-Gateway-Signature", signatureService.sign(userId));
+            })
+
             .build();
 
         log.debug("JWT validated for user: {} path: {}", userId, path);

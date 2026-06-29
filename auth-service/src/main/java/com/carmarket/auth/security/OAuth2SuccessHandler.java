@@ -19,13 +19,14 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 
 /**
  * Called by Spring Security after a successful OAuth2 callback.
- *
+ * <p>
  * Two modes:
- *  1. If frontend sends a redirect_uri param → redirect with tokens in query params
- *  2. Otherwise → return JSON response (REST flow for SPAs/mobile apps)
+ * 1. If frontend sends a redirect_uri param → redirect with tokens in query params
+ * 2. Otherwise → return JSON response (REST flow for SPAs/mobile apps)
  */
 @Slf4j
 @Component
@@ -37,6 +38,8 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     @Value("${app.oauth2.redirect-uri:http://localhost:3000/auth/callback}")
     private String defaultRedirectUri;
+    @Value("${app.oauth2.allowed-redirect-hosts:}")
+    private List<String> allowedRedirectHosts;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request,
@@ -76,13 +79,42 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     }
 
     private boolean isAllowedRedirectUri(String uri) {
-        // Basic validation — in prod, maintain an allowlist
+        if (uri == null || uri.isBlank()) {
+            return false;
+        }
         try {
             URI parsed = URI.create(uri);
+            String scheme = parsed.getScheme();
             String host = parsed.getHost();
-            return host != null && !host.isBlank();
+
+            if (host == null || host.isBlank()) {
+                return false;
+            }
+            // Only https in prod; allow http for localhost during dev
+            boolean schemeOk = "https".equalsIgnoreCase(scheme)
+                || ("http".equalsIgnoreCase(scheme) && isLocalhost(host));
+            if (!schemeOk) {
+                log.warn("Rejected OAuth2 redirect — scheme not allowed: {}", uri);
+                return false;
+            }
+
+            boolean hostAllowed = allowedRedirectHosts.stream()
+                .anyMatch(allowed -> allowed.equalsIgnoreCase(host));
+            if (!hostAllowed) {
+                log.warn("Rejected OAuth2 redirect — host not in allowlist: {}", host);
+                return false;
+            }
+            return true;
         } catch (Exception e) {
+            log.warn("Rejected OAuth2 redirect — unparseable URI: {}", uri);
             return false;
         }
     }
+
+    private boolean isLocalhost(String host) {
+        return "localhost".equalsIgnoreCase(host)
+            || "127.0.0.1".equals(host)
+            || "[::1]".equals(host);
+    }
+
 }
