@@ -75,9 +75,9 @@ public class CarListing {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public enum FuelType {PETROL, DIESEL, ELECTRIC, HYBRID, LPG}
+//    public enum FuelType {PETROL, DIESEL, ELECTRIC, HYBRID, LPG}
 
-    public enum Transmission {MANUAL, AUTOMATIC, SEMI_AUTOMATIC}
+//    public enum Transmission {MANUAL, AUTOMATIC, SEMI_AUTOMATIC}
 
-    public enum ListingStatus {ACTIVE, SOLD, DRAFT, REMOVED}
+//    public enum ListingStatus {ACTIVE, SOLD, DRAFT, REMOVED}
 }

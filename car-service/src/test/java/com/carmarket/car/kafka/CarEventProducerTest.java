@@ -2,9 +2,9 @@ package com.carmarket.car.kafka;
 
 import com.carmarket.car.dto.CarUpdatedEvent;
 import com.carmarket.car.entity.CarListing;
-import com.carmarket.car.entity.CarListing.FuelType;
-import com.carmarket.car.entity.CarListing.ListingStatus;
-import com.carmarket.car.entity.CarListing.Transmission;
+import com.carmarket.car.entity.FuelType;
+import com.carmarket.car.entity.ListingStatus;
+import com.carmarket.car.entity.Transmission;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

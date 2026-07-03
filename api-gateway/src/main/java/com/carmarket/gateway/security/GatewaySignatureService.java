@@ -1,4 +1,4 @@
-package com.carmarket.gateway.secutity;
+package com.carmarket.gateway.security;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;

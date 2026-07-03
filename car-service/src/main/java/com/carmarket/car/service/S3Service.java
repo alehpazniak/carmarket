@@ -34,8 +34,7 @@ public class S3Service {
     public void init() {
         s3Client = S3Client.builder()
             .region(Region.of(region))
-            .credentialsProvider(StaticCredentialsProvider.create(
-                AwsBasicCredentials.create(accessKey, secretKey)))
+            .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
             .build();
     }
 
