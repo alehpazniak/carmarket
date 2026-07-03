@@ -1,6 +1,6 @@
 package com.carmarket.gateway.filter;
 
-import com.carmarket.gateway.secutity.GatewaySignatureService;
+import com.carmarket.gateway.security.GatewaySignatureService;
 import com.carmarket.gateway.util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
@@ -61,9 +61,6 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange.mutate().request(cleaned).build());
         }
 
-        if (isPublicRoute(path, method)) {
-            return chain.filter(exchange);
-        }
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
         if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
             log.warn("Missing or malformed Authorization header for path: {}", path);

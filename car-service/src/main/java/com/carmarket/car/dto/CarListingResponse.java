@@ -1,8 +1,8 @@
 package com.carmarket.car.dto;
 
-import com.carmarket.car.entity.CarListing.FuelType;
-import com.carmarket.car.entity.CarListing.ListingStatus;
-import com.carmarket.car.entity.CarListing.Transmission;
+import com.carmarket.car.entity.FuelType;
+import com.carmarket.car.entity.ListingStatus;
+import com.carmarket.car.entity.Transmission;
 import lombok.*;
 
 import java.math.BigDecimal;

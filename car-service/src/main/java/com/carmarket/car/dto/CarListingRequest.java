@@ -1,7 +1,7 @@
 package com.carmarket.car.dto;
 
-import com.carmarket.car.entity.CarListing.FuelType;
-import com.carmarket.car.entity.CarListing.Transmission;
+import com.carmarket.car.entity.FuelType;
+import com.carmarket.car.entity.Transmission;
 import jakarta.validation.constraints.*;
 import lombok.*;
 

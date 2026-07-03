@@ -3,7 +3,7 @@ package com.carmarket.car.service;
 import com.carmarket.car.dto.CarListingRequest;
 import com.carmarket.car.dto.CarListingResponse;
 import com.carmarket.car.entity.CarListing;
-import com.carmarket.car.entity.CarListing.ListingStatus;
+import com.carmarket.car.entity.ListingStatus;
 import com.carmarket.car.kafka.CarEventProducer;
 import com.carmarket.car.mapper.CarListingMapper;
 import com.carmarket.car.repository.CarListingRepository;
