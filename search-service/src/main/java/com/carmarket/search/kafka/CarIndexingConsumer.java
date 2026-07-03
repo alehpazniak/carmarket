@@ -12,8 +12,6 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 
 /**
  * Consumes car.created, car.updated, car.deleted from Kafka
@@ -63,7 +61,7 @@ public class CarIndexingConsumer {
             .transmission(event.transmission())
             .city(event.city())
             .status(event.status())
-            .createdAt(event.createdAt().atZone(ZoneId.systemDefault()).toInstant())
+            .createdAt(Instant.from(event.createdAt()))
             .build();
     }
 

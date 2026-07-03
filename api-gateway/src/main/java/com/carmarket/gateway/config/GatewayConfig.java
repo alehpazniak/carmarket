@@ -38,6 +38,15 @@ public class GatewayConfig {
     }
 
     /**
+     * Strict limiter for auth endpoints — anti-bruteforce.
+     * replenishRate=5/s, burst=10, 1 token per request.
+     */
+    @Bean
+    public RedisRateLimiter authRateLimiter() {
+        return new RedisRateLimiter(5, 10, 1);
+    }
+
+    /**
      * Standard limiter for general API traffic.
      * replenishRate=20/s, burst=40.
      */

@@ -25,10 +25,7 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(gatewaySignatureFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.GET, "/users/me").authenticated()
-                .requestMatchers(HttpMethod.PATCH, "/users/me").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/users/me").authenticated()
-                .requestMatchers(HttpMethod.GET, "/users/{id}").permitAll()
+                .requestMatchers(HttpMethod.GET, "/users", "/users/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated() // ← was permitAll(); now requires valid gateway signature
             );

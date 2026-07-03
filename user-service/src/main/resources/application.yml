@@ -24,7 +24,7 @@ spring:
       auto-offset-reset: earliest
 
 gateway:
-  internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+  internal-secret: ${GATEWAY_INTERNAL_SECRET}
 
 eureka:
   client:

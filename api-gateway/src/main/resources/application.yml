@@ -31,12 +31,12 @@ eureka:
 
 # JWT — must match the secret used in auth-service secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
 jwt:
-  secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+  secret: ${JWT_SECRET}
 
 # Shared secret for signing the internal identity header (X-Gateway-Signature)
 # Must match the value used by car-service / user-service
 gateway:
-  internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+  internal-secret: ${GATEWAY_INTERNAL_SECRET}
 
 # Resilience4j circuit breaker defaults
 resilience4j:

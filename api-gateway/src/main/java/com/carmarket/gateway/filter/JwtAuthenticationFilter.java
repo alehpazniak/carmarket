@@ -22,12 +22,12 @@ import java.util.UUID;
 
 /**
  * Global JWT filter — runs on every request before routing.
- * <p>
+ *
  * Flow:
- * 1. Check if route is public  → pass through
- * 2. Extract Bearer token from Authorization header
- * 3. Validate JWT signature + expiry (stateless, no auth-service call)
- * 4. Inject X-User-Id and X-User-Roles headers for downstream services
+ *  1. Check if route is public  → pass through
+ *  2. Extract Bearer token from Authorization header
+ *  3. Validate JWT signature + expiry (stateless, no auth-service call)
+ *  4. Inject X-User-Id and X-User-Roles headers for downstream services
  */
 @Slf4j
 @Component
@@ -44,7 +44,6 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         "/actuator/**",
         "/eureka/**"
     );
-
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
@@ -102,10 +101,6 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isPublicRoute(String path, String method) {
-        if (pathMatcher.match("api/cars/favorites", path) || pathMatcher.match("/api/cars/*/favorite", path)) {
-            return false;
-        }
-
         if ("GET".equals(method) &&
             (pathMatcher.match("/api/cars", path) || pathMatcher.match("/api/cars/**", path))) {
             return true;
