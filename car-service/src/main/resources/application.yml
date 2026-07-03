@@ -49,7 +49,7 @@ spring:
       retries: 3
 
 gateway:
-  internal-secret: ${GATEWAY_INTERNAL_SECRET}
+  internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
 
 eureka:
   client:

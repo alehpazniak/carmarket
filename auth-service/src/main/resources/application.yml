@@ -73,7 +73,7 @@ spring:
 # ── JWT ────────────────────────────────────────────────────────────────────────
 jwt:
   # secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
-  secret: ${JWT_SECRET}
+  secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
   access-token-expiry-ms: 900000      # 15 minutes
   refresh-token-expiry-ms: 604800000  # 7 days
 
