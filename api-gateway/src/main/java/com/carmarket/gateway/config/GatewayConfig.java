@@ -51,6 +51,7 @@ public class GatewayConfig {
      * replenishRate=20/s, burst=40.
      */
     @Bean
+    @Primary
     public RedisRateLimiter standardRateLimiter() {
         return new RedisRateLimiter(20, 40, 1);
     }
