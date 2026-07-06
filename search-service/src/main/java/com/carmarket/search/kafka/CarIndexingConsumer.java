@@ -10,10 +10,7 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
-import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 
 /**
  * Consumes car.created, car.updated, car.deleted from Kafka
@@ -65,18 +62,5 @@ public class CarIndexingConsumer {
             .status(event.status())
             .createdAt(event.createdAt().atZone(ZoneId.systemDefault()).toInstant())
             .build();
-    }
-
-    private Integer toInt(Object val) {
-        if (val == null) return null;
-        if (val instanceof Integer i) return i;
-        if (val instanceof Number n) return n.intValue();
-        return Integer.parseInt(val.toString());
-    }
-
-    private BigDecimal toBigDecimal(Object val) {
-        if (val == null) return null;
-        if (val instanceof BigDecimal bd) return bd;
-        return new BigDecimal(val.toString());
     }
 }

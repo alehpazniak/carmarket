@@ -63,10 +63,6 @@ public class JwtUtil {
         }
     }
 
-    public String extractUserId(String token) {
-        return validateAndGetClaims(token).getSubject();
-    }
-
     @SuppressWarnings("unchecked")
     public List<String> extractRoles(String token) {
         return validateAndGetClaims(token).get("roles", List.class);
