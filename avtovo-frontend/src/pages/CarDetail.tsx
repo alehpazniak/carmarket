@@ -4,6 +4,7 @@ import { getCar, deleteCar } from '../api/cars';
 import type {CarListing} from '../types';
 import { useAuth } from '../context/AuthContext';
 import { MapPin, Fuel, Gauge, Calendar, Cog, Palette, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ContactSellerButton } from '../components/ContactSellerButton';
 
 const FUEL_LABELS: Record<string, string> = {
     PETROL: 'Benzyna', DIESEL: 'Diesel', ELECTRIC: 'Elektryczny', HYBRID: 'Hybryda', LPG: 'LPG',
@@ -156,6 +157,7 @@ export default function CarDetail() {
                                 </div>
                             )}
                         </div>
+                        <ContactSellerButton carId={car.id} sellerId={car.sellerId} />
                     </div>
                 </div>
             </div>

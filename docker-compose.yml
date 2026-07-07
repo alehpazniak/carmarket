@@ -24,6 +24,7 @@ volumes:
   kafka-data:
   zookeeper-data:
   elasticsearch-data:
+  postgres-chat-data:
 
 services:
 
@@ -349,4 +350,50 @@ services:
       EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
       ES_HOST: elasticsearch
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    restart: on-failure
+
+  # ─── CHAT DATABASE ──────────────────────────────────────────────────────────
+  postgres-chat:
+    image: postgres:16-alpine
+    container_name: postgres-chat
+    networks: [carmarket-net]
+    ports: ["5436:5432"]
+    environment:
+      POSTGRES_DB: chat_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-chat-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d chat_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── CHAT SERVICE ───────────────────────────────────────────────────────────
+  # Rebuild: docker compose build chat-service
+  # Restart: docker compose up -d --build --no-deps chat-service
+  chat-service:
+    build:
+      context: ./chat-service
+      dockerfile: Dockerfile
+    image: carmarket/chat-service:local
+    container_name: chat-service
+    networks: [carmarket-net]
+    ports: ["8085:8085"]
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      postgres-chat:
+        condition: service_healthy
+    environment:
+      EUREKA_HOST: eureka-server
+      EUREKA_USER: ${EUREKA_USER:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      CHAT_DB_HOST: postgres-chat
+      CHAT_DB_PORT: 5432
+      CHAT_DB_NAME: chat_db
+      CHAT_DB_USER: postgres
+      CHAT_DB_PASSWORD: postgres
+      JWT_SECRET: ${JWT_SECRET:-bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
     restart: on-failure

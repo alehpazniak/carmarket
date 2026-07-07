@@ -139,6 +139,13 @@ public class GatewayConfig {
                     .rewritePath("/api/search/(?<segment>.*)", "/search/${segment}"))
                 .uri("lb://search-service"))
 
+            // ─── CHAT SERVICE — with path ───────────────────────────────
+            .route("chat-service", r -> r
+                .path("/api/chat/**")
+                .filters(f -> f
+                    .rewritePath("/api/chat/(?<segment>.*)", "/chat/${segment}"))
+                .uri("lb://chat-service"))
+
             .build();
     }
 

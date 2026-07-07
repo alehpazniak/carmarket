@@ -6,6 +6,7 @@ import AuthCallback from './pages/AuthCallback';
 import AddListing from './pages/AddListing';
 import CarDetail from './pages/CarDetail';
 import MyListings from './pages/MyListings';
+import Messages from './pages/Messages';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, isLoading } = useAuth();
@@ -32,6 +33,7 @@ function AppRoutes() {
                 <Route path="/moje-ogloszenia" element={
                     <ProtectedRoute><MyListings /></ProtectedRoute>
                 } />
+                <Route path="/messages" element={<Messages />} />
             </Routes>
         </div>
     );
