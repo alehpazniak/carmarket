@@ -40,6 +40,8 @@ export default function Navbar() {
                                     Dodaj ogłoszenie
                                 </Link>
 
+                                {isAuthenticated && <Link to="/messages">Messages</Link>}
+
                                 {/* User menu */}
                                 <div className="relative">
                                     <button

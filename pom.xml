@@ -17,6 +17,7 @@
         <module>user-service</module>
         <module>car-service</module>
         <module>search-service</module>
+        <module>chat-service</module>
     </modules>
 
     <properties>
