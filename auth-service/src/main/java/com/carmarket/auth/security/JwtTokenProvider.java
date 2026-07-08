@@ -5,7 +5,6 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,9 +27,6 @@ import java.util.UUID;
 @Component
 public class JwtTokenProvider {
 
-    @Value("${jwt.secret}")
-    private String secret;
-
     @Value("${jwt.access-token-expiry-ms:900000}")       // 15 min
     private long accessTokenExpiryMs;
 
@@ -38,10 +34,9 @@ public class JwtTokenProvider {
     @Value("${jwt.refresh-token-expiry-ms:604800000}")   // 7 days
     private long refreshTokenExpiryMs;
 
-    private SecretKey signingKey;
+    private final SecretKey signingKey;
 
-    @PostConstruct
-    public void init() {
+    public JwtTokenProvider(@Value("${jwt.secret}") String secret) {
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException(
                 "jwt.secret is not configured — refusing to start");
@@ -52,7 +47,6 @@ public class JwtTokenProvider {
                 "jwt.secret too short — must be at least 32 bytes after base64 decode");
         }
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
-
     }
 
     // ─── ACCESS TOKEN ──────────────────────────────────────────────────────────

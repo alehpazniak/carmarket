@@ -1,6 +1,5 @@
 package com.carmarket.gateway.security;
 
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -14,13 +13,9 @@ import java.util.Base64;
 @Component
 public class GatewaySignatureService {
 
-    @Value("${gateway.internal-secret}")
-    private String internalSecret;
+    private final SecretKeySpec keySpec;
 
-    private SecretKeySpec keySpec;
-
-    @PostConstruct
-    public void init() {
+    public GatewaySignatureService(@Value("${gateway.internal-secret}") String internalSecret) {
         if (internalSecret == null || internalSecret.isBlank()) {
             throw new IllegalStateException("gateway.internal-secret must be set");
         }

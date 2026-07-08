@@ -4,7 +4,6 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -21,13 +20,9 @@ import java.util.List;
 @Component
 public class JwtUtil {
 
-    @Value("${jwt.secret}")
-    private String secret;
+    private final SecretKey signingKey;
 
-    private SecretKey signingKey;
-
-    @PostConstruct
-    public void init() {
+    public JwtUtil(@Value("${jwt.secret}") String secret) {
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException(
                 "jwt.secret is not configured — refusing to start");
@@ -38,7 +33,6 @@ public class JwtUtil {
                 "jwt.secret too short — must be at least 32 bytes after base64 decode");
         }
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
-
     }
 
     /**

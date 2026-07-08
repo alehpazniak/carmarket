@@ -1,6 +1,5 @@
 package com.carmarket.user.security;
 
-import jakarta.annotation.PostConstruct;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -29,13 +28,9 @@ public class GatewaySignatureFilter extends OncePerRequestFilter {
 
     private static final long MAX_AGE_MS = 30_000; // reject headers older than 30s (replay window)
 
-    @Value("${gateway.internal-secret}")
-    private String internalSecret;
+    private final SecretKeySpec keySpec;
 
-    private SecretKeySpec keySpec;
-
-    @PostConstruct
-    public void init() {
+    public GatewaySignatureFilter(@Value("${gateway.internal-secret}") String internalSecret) {
         if (internalSecret == null || internalSecret.isBlank()) {
             throw new IllegalStateException("gateway.internal-secret must be set");
         }
