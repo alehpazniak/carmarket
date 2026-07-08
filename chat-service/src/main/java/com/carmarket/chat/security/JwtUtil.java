@@ -4,7 +4,6 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -17,14 +16,9 @@ import java.util.Base64;
 @Component
 public class JwtUtil {
 
+    private final SecretKey signingKey;
 
-    @Value("${jwt.secret}")
-    private String secret;
-
-    private SecretKey signingKey;
-
-    @PostConstruct
-    public void init() {
+    public JwtUtil(@Value("${jwt.secret}") String secret) {
         if (secret == null || secret.isBlank()) {
             throw new IllegalStateException("jwt.secret is not configured — refusing to start");
         }

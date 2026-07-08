@@ -24,19 +24,14 @@ public class S3Service {
     private String bucket;
     @Value("${aws.s3.region}")
     private String region;
-    @Value("${aws.s3.access-key}")
-    private String accessKey;
     @Value("${aws.s3.secret-key}")
-    private String secretKey;
-    private S3Client s3Client;
 
-    @PostConstruct
-    public void init() {
-        s3Client = S3Client.builder()
-            .region(Region.of(region))
-            .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey)))
-            .build();
+    private final S3Client s3Client;
+
+    public S3Service(S3Client s3Client) {
+        this.s3Client = s3Client;
     }
+
 
     public List<String> uploadImages(String carId, List<MultipartFile> files) {
         List<String> urls = new ArrayList<>();
