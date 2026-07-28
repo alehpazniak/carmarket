@@ -2,7 +2,6 @@ package com.carmarket.auction.scheduler;
 
 import com.carmarket.auction.entity.AuctionLot;
 import com.carmarket.auction.parser.AuctionParser;
-import com.carmarket.auction.parser.AuctionParser.AuctionSource;
 import com.carmarket.auction.service.AuctionLotService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

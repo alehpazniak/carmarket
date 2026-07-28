@@ -25,6 +25,7 @@ volumes:
   zookeeper-data:
   elasticsearch-data:
   postgres-chat-data:
+  postgres-auction-data:
 
 services:
 
@@ -398,14 +399,46 @@ services:
       JWT_SECRET: ${JWT_SECRET:-bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
     restart: on-failure
 
-  auction-import-service:
-    build: ./auction-import-service
-    ports:
-      - "8086:8086"
+  # ─── AUCTION DATABASE ───────────────────────────────────────────────────────
+  postgres-auction:
+    image: postgres:16-alpine
+    container_name: postgres-auction
+    networks: [ carmarket-net ]
+    ports: [ "5437:5432" ]
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - DB_HOST=postgres
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      POSTGRES_DB: carmarket_auctions
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-auction-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d carmarket_auctions" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+   # ─── AUCTION IMPORT SERVICE ─────────────────────────────────────────────────
+  auction-import-service:
+    build:
+      context: ./auction-import-service
+      dockerfile: Dockerfile
+    image: carmarket/auction-import-service:local
+    container_name: auction-import-service
+    networks: [ carmarket-net ]
+    ports: [ "8086:8086" ]
     depends_on:
-      - postgres
-      - kafka
+      eureka-server:
+        condition: service_healthy
+      postgres-auction:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      EUREKA_HOST: eureka-server
+      EUREKA_USER: ${EUREKA_USER:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      DB_HOST: postgres-auction
+      DB_USER: postgres
+      DB_PASS: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+    restart: on-failure

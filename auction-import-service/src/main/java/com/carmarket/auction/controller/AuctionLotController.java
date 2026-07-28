@@ -3,6 +3,7 @@ package com.carmarket.auction.controller;
 import com.carmarket.auction.dto.CalculationRequest;
 import com.carmarket.auction.dto.ImportCalculationResponse;
 import com.carmarket.auction.entity.AuctionLot;
+import com.carmarket.auction.repository.AuctionLotRepository;
 import com.carmarket.auction.service.AuctionLotService;
 import com.carmarket.auction.service.calculator.CalculationInput;
 import com.carmarket.auction.service.calculator.ImportCostCalculator;

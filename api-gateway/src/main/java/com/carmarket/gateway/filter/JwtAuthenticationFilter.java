@@ -109,6 +109,11 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             (pathMatcher.match("/api/cars", path) || pathMatcher.match("/api/cars/**", path))) {
             return true;
         }
+        if ("GET".equals(method) &&
+            (pathMatcher.match("/api/auctions/lots", path) ||
+                pathMatcher.match("/api/auctions/lots/**", path))) {
+            return true;
+        }
         return PUBLIC_ROUTES.stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
     }
 
