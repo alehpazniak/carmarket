@@ -1,7 +1,7 @@
 package com.carmarket.car.config;
 
-import com.carmarket.car.service.CarListingService.AccessDeniedException;
-import com.carmarket.car.service.CarListingService.CarNotFoundException;
+import com.carmarket.car.exception.CarNotFoundException;
+import com.carmarket.car.exception.AccessDeniedException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;

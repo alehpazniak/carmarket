@@ -2,6 +2,7 @@ package com.carmarket.car.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -57,7 +58,8 @@ public class CarListing {
     private String country;
 
     @Builder.Default
-    @ElementCollection(fetch = FetchType.EAGER)
+    @ElementCollection(fetch = FetchType.LAZY)
+    @BatchSize(size = 20)
     @CollectionTable(name = "car_listing_images", joinColumns = @JoinColumn(name = "car_id"))
     @Column(name = "image_url")
     private List<String> imageUrls = new ArrayList<>();

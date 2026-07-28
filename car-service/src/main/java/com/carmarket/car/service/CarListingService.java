@@ -4,6 +4,8 @@ import com.carmarket.car.dto.CarListingRequest;
 import com.carmarket.car.dto.CarListingResponse;
 import com.carmarket.car.entity.CarListing;
 import com.carmarket.car.entity.ListingStatus;
+import com.carmarket.car.exception.AccessDeniedException;
+import com.carmarket.car.exception.CarNotFoundException;
 import com.carmarket.car.kafka.CarEventProducer;
 import com.carmarket.car.mapper.CarListingMapper;
 import com.carmarket.car.repository.CarListingRepository;
@@ -50,7 +52,7 @@ public class CarListingService {
         log.info("Getting car listing: {}", id);
         return repository.findById(id)
             .map(mapper::toResponse)
-            .orElseThrow(() -> new CarNotFoundException(id));
+            .orElseThrow(() -> new CarNotFoundException(id.toString()));
     }
 
     @Transactional(readOnly = true)
@@ -105,7 +107,7 @@ public class CarListingService {
 
     private CarListing findAndVerifyOwner(UUID id, UUID requesterId) {
         CarListing car = repository.findById(id)
-            .orElseThrow(() -> new CarNotFoundException(id));
+            .orElseThrow(() -> new CarNotFoundException(id.toString()));
         if (!car.getSellerId().equals(requesterId)) {
             throw new AccessDeniedException("You don't own this listing");
         }
@@ -117,24 +119,10 @@ public class CarListingService {
     @Transactional
     public List<String> uploadImages(UUID carId, UUID requesterId, List<MultipartFile> files) {
         CarListing car = findAndVerifyOwner(carId, requesterId);
-        List<String> urls = s3Service.uploadImages(carId.toString(), files);
+        List<String> urls = s3Service.uploadImages(carId, files);
         car.getImageUrls().addAll(urls);
         repository.save(car);
         log.info("Uploaded {} images for car: {}", urls.size(), carId);
         return urls;
-    }
-
-    // ─── EXCEPTIONS ────────────────────────────────────────────────────────────
-
-    public static class CarNotFoundException extends RuntimeException {
-        public CarNotFoundException(UUID id) {
-            super("Car listing not found: " + id);
-        }
-    }
-
-    public static class AccessDeniedException extends RuntimeException {
-        public AccessDeniedException(String msg) {
-            super(msg);
-        }
     }
 }

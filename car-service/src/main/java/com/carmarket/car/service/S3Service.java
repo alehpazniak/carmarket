@@ -1,19 +1,16 @@
 package com.carmarket.car.service;
 
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -25,6 +22,10 @@ public class S3Service {
     @Value("${aws.s3.region}")
     private String region;
     @Value("${aws.s3.secret-key}")
+    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    private static final Set<String> ALLOWED_TYPES = Set.of(
+        "image/jpeg", "image/png", "image/webp"
+    );
 
     private final S3Client s3Client;
 
@@ -32,12 +33,19 @@ public class S3Service {
         this.s3Client = s3Client;
     }
 
-
-    public List<String> uploadImages(String carId, List<MultipartFile> files) {
+    public List<String> uploadImages(UUID carId, List<MultipartFile> files) {
+        if (files.size() > 10) {
+            throw new IllegalArgumentException("Max 10 images per upload");
+        }
         List<String> urls = new ArrayList<>();
         for (MultipartFile file : files) {
+            validateFile(file);
             try {
-                String key = "cars/" + carId + "/" + UUID.randomUUID() + getExtension(file);
+                String key = "cars/%s/%s%s".formatted(
+                    carId,
+                    UUID.randomUUID(),
+                    getExtension(file)
+                );
                 s3Client.putObject(
                     PutObjectRequest.builder()
                         .bucket(bucket)
@@ -54,6 +62,15 @@ public class S3Service {
             }
         }
         return urls;
+    }
+
+    private void validateFile(MultipartFile file) {
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new IllegalArgumentException("File too large: " + file.getOriginalFilename());
+        }
+        if (!ALLOWED_TYPES.contains(file.getContentType())) {
+            throw new IllegalArgumentException("Invalid file type: " + file.getContentType());
+        }
     }
 
     private String getExtension(MultipartFile file) {
