@@ -1,13 +1,13 @@
 server:
-  port: 8086
+  port: 8083
 
 spring:
   application:
     name: auction-import-service
   datasource:
-    url: jdbc:postgresql://localhost:5432/carmarket_auctions
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5435}/${DB_NAME:car_db}
     username: ${DB_USER:postgres}
-    password: ${DB_PASS:postgres}
+    password: ${DB_PASSWORD:postgres}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -19,7 +19,7 @@ spring:
         order_inserts: true
         order_updates: true
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -40,6 +40,13 @@ parser:
     list: []
   sync:
     interval: 300000  # 5 minutes
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD:admin}@${EUREKA_HOST:localhost}:8761/eureka/
+  instance:
+    prefer-ip-address: true
 
 management:
   endpoints:

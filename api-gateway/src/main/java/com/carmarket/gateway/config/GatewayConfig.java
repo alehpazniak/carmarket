@@ -146,6 +146,23 @@ public class GatewayConfig {
                     .rewritePath("/api/chat/(?<segment>.*)", "/chat/${segment}"))
                 .uri("lb://chat-service"))
 
+            // ─── AUCTION IMPORT SERVICE — with path ───────────────────────────────
+            .route("auction-import-service", r -> r
+                .path("/api/auctions/**")
+                .filters(f -> f
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(standardRateLimiter)
+                        .setKeyResolver(keyResolver)))
+                .uri("lb://auction-import-service"))
+
+            .route("auction-analytics", r -> r
+                .path("/api/analytics/**")
+                .filters(f -> f
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(standardRateLimiter)
+                        .setKeyResolver(keyResolver)))
+                .uri("lb://auction-import-service"))
+
             .build();
     }
 
