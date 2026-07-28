@@ -48,7 +48,7 @@ public class CarSearchService {
      * Dynamic multi-criteria search.
      * Builds Criteria query from whatever filters are provided in SearchRequest.
      */
-    @Cacheable(value = "car-search", key = "#req.toString() + #pageable.pageNumber")
+        @Cacheable(value = "car-search", key = "#req.toString() + #pageable.pageNumber")
     public List<CarDocument> search(SearchRequest req, Pageable pageable) {
         Criteria criteria = new Criteria();
 

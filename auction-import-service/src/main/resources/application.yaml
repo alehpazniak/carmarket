@@ -1,0 +1,48 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: auction-import-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/carmarket_auctions
+    username: ${DB_USER:postgres}
+    password: ${DB_PASS:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+import:
+  rates:
+    ocean-freight-usd: 1200
+    eu-port-fee-usd: 300
+    customs-clearance-pln: 1500
+    eu-delivery-pln: 800
+    vat-rate: 0.23
+
+parser:
+  headless: true
+  proxy:
+    enabled: false
+    server: ""
+    list: []
+  sync:
+    interval: 300000  # 5 minutes
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus

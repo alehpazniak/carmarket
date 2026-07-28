@@ -18,6 +18,7 @@
         <module>car-service</module>
         <module>search-service</module>
         <module>chat-service</module>
+        <module>auction-import-service</module>
     </modules>
 
     <properties>

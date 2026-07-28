@@ -397,3 +397,15 @@ services:
       CHAT_DB_PASSWORD: postgres
       JWT_SECRET: ${JWT_SECRET:-bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
     restart: on-failure
+
+  auction-import-service:
+    build: ./auction-import-service
+    ports:
+      - "8086:8086"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_HOST=postgres
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+    depends_on:
+      - postgres
+      - kafka
