@@ -441,4 +441,5 @@ services:
       DB_USER: postgres
       DB_PASS: postgres
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      APIBARA_API_KEY: ${APIBARA_API_KEY:?APIBARA_API_KEY must be set}
     restart: on-failure

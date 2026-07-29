@@ -32,14 +32,14 @@ import:
     eu-delivery-pln: 800
     vat-rate: 0.23
 
-parser:
-  headless: true
-  proxy:
-    enabled: false
-    server: ""
-    list: []
-  sync:
-    interval: 300000  # 5 minutes
+#parser:
+#  headless: true
+#  proxy:
+#    enabled: false
+#    server: ""
+#    list: []
+#  sync:
+#    interval: 300000  # 5 minutes
 
 eureka:
   client:
@@ -47,6 +47,25 @@ eureka:
       defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD:admin}@${EUREKA_HOST:localhost}:8761/eureka/
   instance:
     prefer-ip-address: true
+
+apibara:
+  base-url: https://apibara.tech
+  api-key: ${APIBARA_API_KEY:}      # from .env / env var, NEVER commit
+  per-page: 50
+  targets:
+    - make: Mazda
+      model: CX-5
+      year-from: 2018
+      year-to: 2021
+    # добавляй новые модели здесь — код не трогаешь:
+    # - make: Toyota
+    #   model: RAV4
+    #   year-from: 2019
+    #   year-to: 2022
+
+parser:
+  sync:
+    interval: 3600000   # 1 hour — free tier = 100 req/month, so DON'T poll every 5 min
 
 management:
   endpoints:
