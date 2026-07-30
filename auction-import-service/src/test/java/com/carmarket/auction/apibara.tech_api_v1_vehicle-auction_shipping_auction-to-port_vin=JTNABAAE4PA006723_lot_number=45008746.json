@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "data": {
+    "vehicle": {
+      "platform": "iaai",
+      "lot_number": "45008746",
+      "vin": "JTNABAAE4PA006723",
+      "title": "2023 TOYOTA GR COROLLA CORE",
+      "type": "AUTOMOBILE"
+    },
+    "auction_location": {
+      "display": "Sacramento (CA)",
+      "facility_id": null,
+      "matched_location_id": "Sacramento (CA)",
+      "match_score": 100
+    },
+    "shipping": {
+      "recommended_port": "LA",
+      "recommended_price_usd": 400,
+      "has_shipping_price": true,
+      "available_ports": [
+        {
+          "port": "LA",
+          "price": 400
+        }
+      ]
+    }
+  }
+}

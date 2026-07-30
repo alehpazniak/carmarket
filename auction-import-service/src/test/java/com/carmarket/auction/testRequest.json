@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "status": 200,
+  "response_time_ms": 365,
+  "method": "GET",
+  "url": "https://apibara.tech/api/v1/vehicle-auction/shipping/auction-to-port",
+  "request": {
+    "path_params": [],
+    "query": {
+      "vin": "JM3KFBDM7K1621899"
+    },
+    "body": []
+  },
+  "response": {
+    "ok": true,
+    "data": {
+      "vehicle": {
+        "platform": "iaai",
+        "lot_number": "45571503",
+        "vin": "JM3KFBDM7K1621899",
+        "title": "2019 MAZDA CX-5 GRAND TOURING",
+        "type": "AUTOMOBILE"
+      },
+      "auction_location": {
+        "display": "Greensboro (NC)",
+        "facility_id": null,
+        "matched_location_id": "Greensboro (NC)",
+        "match_score": 100
+      },
+      "shipping": {
+        "recommended_port": "Norfolk",
+        "recommended_price_usd": 300,
+        "has_shipping_price": true,
+        "available_ports": [
+          {
+            "port": "Norfolk",
+            "price": 300
+          }
+        ]
+      }
+    }
+  },
+  "usage": {
+    "monthly_quota_left": 93
+  }
+}
