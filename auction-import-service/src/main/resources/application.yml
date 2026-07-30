@@ -50,7 +50,7 @@ eureka:
 
 apibara:
   base-url: https://apibara.tech
-  api-key: ${APIBARA_API_KEY:}      # from .env / env var, NEVER commit
+  api-key: ${APIBARA_API_KEY:ak_live_vQlgCCdFx2whPdgX1qv5xrhbved26ZgWwWBn8G9hb2YczhxV}      # from .env / env var, NEVER commit
   per-page: 50
   targets:
     - make: Mazda
