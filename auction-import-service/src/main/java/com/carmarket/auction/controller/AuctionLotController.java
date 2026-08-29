@@ -35,8 +35,13 @@ public class AuctionLotController {
         @RequestParam(required = false) String damageType,
         @PageableDefault(size = 20) Pageable pageable) {
 
+        // Build the LIKE pattern in Java (pre-lowercased) rather than via JPQL CONCAT: binding a null
+        // parameter through CONCAT('%', :model, '%') makes the Postgres JDBC driver mis-infer the
+        // parameter type as bytea, causing "function lower(bytea) does not exist".
+        String modelPattern = (model == null || model.isBlank()) ? null : "%" + model.toLowerCase() + "%";
+
         Page<AuctionLot> lots = lotRepository.searchLiveLots(
-            make, model, yearFrom, yearTo, null, null, damageType, pageable);
+            make, modelPattern, yearFrom, yearTo, null, null, damageType, pageable);
         return ResponseEntity.ok(lots);
     }
 

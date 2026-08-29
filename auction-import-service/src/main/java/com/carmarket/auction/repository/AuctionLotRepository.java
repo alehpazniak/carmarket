@@ -41,7 +41,7 @@ public interface AuctionLotRepository extends JpaRepository<AuctionLot, UUID> {
         SELECT a FROM AuctionLot a
         WHERE a.status = 'LIVE'
         AND (:make IS NULL OR a.make = :make)
-        AND (:model IS NULL OR LOWER(a.model) LIKE LOWER(CONCAT('%', :model, '%')))
+        AND (:modelPattern IS NULL OR LOWER(a.model) LIKE :modelPattern)
         AND (:yearFrom IS NULL OR a.year >= :yearFrom)
         AND (:yearTo IS NULL OR a.year <= :yearTo)
         AND (:priceFrom IS NULL OR a.auctionPrice >= :priceFrom)
@@ -50,7 +50,7 @@ public interface AuctionLotRepository extends JpaRepository<AuctionLot, UUID> {
         """)
     Page<AuctionLot> searchLiveLots(
         @Param("make") String make,
-        @Param("model") String model,
+        @Param("modelPattern") String modelPattern,
         @Param("yearFrom") Integer yearFrom,
         @Param("yearTo") Integer yearTo,
         @Param("priceFrom") BigDecimal priceFrom,

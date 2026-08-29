@@ -1,0 +1,219 @@
+{
+  "ok": true,
+  "data": {
+    "slug_vin": "2019-bmw-x3-xdrive30i-5UXTR9C54KLD98072",
+    "vin": "5UXTR9C54KLD98072",
+    "platform": "copart",
+    "platform_id": 1,
+    "lot_number": "58456596",
+    "ad": "2026-08-07T14:00:00+00:00",
+    "title": "2019 BMW X3 XDRIVE30I",
+    "year": 2019,
+    "make": "BMW",
+    "model": "X3",
+    "type": null,
+    "subLot": false,
+    "auction": {
+      "state": "finished",
+      "formatted": "Aug 07, 2026 17:00",
+      "full_date": "2026-08-07T14:00:00+00:00",
+      "diff_minutes": -30646,
+      "ad": "2026-08-07T14:00:00+00:00",
+      "countdown": {
+        "days": 0,
+        "hours": 0,
+        "minutes": 0
+      },
+      "is_timed": false,
+      "is_buy_now": false,
+      "auction_at": "2026-08-07T14:00:00+00:00",
+      "timed_end_at": null,
+      "last_sold_day": "2026-08-07",
+      "last_sold_status": "Sold",
+      "sold_buy_now": false,
+      "sold_timed": false
+    },
+    "pricing": {
+      "current_bid_usd": 7200,
+      "current_bid2_usd": 7200,
+      "buy_now_usd": null,
+      "last_sold_price_usd": 10400,
+      "estimated_cost": {
+        "from": 2691,
+        "to": 32250,
+        "text": "$2,691 - $32,250"
+      }
+    },
+    "location": {
+      "display": "Tampa South (FL)",
+      "send_from": "Miami",
+      "state": null
+    },
+    "seller": {
+      "name": "Insurance Company",
+      "type": "insurance",
+      "class": "bg-success-C2F7D7",
+      "text_class": "text-success"
+    },
+    "condition": {
+      "run_condition": {
+        "value": "RUNS AND DRIVES",
+        "label": "Runs and drives",
+        "class_hint": "success"
+      },
+      "has_key": true,
+      "loss": null,
+      "primary_damage": "Front end",
+      "secondary_damage": null
+    },
+    "odometer": {
+      "mi": 54670,
+      "km": 87983
+    },
+    "vehicle_specs": {
+      "exterior_color": "White",
+      "engine": {
+        "raw": "2.0L 4",
+        "size_l": "2.0",
+        "hp": null,
+        "layout": null
+      },
+      "transmission": "Automatic",
+      "fuel_type": "Gas",
+      "drive_type": "ALL WHEEL DRIVE",
+      "body_style": null,
+      "airbags": null,
+      "restraint_system": null
+    },
+    "sale_document": {
+      "name": "CERTIFICATE OF DESTRUCTION",
+      "type": "danger",
+      "export": true,
+      "registration": false,
+      "is_pending": false,
+      "page_id": 3,
+      "sale_document_group": "warning"
+    },
+    "media": {
+      "thumbs_count": 14,
+      "has_video": true,
+      "has_360": false,
+      "thumbs": [
+        "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/0bf70c057a7040ecb7a0e2211e7da92a_ful.jpg",
+        "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/99c98293527c4ef1a0b60e516d13ea64_ful.jpg",
+        "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/bda6e3ff0a4e4952bd4951029d722f2a_ful.jpg",
+        "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/5e3471b14f33467393fb756a2943434e_ful.jpg",
+        "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/96b15964b1994c8f900fdbe92df85630_ful.jpg",
+        "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/bf8e4482d5e94ae9bcc74682de00f73a_ful.jpg",
+        "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/7c10d185da2e441084137fc3c0f1af7a_ful.jpg",
+        "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/5710b8677b3e40678395b45e6dc7b256_ful.jpg",
+        "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/9df23a0548184a78b9c7f9f3f3982cae_ful.jpg",
+        "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/e04b01de0ab348eea9187488ab8c95fa_ful.jpg",
+        "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/27507091d3b345b5bdd5769049f4da07_ful.jpg",
+        "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/82afd58527074e97898864706dbc3531_ful.jpg",
+        "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/c5075727bb6a4a7e91ece83a4fd73762_ful.jpg",
+        "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/8e6109d74adb4149856d8e46eecb7d5e_vhrs.jpg"
+      ],
+      "items": [
+        {
+          "type": "image",
+          "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/0bf70c057a7040ecb7a0e2211e7da92a_ful.jpg",
+          "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/0bf70c057a7040ecb7a0e2211e7da92a_hrs.jpg",
+          "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/0bf70c057a7040ecb7a0e2211e7da92a_hrs.jpg"
+        },
+        {
+          "type": "image",
+          "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/99c98293527c4ef1a0b60e516d13ea64_ful.jpg",
+          "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/99c98293527c4ef1a0b60e516d13ea64_hrs.jpg",
+          "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/99c98293527c4ef1a0b60e516d13ea64_hrs.jpg"
+        },
+        {
+          "type": "image",
+          "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/bda6e3ff0a4e4952bd4951029d722f2a_ful.jpg",
+          "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/bda6e3ff0a4e4952bd4951029d722f2a_hrs.jpg",
+          "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/bda6e3ff0a4e4952bd4951029d722f2a_hrs.jpg"
+        },
+        {
+          "type": "image",
+          "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/5e3471b14f33467393fb756a2943434e_ful.jpg",
+          "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/5e3471b14f33467393fb756a2943434e_hrs.jpg",
+          "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/5e3471b14f33467393fb756a2943434e_hrs.jpg"
+        },
+        {
+          "type": "image",
+          "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/96b15964b1994c8f900fdbe92df85630_ful.jpg",
+          "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/96b15964b1994c8f900fdbe92df85630_hrs.jpg",
+          "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/96b15964b1994c8f900fdbe92df85630_hrs.jpg"
+        },
+        {
+          "type": "image",
+          "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/bf8e4482d5e94ae9bcc74682de00f73a_ful.jpg",
+          "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/bf8e4482d5e94ae9bcc74682de00f73a_hrs.jpg",
+          "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/bf8e4482d5e94ae9bcc74682de00f73a_hrs.jpg"
+        },
+        {
+          "type": "image",
+          "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/7c10d185da2e441084137fc3c0f1af7a_ful.jpg",
+          "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/7c10d185da2e441084137fc3c0f1af7a_hrs.jpg",
+          "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/7c10d185da2e441084137fc3c0f1af7a_hrs.jpg"
+        },
+        {
+          "type": "image",
+          "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/5710b8677b3e40678395b45e6dc7b256_ful.jpg",
+          "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/5710b8677b3e40678395b45e6dc7b256_hrs.jpg",
+          "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/5710b8677b3e40678395b45e6dc7b256_hrs.jpg"
+        },
+        {
+          "type": "image",
+          "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/9df23a0548184a78b9c7f9f3f3982cae_ful.jpg",
+          "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/9df23a0548184a78b9c7f9f3f3982cae_hrs.jpg",
+          "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/9df23a0548184a78b9c7f9f3f3982cae_hrs.jpg"
+        },
+        {
+          "type": "image",
+          "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/e04b01de0ab348eea9187488ab8c95fa_ful.jpg",
+          "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/e04b01de0ab348eea9187488ab8c95fa_hrs.jpg",
+          "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/e04b01de0ab348eea9187488ab8c95fa_hrs.jpg"
+        },
+        {
+          "type": "image",
+          "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/27507091d3b345b5bdd5769049f4da07_ful.jpg",
+          "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/27507091d3b345b5bdd5769049f4da07_hrs.jpg",
+          "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/27507091d3b345b5bdd5769049f4da07_hrs.jpg"
+        },
+        {
+          "type": "image",
+          "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/82afd58527074e97898864706dbc3531_ful.jpg",
+          "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/82afd58527074e97898864706dbc3531_hrs.jpg",
+          "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/82afd58527074e97898864706dbc3531_hrs.jpg"
+        },
+        {
+          "type": "image",
+          "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/c5075727bb6a4a7e91ece83a4fd73762_ful.jpg",
+          "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/c5075727bb6a4a7e91ece83a4fd73762_hrs.jpg",
+          "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/c5075727bb6a4a7e91ece83a4fd73762_hrs.jpg"
+        },
+        {
+          "type": "image",
+          "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/8e6109d74adb4149856d8e46eecb7d5e_vhrs.jpg",
+          "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/8e6109d74adb4149856d8e46eecb7d5e_vhrs.jpg",
+          "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0626/8e6109d74adb4149856d8e46eecb7d5e_vhrs.jpg"
+        },
+        {
+          "type": "video",
+          "url": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/ids-c-prod-lpp/0626/3dc5fd700a344843b3fd1cb97432dd34_O.mp4"
+        }
+      ]
+    },
+    "details": null,
+    "facility": {
+      "id": null,
+      "state": null,
+      "zip": null,
+      "lat": null,
+      "lng": null,
+      "office_name": null
+    },
+    "distance": null
+  }
+}

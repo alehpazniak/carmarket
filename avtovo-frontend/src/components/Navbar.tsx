@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Car, Plus, User, LogOut, ChevronDown } from 'lucide-react';
+import { Car, Plus, User, LogOut, ChevronDown, Gavel } from 'lucide-react';
 import { useState } from 'react';
 
 export default function Navbar() {
@@ -30,6 +30,13 @@ export default function Navbar() {
 
                     {/* Right side */}
                     <div className="flex items-center gap-3">
+                        <Link
+                            to="/aukcje"
+                            className="hidden sm:flex items-center gap-2 text-avtovo-text-secondary hover:text-avtovo-text px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                        >
+                            <Gavel size={16} />
+                            Aukcje
+                        </Link>
                         {isAuthenticated ? (
                             <>
                                 <Link
@@ -39,8 +46,7 @@ export default function Navbar() {
                                     <Plus size={16} />
                                     Dodaj ogłoszenie
                                 </Link>
-
-                                {isAuthenticated && <Link to="/messages">Messages</Link>}
+                                <Link to="/messages">Messages</Link>
 
                                 {/* User menu */}
                                 <div className="relative">

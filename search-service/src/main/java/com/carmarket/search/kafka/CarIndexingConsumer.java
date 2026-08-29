@@ -10,6 +10,7 @@ import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.time.ZoneId;
 
 /**
@@ -60,7 +61,9 @@ public class CarIndexingConsumer {
             .transmission(event.transmission())
             .city(event.city())
             .status(event.status())
-            .createdAt(event.createdAt().atZone(ZoneId.systemDefault()).toInstant())
+            .createdAt(event.createdAt() != null
+                    ? event.createdAt().atZone(ZoneId.systemDefault()).toInstant()
+                    : Instant.now())
             .build();
     }
 }

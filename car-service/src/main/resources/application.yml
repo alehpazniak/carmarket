@@ -57,8 +57,8 @@ eureka:
       defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD:admin}@${EUREKA_HOST:localhost}:8761/eureka/
   instance:
     prefer-ip-address: true
-    hostname: 127.0.0.1
-    ip-address: 127.0.0.1
+#    hostname: 127.0.0.1
+#    ip-address: 127.0.0.1
     lease-renewal-interval-in-seconds: 10
 
 aws:

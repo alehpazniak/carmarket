@@ -7,6 +7,9 @@ import AddListing from './pages/AddListing';
 import CarDetail from './pages/CarDetail';
 import MyListings from './pages/MyListings';
 import Messages from './pages/Messages';
+import AuctionActions from './pages/AuctionActions';
+import AuctionLotDetail from './pages/AuctionLotDetail';
+import ApibaraVehiclePage from './pages/ApibaraVehiclePage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, isLoading } = useAuth();
@@ -27,6 +30,9 @@ function AppRoutes() {
                 <Route path="/" element={<Home />} />
                 <Route path="/auth/callback" element={<AuthCallback />} />
                 <Route path="/ogloszenia/:id" element={<CarDetail />} />
+                <Route path="/aukcje" element={<AuctionActions />} />
+                <Route path="/aukcje/lot/:id" element={<AuctionLotDetail />} />
+                <Route path="/aukcje/pojazd/:identifier" element={<ApibaraVehiclePage />} />
                 <Route path="/dodaj-ogloszenie" element={
                     <ProtectedRoute><AddListing /></ProtectedRoute>
                 } />
