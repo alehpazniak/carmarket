@@ -89,8 +89,8 @@ eureka:
 # ── App config ─────────────────────────────────────────────────────────────────
 app:
   oauth2:
-#    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:5173/auth/callback}
-    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:3000/auth/callback}
+    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:5173/auth/callback}
+#    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:3000/auth/callback}
     allowed-redirect-hosts: ${OAUTH2_ALLOWED_HOSTS:localhost}
 
 management:

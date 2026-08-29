@@ -1,5 +1,5 @@
 server:
-  port: 8083
+  port: 8086
 
 spring:
   application:
@@ -23,6 +23,9 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
 
 import:
   rates:
@@ -41,6 +44,11 @@ import:
 #  sync:
 #    interval: 300000  # 5 minutes
 
+# Shared secret for verifying the internal identity header (X-Gateway-Signature)
+# Must match the value used by api-gateway / car-service / user-service
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+
 eureka:
   client:
     service-url:
@@ -52,11 +60,7 @@ apibara:
   base-url: https://apibara.tech
   api-key: ${APIBARA_API_KEY:ak_live_vQlgCCdFx2whPdgX1qv5xrhbved26ZgWwWBn8G9hb2YczhxV}      # from .env / env var, NEVER commit
   per-page: 50
-  targets:
-    - make: Mazda
-      model: CX-5
-      year-from: 2018
-      year-to: 2021
+  targets: []
     # добавляй новые модели здесь — код не трогаешь:
     # - make: Toyota
     #   model: RAV4

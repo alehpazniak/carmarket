@@ -16,7 +16,7 @@ import java.util.List;
 
 /**
  * Pulls Copart lots from the Apibara API for each configured target
- * (e.g. Mazda CX-5 2018–2021) and maps them to AuctionLot entities.
+ * (see apibara.targets in application.yml) and maps them to AuctionLot entities.
  * Replaces the Playwright-based CopartParser — no browser, no scraping.
  */
 @Slf4j

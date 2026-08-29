@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Env files ###
+.env
+.env.*
+!.env.example
+application-local.yml
