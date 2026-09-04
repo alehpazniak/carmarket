@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
@@ -62,6 +63,20 @@ public class S3Service {
             }
         }
         return urls;
+    }
+
+    public void deleteImage(String url) {
+        String prefix = "https://" + bucket + ".s3." + region + ".amazonaws.com/";
+        if (!url.startsWith(prefix)) {
+            log.warn("Skipping delete for URL not owned by this bucket: {}", url);
+            return;
+        }
+        String key = url.substring(prefix.length());
+        s3Client.deleteObject(DeleteObjectRequest.builder()
+            .bucket(bucket)
+            .key(key)
+            .build());
+        log.info("Deleted image: {}", url);
     }
 
     private void validateFile(MultipartFile file) {

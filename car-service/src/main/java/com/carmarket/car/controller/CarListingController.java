@@ -84,4 +84,18 @@ public class CarListingController {
         List<String> urls = service.uploadImages(id, UUID.fromString(userId), files);
         return ResponseEntity.ok(urls);
     }
+
+    @PatchMapping("/{id}/images/primary")
+    public ResponseEntity<CarListingResponse> setPrimaryImage(@PathVariable UUID id,
+                                                              @RequestHeader("X-User-Id") String userId,
+                                                              @RequestParam String url) {
+        return ResponseEntity.ok(service.setPrimaryImage(id, UUID.fromString(userId), url));
+    }
+
+    @DeleteMapping("/{id}/images")
+    public ResponseEntity<CarListingResponse> removeImage(@PathVariable UUID id,
+                                                          @RequestHeader("X-User-Id") String userId,
+                                                          @RequestParam String url) {
+        return ResponseEntity.ok(service.removeImage(id, UUID.fromString(userId), url));
+    }
 }

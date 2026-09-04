@@ -1,8 +1,8 @@
 import {useState} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {createCar, uploadCarImages} from '../api/cars';
+import {createCar, setPrimaryCarImage, uploadCarImages} from '../api/cars';
 import type {CarListing} from '../types';
-import {Loader2, Upload, X} from "lucide-react";
+import {Loader2, Star, Upload, X} from "lucide-react";
 
 const FUEL_TYPES = ['PETROL', 'DIESEL', 'ELECTRIC', 'HYBRID', 'LPG'];
 const FUEL_LABELS: Record<string, string> = {
@@ -17,6 +17,7 @@ export default function AddListing() {
     const [loading, setLoading] = useState(false);
     const [images, setImages] = useState<File[]>([]);
     const [previews, setPreviews] = useState<string[]>([]);
+    const [mainIndex, setMainIndex] = useState(0);
     const [form, setForm] = useState({
         make: '', model: '', year: new Date().getFullYear(), price: '',
         mileage: '', fuelType: 'PETROL', transmission: 'MANUAL',
@@ -40,6 +41,11 @@ export default function AddListing() {
         const newPreviews = previews.filter((_, i) => i !== idx);
         setImages(newImages);
         setPreviews(newPreviews);
+        setMainIndex(prev => {
+            if (idx === prev) return 0;
+            if (idx < prev) return prev - 1;
+            return prev;
+        });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -56,7 +62,11 @@ export default function AddListing() {
             });
 
             if (images.length > 0) {
-                await uploadCarImages(car.id, images);
+                const urls = await uploadCarImages(car.id, images);
+                const mainUrl = urls[mainIndex] ?? urls[0];
+                if (mainUrl) {
+                    await setPrimaryCarImage(car.id, mainUrl);
+                }
             }
 
             navigate(`/ogloszenia/${car.id}`);
@@ -80,8 +90,16 @@ export default function AddListing() {
                         <div className="grid grid-cols-4 gap-3">
                             {previews.map((src, idx) => (
                                 <div key={idx}
-                                     className="relative aspect-square rounded-lg overflow-hidden bg-avtovo-bg">
+                                     className={`relative aspect-square rounded-lg overflow-hidden bg-avtovo-bg ${idx === mainIndex ? 'ring-2 ring-avtovo-accent' : ''}`}>
                                     <img src={src} alt="" className="w-full h-full object-cover"/>
+                                    <button
+                                        type="button"
+                                        onClick={() => setMainIndex(idx)}
+                                        title="Ustaw jako główne zdjęcie"
+                                        className={`absolute top-1 left-1 rounded-full p-1 transition-colors ${idx === mainIndex ? 'bg-avtovo-accent' : 'bg-black/70 hover:bg-black'}`}
+                                    >
+                                        <Star size={12} className="text-white" fill={idx === mainIndex ? 'currentColor' : 'none'}/>
+                                    </button>
                                     <button
                                         type="button"
                                         onClick={() => removeImage(idx)}
@@ -89,6 +107,11 @@ export default function AddListing() {
                                     >
                                         <X size={12} className="text-white"/>
                                     </button>
+                                    {idx === mainIndex && (
+                                        <span className="absolute bottom-1 left-1 right-1 bg-avtovo-accent text-white text-[10px] font-medium text-center rounded py-0.5">
+                                            Główne
+                                        </span>
+                                    )}
                                 </div>
                             ))}
                             {previews.length < 8 && (
@@ -101,7 +124,7 @@ export default function AddListing() {
                                 </label>
                             )}
                         </div>
-                        <p className="text-xs text-avtovo-muted mt-2">Maksymalnie 8 zdjęć</p>
+                        <p className="text-xs text-avtovo-muted mt-2">Maksymalnie 8 zdjęć. Kliknij gwiazdkę, aby ustawić zdjęcie główne.</p>
                     </div>
 
                     {/* Basic info */}

@@ -61,6 +61,7 @@ public class CarIndexingConsumer {
             .transmission(event.transmission())
             .city(event.city())
             .status(event.status())
+            .primaryImageUrl(event.primaryImageUrl())
             .createdAt(event.createdAt() != null
                     ? event.createdAt().atZone(ZoneId.systemDefault()).toInstant()
                     : Instant.now())

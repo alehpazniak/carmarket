@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -34,6 +35,16 @@ public class GlobalExceptionHandler {
         pd.setDetail("Validation failed");
         pd.setProperty("errors", errors);
         return pd;
+    }
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ProblemDetail handleBadRequest(IllegalArgumentException ex) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ProblemDetail handleMissingHeader(MissingRequestHeaderException ex) {
+        log.warn("Request missing required header: {}", ex.getHeaderName());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED,
+            "Authentication required");
     }
     @ExceptionHandler(Exception.class)
     public ProblemDetail handleGeneric(Exception ex) {

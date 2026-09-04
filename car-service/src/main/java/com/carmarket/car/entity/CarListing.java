@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
@@ -14,6 +15,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "car_listings")
+@SQLRestriction("status <> 'REMOVED'")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -68,6 +70,9 @@ public class CarListing {
     @Column(nullable = false)
     @Builder.Default
     private ListingStatus status = ListingStatus.ACTIVE;
+
+    @Column(name = "primary_image_url")
+    private String primaryImageUrl;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

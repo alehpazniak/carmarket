@@ -30,6 +30,7 @@ public class CarListingResponse {
     private String city;
     private String country;
     private List<String> imageUrls;
+    private String primaryImageUrl;
     private ListingStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

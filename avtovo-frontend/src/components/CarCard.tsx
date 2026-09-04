@@ -1,9 +1,10 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import type {CarDocument, CarListing} from '../types';
-import { MapPin, Fuel, Gauge, Calendar } from 'lucide-react';
+import { MapPin, Fuel, Gauge, Calendar, Pencil } from 'lucide-react';
 
 interface Props {
     car: CarListing | CarDocument;
+    editHref?: string;
 }
 
 const FUEL_LABELS: Record<string, string> = {
@@ -15,14 +16,29 @@ const FUEL_LABELS: Record<string, string> = {
 };
 
 
-export default function CarCard({ car }: Props) {
-    const mainImage = car.imageUrls?.[0];
+export default function CarCard({ car, editHref }: Props) {
+    const navigate = useNavigate();
+    const mainImage = car.primaryImageUrl || car.imageUrls?.[0];
 
     return (
         <Link to={`/ogloszenia/${car.id}`} className="group block">
             <div className="bg-avtovo-card border border-avtovo-border rounded-xl overflow-hidden hover:border-gray-600 transition-all duration-200 hover:shadow-lg hover:shadow-black/20">
                 {/* Image */}
-                <div className="aspect-[16/10] bg-avtovo-bg overflow-hidden">
+                <div className="relative aspect-[16/10] bg-avtovo-bg overflow-hidden">
+                    {editHref && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                navigate(editHref);
+                            }}
+                            className="absolute top-2 right-2 z-10 bg-black/70 hover:bg-black rounded-full p-2 transition-colors"
+                            title="Edytuj ogłoszenie"
+                        >
+                            <Pencil size={14} className="text-white"/>
+                        </button>
+                    )}
                     {mainImage ? (
                         <img
                             src={mainImage}

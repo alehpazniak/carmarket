@@ -27,6 +27,14 @@ export const uploadCarImages = (carId: string, files: File[]) => {
     }).then(r => r.data);
 };
 
+export const setPrimaryCarImage = (carId: string, url: string) =>
+    api.patch<CarListing>(`/api/cars/${carId}/images/primary?url=${encodeURIComponent(url)}`)
+        .then(r => r.data);
+
+export const deleteCarImage = (carId: string, url: string) =>
+    api.delete<CarListing>(`/api/cars/${carId}/images?url=${encodeURIComponent(url)}`)
+        .then(r => r.data);
+
 export const searchCars = (params: Record<string, string | number> = {}) => {
     const query = new URLSearchParams(
         Object.entries(params)

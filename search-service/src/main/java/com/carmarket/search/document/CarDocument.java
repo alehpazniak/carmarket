@@ -68,6 +68,9 @@ public class CarDocument {
     @Field(type = FieldType.Keyword)
     private String status;
 
+    @Field(type = FieldType.Keyword, index = false)
+    private String primaryImageUrl;
+
     @Field(type = FieldType.Date, format = {DateFormat.date_optional_time, DateFormat.epoch_millis})
     private Instant createdAt;
 }
