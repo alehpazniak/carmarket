@@ -3,6 +3,8 @@ import type { Page } from '../types';
 import type {
     AuctionLot,
     ImportCalculationResult,
+    MaxBidRequest,
+    MaxBidResult,
     ApibaraSearchResult,
     ApibaraVehicleDetail,
     ApibaraShippingResult,
@@ -43,6 +45,9 @@ export const calculateImport = (
 ) =>
     api.post<ImportCalculationResult>(`/api/auctions/lots/${id}/calculate`, data).then(r => r.data);
 
+export const calculateMaxBid = (id: string, data: MaxBidRequest) =>
+    api.post<MaxBidResult>(`/api/auctions/lots/${id}/max-bid`, data).then(r => r.data);
+
 export const getComparables = (id: string) =>
     api.get<AuctionLot[]>(`/api/auctions/lots/${id}/comparables`).then(r => r.data);
 
@@ -61,3 +66,6 @@ export const getVehicleHistory = (slugVin: string) =>
 
 export const getRelatedVehicles = (slugVin: string) =>
     api.get<ApibaraRelatedResult>(`/api/auctions/apibara/vehicles/${encodeURIComponent(slugVin)}/related`).then(r => r.data);
+
+export const calculateApibaraMaxBid = (slugVin: string, data: MaxBidRequest) =>
+    api.post<MaxBidResult>(`/api/auctions/apibara/vehicles/${encodeURIComponent(slugVin)}/max-bid`, data).then(r => r.data);

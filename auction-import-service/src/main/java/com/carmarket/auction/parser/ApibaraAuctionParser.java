@@ -103,6 +103,9 @@ public class ApibaraAuctionParser implements AuctionParser {
         if (v.auction() != null && v.auction().auctionAt() != null) {
             b.auctionDate(parseDate(v.auction().auctionAt()));
         }
+        if (v.media() != null && v.media().thumbs() != null) {
+            b.imageUrls(v.media().thumbs());
+        }
 
         return b.build();
     }

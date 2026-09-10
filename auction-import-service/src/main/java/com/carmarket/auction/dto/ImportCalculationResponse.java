@@ -16,6 +16,7 @@ public class ImportCalculationResponse {
     private BigDecimal oceanFreight;
     private BigDecimal euPortFee;
     private BigDecimal excise;
+    private BigDecimal customsDuty;
     private BigDecimal vat;
     private BigDecimal customsClearance;
     private BigDecimal euDelivery;
@@ -36,6 +37,7 @@ public class ImportCalculationResponse {
             .oceanFreight(b.getOceanFreight())
             .euPortFee(b.getEuPortFee())
             .excise(b.getExcise())
+            .customsDuty(b.getCustomsDuty())
             .vat(b.getVat())
             .customsClearance(b.getCustomsClearance())
             .euDelivery(b.getEuDelivery())

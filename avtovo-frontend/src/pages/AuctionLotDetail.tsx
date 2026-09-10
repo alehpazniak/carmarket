@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getLot, calculateImport, getComparables } from '../api/auctions';
-import type { AuctionLot, ImportCalculationResult } from '../types/auctions';
+import { getLot, calculateImport, calculateMaxBid, getComparables } from '../api/auctions';
+import type { AuctionLot, ImportCalculationResult, MaxBidResult, FuelType } from '../types/auctions';
 import PhotoGallery from '../components/PhotoGallery';
 import { useAuth } from '../context/AuthContext';
 import { ChevronLeft, TrendingUp, Loader2, Gauge, MapPin, Gavel, Lock } from 'lucide-react';
@@ -32,6 +32,15 @@ export default function AuctionLotDetail() {
     const [comparables, setComparables] = useState<AuctionLot[] | null>(null);
     const [loadingComparables, setLoadingComparables] = useState(false);
 
+    const [budgetPln, setBudgetPln] = useState('');
+    const [maxBidRepairCostPln, setMaxBidRepairCostPln] = useState('');
+    const [engineCapacityCm3, setEngineCapacityCm3] = useState('');
+    const [fuelType, setFuelType] = useState<FuelType>('PETROL');
+    const [suv, setSuv] = useState(false);
+    const [maxBidResult, setMaxBidResult] = useState<MaxBidResult | null>(null);
+    const [maxBidCalculating, setMaxBidCalculating] = useState(false);
+    const [maxBidError, setMaxBidError] = useState<string | null>(null);
+
     useEffect(() => {
         if (!id) return;
         setLoading(true);
@@ -54,6 +63,27 @@ export default function AuctionLotDetail() {
             setCalcError('Nie udało się policzyć kosztu importu');
         } finally {
             setCalculating(false);
+        }
+    };
+
+    const handleCalculateMaxBid = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!lot || !budgetPln) return;
+        setMaxBidCalculating(true);
+        setMaxBidError(null);
+        try {
+            const result = await calculateMaxBid(lot.id, {
+                budgetPln: Number(budgetPln),
+                estimatedRepairCostPln: maxBidRepairCostPln ? Number(maxBidRepairCostPln) : undefined,
+                engineCapacityCm3: engineCapacityCm3 ? Number(engineCapacityCm3) : undefined,
+                fuelType,
+                suv,
+            });
+            setMaxBidResult(result);
+        } catch {
+            setMaxBidError('Nie udało się policzyć maksymalnej ceny');
+        } finally {
+            setMaxBidCalculating(false);
         }
     };
 
@@ -171,6 +201,7 @@ export default function AuctionLotDetail() {
                                     <Row label="Fracht morski" value={USD(calcResult.oceanFreight)} />
                                     <Row label="Opłata portowa (EU)" value={USD(calcResult.euPortFee)} />
                                     <Row label="Akcyza" value={PLN(calcResult.excise)} />
+                                    <Row label="Cło" value={PLN(calcResult.customsDuty)} />
                                     <Row label="VAT" value={PLN(calcResult.vat)} />
                                     <Row label="Odprawa celna" value={PLN(calcResult.customsClearance)} />
                                     <Row label="Dostawa w UE" value={PLN(calcResult.euDelivery)} />
@@ -185,6 +216,110 @@ export default function AuctionLotDetail() {
                             </>
                             )}
                         </div>
+
+                        {/* Max affordable price calculator — only meaningful while the auction is still live */}
+                        {lot.status === 'LIVE' && (
+                        <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6">
+                            <h2 className="text-avtovo-text font-semibold mb-4 flex items-center gap-2">
+                                <TrendingUp size={18} className="text-avtovo-accent" /> Ile mogę zaoferować za auto?
+                            </h2>
+                            {!isAuthenticated ? (
+                                <div className="bg-avtovo-bg border border-avtovo-border rounded-lg p-4 text-center space-y-2">
+                                    <Lock size={20} className="text-avtovo-text-secondary mx-auto" />
+                                    <p className="text-avtovo-text-secondary text-sm">Zaloguj się, aby policzyć maksymalną cenę zakupu.</p>
+                                    <button
+                                        onClick={loginWithGoogle}
+                                        className="inline-flex items-center gap-2 bg-avtovo-accent hover:bg-avtovo-accent-hover text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+                                    >
+                                        Zaloguj się
+                                    </button>
+                                </div>
+                            ) : (
+                            <>
+                            <p className="text-avtovo-text-secondary text-sm mb-3">
+                                Podaj budżet i szacowany koszt naprawy — reszta (transport z Apibara, cło, akcyza, VAT) jest liczona automatycznie,
+                                a wynikiem jest maksymalna cena, jaką możesz zapłacić za samo auto na aukcji.
+                            </p>
+                            <form onSubmit={handleCalculateMaxBid} className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                                <div>
+                                    <label className="text-xs text-avtovo-text-secondary">Twój budżet (PLN) *</label>
+                                    <input
+                                        type="number"
+                                        required
+                                        value={budgetPln}
+                                        onChange={e => setBudgetPln(e.target.value)}
+                                        className="w-full mt-1 bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-avtovo-text-secondary">Szacowany koszt naprawy (PLN)</label>
+                                    <input
+                                        type="number"
+                                        value={maxBidRepairCostPln}
+                                        onChange={e => setMaxBidRepairCostPln(e.target.value)}
+                                        className="w-full mt-1 bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-avtovo-text-secondary">Pojemność silnika (cm³)</label>
+                                    <input
+                                        type="number"
+                                        value={engineCapacityCm3}
+                                        onChange={e => setEngineCapacityCm3(e.target.value)}
+                                        placeholder={lot.engineCapacity != null ? String(lot.engineCapacity) : undefined}
+                                        className="w-full mt-1 bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-avtovo-text-secondary">Rodzaj napędu</label>
+                                    <select
+                                        value={fuelType}
+                                        onChange={e => setFuelType(e.target.value as FuelType)}
+                                        className="w-full mt-1 bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
+                                    >
+                                        <option value="PETROL">Benzyna</option>
+                                        <option value="DIESEL">Diesel</option>
+                                        <option value="HYBRID">Hybryda (HEV/MHEV)</option>
+                                        <option value="PLUGIN_HYBRID">Hybryda plug-in (PHEV)</option>
+                                        <option value="ELECTRIC">Elektryczny</option>
+                                    </select>
+                                </div>
+                                <label className="flex items-center gap-2 text-sm text-avtovo-text-secondary">
+                                    <input type="checkbox" checked={suv} onChange={e => setSuv(e.target.checked)} />
+                                    To SUV (droższy transport morski)
+                                </label>
+                                <button
+                                    type="submit"
+                                    disabled={maxBidCalculating}
+                                    className="sm:col-span-2 flex items-center justify-center gap-2 bg-avtovo-accent hover:bg-avtovo-accent-hover disabled:opacity-60 text-white rounded-lg py-2.5 text-sm font-medium transition-colors"
+                                >
+                                    {maxBidCalculating && <Loader2 size={15} className="animate-spin" />} Policz maksymalną cenę
+                                </button>
+                            </form>
+                            {maxBidError && <p className="text-red-400 text-sm mt-2">{maxBidError}</p>}
+                            {maxBidResult && (
+                                <div className="mt-4 bg-avtovo-bg border border-avtovo-border rounded-lg p-4 space-y-1.5 text-sm">
+                                    <Row label="Transport (Apibara)" value={`${USD(maxBidResult.shippingCostUsd)} (${PLN(maxBidResult.shippingCostPln)})`} />
+                                    <Row label="Transport morski / dostawa" value={`${USD(maxBidResult.shippingDeliveryUsd)} (${PLN(maxBidResult.shippingDeliveryPln)})`} />
+                                    <Row label={`Akcyza (${(maxBidResult.exciseRate * 100).toFixed(2)}%)`} value={PLN(maxBidResult.excise)} />
+                                    <Row label={`Cło (${(maxBidResult.customsDutyRate * 100).toFixed(1)}%)`} value={PLN(maxBidResult.customsDuty)} />
+                                    <Row label={`VAT (${(maxBidResult.vatRate * 100).toFixed(0)}%)`} value={PLN(maxBidResult.vat)} />
+                                    <Row label="Naprawa" value={PLN(maxBidResult.estimatedRepairCostPln)} />
+                                    <div className="border-t border-avtovo-border my-2" />
+                                    {maxBidResult.budgetSufficient ? (
+                                        <>
+                                            <Row label="Maks. cena za auto (PLN)" value={PLN(maxBidResult.maxCarPricePln)} bold />
+                                            <Row label="Maks. cena za auto (USD)" value={USD(maxBidResult.maxCarPriceUsd)} bold />
+                                        </>
+                                    ) : (
+                                        <p className="text-red-400 font-medium">Budżet nie wystarcza nawet na transport i naprawę tego auta.</p>
+                                    )}
+                                </div>
+                            )}
+                            </>
+                            )}
+                        </div>
+                        )}
 
                         {/* Comparables */}
                         <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6">

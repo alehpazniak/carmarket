@@ -32,6 +32,9 @@ public class ImportCostBreakdown {
     @Column(name = "excise", precision = 12, scale = 2)
     private BigDecimal excise;
 
+    @Column(name = "customs_duty", precision = 12, scale = 2)
+    private BigDecimal customsDuty;
+
     @Column(name = "vat", precision = 12, scale = 2)
     private BigDecimal vat;
 
