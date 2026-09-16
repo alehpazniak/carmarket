@@ -3,14 +3,13 @@ import {useNavigate} from 'react-router-dom';
 import {createCar, setPrimaryCarImage, uploadCarImages} from '../api/cars';
 import type {CarListing} from '../types';
 import {Loader2, Star, Upload, X} from "lucide-react";
+import {MAKES, MODELS_BY_MAKE} from '../constants/cars';
+import {EQUIPMENT_CATEGORIES} from '../constants/equipment';
 
 const FUEL_TYPES = ['PETROL', 'DIESEL', 'ELECTRIC', 'HYBRID', 'LPG'];
 const FUEL_LABELS: Record<string, string> = {
     PETROL: 'Benzyna', DIESEL: 'Diesel', ELECTRIC: 'Elektryczny', HYBRID: 'Hybryda', LPG: 'LPG',
 };
-
-const MAKES = ['Audi', 'BMW', 'Ford', 'Honda', 'Hyundai', 'Kia', 'Mazda', 'Mercedes-Benz',
-    'Nissan', 'Opel', 'Peugeot', 'Renault', 'Seat', 'Skoda', 'Toyota', 'Volkswagen', 'Volvo', 'Inne'];
 
 export default function AddListing() {
     const navigate = useNavigate();
@@ -23,10 +22,22 @@ export default function AddListing() {
         mileage: '', fuelType: 'PETROL', transmission: 'MANUAL',
         color: '', city: '', country: 'Polska', description: '',
     });
+    const [equipment, setEquipment] = useState<Set<string>>(new Set());
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        setForm(prev => ({...prev, [e.target.name]: e.target.value}));
+        const {name, value} = e.target;
+        setForm(prev => ({...prev, [name]: value, ...(name === 'make' ? {model: ''} : {})}));
     };
+
+    const toggleEquipment = (code: string) => {
+        setEquipment(prev => {
+            const next = new Set(prev);
+            if (next.has(code)) next.delete(code); else next.add(code);
+            return next;
+        });
+    };
+
+    const modelsForMake = MODELS_BY_MAKE[form.make] ?? [];
 
     const handleImages = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = Array.from(e.target.files || []);
@@ -59,6 +70,7 @@ export default function AddListing() {
                 mileage: Number(form.mileage),
                 fuelType: form.fuelType as CarListing['fuelType'],
                 transmission: form.transmission as CarListing['transmission'],
+                equipment: Array.from(equipment),
             });
 
             if (images.length > 0) {
@@ -141,9 +153,17 @@ export default function AddListing() {
                             </div>
                             <div>
                                 <label className="block text-sm text-avtovo-text-secondary mb-1">Model *</label>
-                                <input name="model" value={form.model} onChange={handleChange} required
-                                       placeholder="np. Golf, Corolla"
-                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted"/>
+                                {modelsForMake.length > 0 ? (
+                                    <select name="model" value={form.model} onChange={handleChange} required
+                                            className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent">
+                                        <option value="">Wybierz model</option>
+                                        {modelsForMake.map(m => <option key={m} value={m}>{m}</option>)}
+                                    </select>
+                                ) : (
+                                    <input name="model" value={form.model} onChange={handleChange} required
+                                           placeholder="np. Golf, Corolla"
+                                           className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted"/>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-sm text-avtovo-text-secondary mb-1">Rok *</label>
@@ -154,6 +174,7 @@ export default function AddListing() {
                             <div>
                                 <label className="block text-sm text-avtovo-text-secondary mb-1">Cena (zł) *</label>
                                 <input name="price" type="number" value={form.price} onChange={handleChange} required
+                                       step={100} min={0}
                                        placeholder="np. 25000"
                                        className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted"/>
                             </div>
@@ -161,6 +182,7 @@ export default function AddListing() {
                                 <label className="block text-sm text-avtovo-text-secondary mb-1">Przebieg (km) *</label>
                                 <input name="mileage" type="number" value={form.mileage} onChange={handleChange}
                                        required
+                                       step={100} min={0}
                                        placeholder="np. 50000"
                                        className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted"/>
                             </div>
@@ -203,6 +225,29 @@ export default function AddListing() {
                             <textarea name="description" value={form.description} onChange={handleChange}
                                       rows={4} placeholder="Opisz swoje auto..."
                                       className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted resize-none"/>
+                        </div>
+                    </div>
+
+                    {/* Equipment */}
+                    <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6">
+                        <h2 className="text-avtovo-text font-semibold mb-4">Wyposażenie</h2>
+                        <div className="space-y-5">
+                            {EQUIPMENT_CATEGORIES.map(cat => (
+                                <div key={cat.key}>
+                                    <h3 className="text-sm font-medium text-avtovo-text-secondary mb-2">{cat.label}</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                        {cat.options.map(opt => (
+                                            <label key={opt.code}
+                                                   className="flex items-center gap-2 text-sm text-avtovo-text bg-avtovo-bg border border-avtovo-border rounded-lg px-3 py-2 cursor-pointer hover:border-avtovo-accent">
+                                                <input type="checkbox" checked={equipment.has(opt.code)}
+                                                       onChange={() => toggleEquipment(opt.code)}
+                                                       className="accent-avtovo-accent"/>
+                                                {opt.label}
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
 

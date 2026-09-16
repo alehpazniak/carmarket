@@ -81,6 +81,9 @@ public class CarSearchService {
         if (req.getPriceTo() != null) {
             criteria = criteria.and(new Criteria("price").lessThanEqual(req.getPriceTo()));
         }
+        if (req.getMileageMin() != null) {
+            criteria = criteria.and(new Criteria("mileage").greaterThanEqual(req.getMileageMin()));
+        }
         if (req.getMileageMax() != null) {
             criteria = criteria.and(new Criteria("mileage").lessThanEqual(req.getMileageMax()));
         }

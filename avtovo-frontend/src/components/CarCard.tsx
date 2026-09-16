@@ -1,10 +1,13 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type {CarDocument, CarListing} from '../types';
-import { MapPin, Fuel, Gauge, Calendar, Pencil } from 'lucide-react';
+import { MapPin, Fuel, Gauge, Calendar, Pencil, MoreVertical, Tag, Trash2 } from 'lucide-react';
 
 interface Props {
     car: CarListing | CarDocument;
     editHref?: string;
+    onMarkSold?: (id: string) => void;
+    onDelete?: (id: string) => void;
 }
 
 const FUEL_LABELS: Record<string, string> = {
@@ -15,29 +18,98 @@ const FUEL_LABELS: Record<string, string> = {
     LPG: 'LPG',
 };
 
+const STATUS_LABELS: Record<string, string> = {
+    SOLD: 'Sprzedane',
+    REMOVED: 'Usunięte',
+};
 
-export default function CarCard({ car, editHref }: Props) {
+export default function CarCard({ car, editHref, onMarkSold, onDelete }: Props) {
     const navigate = useNavigate();
     const mainImage = car.primaryImageUrl || car.imageUrls?.[0];
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const statusLabel = STATUS_LABELS[car.status];
+
+    useEffect(() => {
+        if (!menuOpen) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [menuOpen]);
 
     return (
         <Link to={`/ogloszenia/${car.id}`} className="group block">
-            <div className="bg-avtovo-card border border-avtovo-border rounded-xl overflow-hidden hover:border-gray-600 transition-all duration-200 hover:shadow-lg hover:shadow-black/20">
+            <div className={`bg-avtovo-card border border-avtovo-border rounded-xl overflow-hidden hover:border-gray-600 transition-all duration-200 hover:shadow-lg hover:shadow-black/20 ${car.status !== 'ACTIVE' ? 'opacity-70' : ''}`}>
                 {/* Image */}
                 <div className="relative aspect-[16/10] bg-avtovo-bg overflow-hidden">
+                    {statusLabel && (
+                        <span className="absolute top-2 left-2 z-10 bg-black/70 text-white text-[11px] font-medium px-2 py-1 rounded-md">
+                            {statusLabel}
+                        </span>
+                    )}
                     {editHref && (
-                        <button
-                            type="button"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                navigate(editHref);
-                            }}
-                            className="absolute top-2 right-2 z-10 bg-black/70 hover:bg-black rounded-full p-2 transition-colors"
-                            title="Edytuj ogłoszenie"
-                        >
-                            <Pencil size={14} className="text-white"/>
-                        </button>
+                        <div ref={menuRef} className="absolute top-2 right-2 z-10">
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setMenuOpen(prev => !prev);
+                                }}
+                                className="bg-black/70 hover:bg-black rounded-full p-2 transition-colors"
+                                title="Opcje ogłoszenia"
+                            >
+                                <MoreVertical size={14} className="text-white"/>
+                            </button>
+                            {menuOpen && (
+                                <div className="absolute right-0 mt-1 w-48 bg-avtovo-card border border-avtovo-border rounded-lg shadow-lg overflow-hidden">
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setMenuOpen(false);
+                                            navigate(editHref);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-avtovo-text hover:bg-avtovo-bg text-left"
+                                    >
+                                        <Pencil size={14}/> Edytuj
+                                    </button>
+                                    {onMarkSold && car.status === 'ACTIVE' && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setMenuOpen(false);
+                                                onMarkSold(car.id);
+                                            }}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-avtovo-text hover:bg-avtovo-bg text-left"
+                                        >
+                                            <Tag size={14}/> Oznacz jako sprzedane
+                                        </button>
+                                    )}
+                                    {onDelete && car.status !== 'REMOVED' && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setMenuOpen(false);
+                                                onDelete(car.id);
+                                            }}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-avtovo-bg text-left"
+                                        >
+                                            <Trash2 size={14}/> Usuń
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     )}
                     {mainImage ? (
                         <img

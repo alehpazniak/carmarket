@@ -10,7 +10,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -65,6 +67,13 @@ public class CarListing {
     @CollectionTable(name = "car_listing_images", joinColumns = @JoinColumn(name = "car_id"))
     @Column(name = "image_url")
     private List<String> imageUrls = new ArrayList<>();
+
+    @Builder.Default
+    @ElementCollection(fetch = FetchType.LAZY)
+    @BatchSize(size = 20)
+    @CollectionTable(name = "car_listing_equipment", joinColumns = @JoinColumn(name = "car_id"))
+    @Column(name = "equipment_code")
+    private Set<String> equipment = new HashSet<>();
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getMyCars } from '../api/cars';
+import { getMyCars, markCarAsSold, deleteCar } from '../api/cars';
 import type {CarListing, Page} from '../types';
 import CarCard from '../components/CarCard';
 import { Plus, Car } from 'lucide-react';
@@ -14,6 +14,34 @@ export default function MyListings() {
     }, []);
 
     const cars = carsPage?.content ?? [];
+
+    const handleMarkSold = async (id: string) => {
+        if (!window.confirm('Oznaczyć to ogłoszenie jako sprzedane?')) return;
+        try {
+            const updated = await markCarAsSold(id);
+            setCarsPage(prev => prev && {
+                ...prev,
+                content: prev.content.map(c => c.id === id ? updated : c),
+            });
+        } catch (err) {
+            console.error(err);
+            alert('Nie udało się oznaczyć ogłoszenia jako sprzedane');
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!window.confirm('Usunąć to ogłoszenie? Tej operacji nie można cofnąć.')) return;
+        try {
+            await deleteCar(id);
+            setCarsPage(prev => prev && {
+                ...prev,
+                content: prev.content.map(c => c.id === id ? {...c, status: 'REMOVED' as const} : c),
+            });
+        } catch (err) {
+            console.error(err);
+            alert('Nie udało się usunąć ogłoszenia');
+        }
+    };
 
     return (
         <div className="min-h-screen bg-avtovo-bg py-10">
@@ -51,7 +79,15 @@ export default function MyListings() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {cars.map(car => <CarCard key={car.id} car={car} editHref={`/ogloszenia/${car.id}/edytuj`} />)}
+                        {cars.map(car => (
+                            <CarCard
+                                key={car.id}
+                                car={car}
+                                editHref={`/ogloszenia/${car.id}/edytuj`}
+                                onMarkSold={handleMarkSold}
+                                onDelete={handleDelete}
+                            />
+                        ))}
                     </div>
                 )}
             </div>

@@ -8,6 +8,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Getter
@@ -31,6 +32,7 @@ public class CarListingResponse {
     private String country;
     private List<String> imageUrls;
     private String primaryImageUrl;
+    private Set<String> equipment;
     private ListingStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

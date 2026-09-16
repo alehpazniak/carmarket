@@ -14,6 +14,7 @@ export interface CarListing {
     description?: string;
     imageUrls?: string[];
     primaryImageUrl?: string;
+    equipment?: string[];
     status: 'ACTIVE' | 'SOLD' | 'REMOVED';
     createdAt: string;
 }

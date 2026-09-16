@@ -19,6 +19,9 @@ export const updateCar = (id: string, data: Partial<CarListing>) =>
 export const deleteCar = (id: string) =>
     api.delete(`/api/cars/${id}`);
 
+export const markCarAsSold = (id: string) =>
+    api.patch<CarListing>(`/api/cars/${id}/sold`).then(r => r.data);
+
 export const uploadCarImages = (carId: string, files: File[]) => {
     const formData = new FormData();
     files.forEach(f => formData.append('files', f));

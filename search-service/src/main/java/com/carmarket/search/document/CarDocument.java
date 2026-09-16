@@ -59,7 +59,7 @@ public class CarDocument {
     @Field(type = FieldType.Text, analyzer = "standard")
     private String description;
 
-    @Field(type = FieldType.Keyword)
+    @Field(type = FieldType.Keyword, normalizer = "lowercase_normalizer")
     private String city;
 
     @Field(type = FieldType.Keyword)

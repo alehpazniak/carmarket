@@ -6,6 +6,12 @@
         "tokenizer": "standard",
         "filter": ["lowercase", "asciifolding"]
       }
+    },
+    "normalizer": {
+      "lowercase_normalizer": {
+        "type": "custom",
+        "filter": ["lowercase", "asciifolding"]
+      }
     }
   }
 }
