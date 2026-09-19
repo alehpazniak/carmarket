@@ -45,7 +45,7 @@ export function ChatWindow({carId, sellerId, conversationId}: ChatWindowProps) {
     const handleSend = () => {
         const content = draft.trim();
         if (!content) return;
-        sendMessage({carId, sellerId, content});
+        sendMessage({carId, sellerId, conversationId, content});
         setDraft('');
     };
 

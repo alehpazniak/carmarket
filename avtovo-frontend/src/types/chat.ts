@@ -19,6 +19,7 @@ export interface Message {
 export interface SendMessagePayload {
     carId: string;
     sellerId: string;
+    conversationId?: string;
     content: string;
 }
 

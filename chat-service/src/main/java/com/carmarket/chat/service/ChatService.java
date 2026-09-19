@@ -34,12 +34,7 @@ public class ChatService {
      */
     @Transactional
     public MessageResponse saveMessage(UUID senderId, SendMessageRequest req) {
-        Conversation convo = conversationRepository.findByCarIdAndBuyerId(req.carId(), resolveBuyer(senderId, req))
-            .orElseGet(() -> conversationRepository.save(Conversation.builder()
-                .carId(req.carId())
-                .buyerId(resolveBuyer(senderId, req))
-                .sellerId(req.sellerId())
-                .build()));
+        Conversation convo = findOrCreateConversation(senderId, req);
 
         // Authorization: sender must be a participant
         if (!senderId.equals(convo.getBuyerId()) && !senderId.equals(convo.getSellerId())) {
@@ -59,22 +54,25 @@ public class ChatService {
     }
 
     /**
-     * If the sender is the seller of the listing, the buyer is the "other side".
-     * For a first message, the sender is always the buyer (seller can't start a thread
-     * with a buyer who hasn't reached out — there's no buyerId to target).
+     * With a conversationId (reply in an existing thread) the thread is loaded directly.
+     * Otherwise the sender must be the buyer: find-or-create the (carId, buyerId) thread.
+     * A seller can't start a thread since there's no buyer to target.
      */
-    private UUID resolveBuyer(UUID senderId, SendMessageRequest req) {
-        // If sender is the seller, this must be a reply → buyer comes from existing convo.
-        // We look it up; if not found and sender==seller, it's an error (no thread to reply to).
-        if (senderId.equals(req.sellerId())) {
-            return conversationRepository.findByCarIdAndBuyerId(req.carId(), req.sellerId())
-                .map(Conversation::getBuyerId)
-                .orElseThrow(() -> new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Seller cannot initiate a conversation; no existing thread"));
+    private Conversation findOrCreateConversation(UUID senderId, SendMessageRequest req) {
+        if (req.conversationId() != null) {
+            return conversationRepository.findById(req.conversationId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
         }
-        // Sender is the buyer
-        return senderId;
+        if (senderId.equals(req.sellerId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Seller cannot initiate a conversation; no existing thread");
+        }
+        return conversationRepository.findByCarIdAndBuyerId(req.carId(), senderId)
+            .orElseGet(() -> conversationRepository.save(Conversation.builder()
+                .carId(req.carId())
+                .buyerId(senderId)
+                .sellerId(req.sellerId())
+                .build()));
     }
 
     @Transactional(readOnly = true)
