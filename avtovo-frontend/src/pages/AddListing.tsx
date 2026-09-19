@@ -99,7 +99,7 @@ export default function AddListing() {
                     {/* Images */}
                     <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6">
                         <h2 className="text-avtovo-text font-semibold mb-4">Zdjęcia</h2>
-                        <div className="grid grid-cols-4 gap-3">
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                             {previews.map((src, idx) => (
                                 <div key={idx}
                                      className={`relative aspect-square rounded-lg overflow-hidden bg-avtovo-bg ${idx === mainIndex ? 'ring-2 ring-avtovo-accent' : ''}`}>

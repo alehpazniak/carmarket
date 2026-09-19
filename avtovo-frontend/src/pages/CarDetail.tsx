@@ -178,13 +178,9 @@ export default function CarDetail() {
                                     <Trash2 size={16} />
                                     Usuń ogłoszenie
                                 </button>
-                            ) : (
-                                <div className="bg-avtovo-bg border border-avtovo-border rounded-xl p-4 text-center">
-                                    <p className="text-avtovo-text-secondary text-sm">Skontaktuj się ze sprzedającym</p>
-                                </div>
-                            )}
+                            ) : null}
                         </div>
-                        <ContactSellerButton carId={car.id} sellerId={car.sellerId} />
+                        <div id="contact-seller"><ContactSellerButton carId={car.id} sellerId={car.sellerId} /></div>
                     </div>
                 </div>
             </div>

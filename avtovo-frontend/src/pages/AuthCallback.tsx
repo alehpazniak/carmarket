@@ -14,7 +14,14 @@ export default function AuthCallback() {
             localStorage.setItem('access_token', accessToken);
             localStorage.setItem('refresh_token', refreshToken);
             if (userId) localStorage.setItem('user_id', userId);
-            navigate('/', { replace: true });
+            let next = '/';
+            try {
+                const saved = sessionStorage.getItem('post_login_path');
+                sessionStorage.removeItem('post_login_path');
+                // Only same-site relative paths, never another origin
+                if (saved && saved.startsWith('/') && !saved.startsWith('//')) next = saved;
+            } catch { /* ignore */ }
+            navigate(next, { replace: true });
         } else {
             navigate('/', { replace: true });
         }

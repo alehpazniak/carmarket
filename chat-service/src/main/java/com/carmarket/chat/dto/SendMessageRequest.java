@@ -12,6 +12,7 @@ import java.util.UUID;
 public record SendMessageRequest(
     @NotNull UUID carId,
     @NotNull UUID sellerId,          // who owns the listing (buyer provides it from the car page)
+    UUID conversationId,             // set when replying in an existing thread (required for seller)
     @NotBlank @Size(max = 2000) String content
 ) {
 }
