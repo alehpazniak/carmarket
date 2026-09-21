@@ -55,17 +55,18 @@ public class ChatService {
     }
 
     /**
-     * A seller can only reply to an existing thread (identified by conversationId);
-     * a buyer finds-or-creates the (carId, buyerId) thread.
+     * With a conversationId (reply in an existing thread) the thread is loaded directly.
+     * Otherwise the sender must be the buyer: find-or-create the (carId, buyerId) thread.
+     * A seller can't start a thread since there's no buyer to target.
      */
     private Conversation findOrCreateConversation(UUID senderId, SendMessageRequest req) {
-        if (senderId.equals(req.sellerId())) {
-            if (req.conversationId() == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Seller cannot initiate a conversation; conversationId is required");
-            }
+        if (req.conversationId() != null) {
             return conversationRepository.findById(req.conversationId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
+        }
+        if (senderId.equals(req.sellerId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                "Seller cannot initiate a conversation; no existing thread");
         }
         return conversationRepository.findByCarIdAndBuyerId(req.carId(), senderId)
             .orElseGet(() -> conversationRepository.save(Conversation.builder()
