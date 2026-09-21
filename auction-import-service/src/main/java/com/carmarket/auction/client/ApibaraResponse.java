@@ -59,6 +59,7 @@ public record ApibaraResponse(List<Vehicle> data) {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Media(
         @JsonProperty("thumbs_count") Integer thumbsCount,
-        @JsonProperty("has_video") Boolean hasVideo
+        @JsonProperty("has_video") Boolean hasVideo,
+        List<String> thumbs
     ) {}
 }

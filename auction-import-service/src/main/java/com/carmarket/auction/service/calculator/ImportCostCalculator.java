@@ -42,14 +42,18 @@ public class ImportCostCalculator {
         BigDecimal euPortFee = rates.getEuPortFeeUsd();
 
         // 5. Excise (Poland) — depends on engine capacity & fuel type
-        BigDecimal exciseRate = resolveExciseRate(lot);
-        // Excise base = auction price + ocean freight (Polish customs rules)
-        BigDecimal exciseBase = auctionPrice.add(oceanFreight);
-        BigDecimal excise = exciseBase.multiply(exciseRate)
+        BigDecimal exciseRate = ExciseRateResolver.resolve(lot.getEngineCapacity(), lot.getFuelType());
+        // Customs value = auction price + ocean freight (Polish customs rules)
+        BigDecimal customsValue = auctionPrice.add(oceanFreight);
+        BigDecimal excise = customsValue.multiply(exciseRate)
             .setScale(2, RoundingMode.HALF_UP);
 
-        // 6. VAT 23% (Poland) — base = price + freight + excise
-        BigDecimal vatBase = auctionPrice.add(oceanFreight).add(excise);
+        // 5b. Customs duty ("cło") — non-EU common external tariff on the customs value
+        BigDecimal customsDuty = customsValue.multiply(rates.getCustomsDutyRate())
+            .setScale(2, RoundingMode.HALF_UP);
+
+        // 6. VAT 23% (Poland) — base = customs value + duty + excise
+        BigDecimal vatBase = customsValue.add(customsDuty).add(excise);
         BigDecimal vat = vatBase.multiply(rates.getVatRate())
             .setScale(2, RoundingMode.HALF_UP);
 
@@ -70,6 +74,7 @@ public class ImportCostCalculator {
         BigDecimal exchangeRate = exchangeService.getUsdToPlnRate();
         BigDecimal totalPln = totalUsd.multiply(exchangeRate)
             .add(excise.multiply(exchangeRate)) // excise usually paid in PLN
+            .add(customsDuty.multiply(exchangeRate)) // customs duty usually paid in PLN
             .add(vat.multiply(exchangeRate))
             .add(customsClearance)
             .add(euDelivery)
@@ -82,6 +87,7 @@ public class ImportCostCalculator {
             .oceanFreight(oceanFreight)
             .euPortFee(euPortFee)
             .excise(excise.multiply(exchangeRate).setScale(2, RoundingMode.HALF_UP))
+            .customsDuty(customsDuty.multiply(exchangeRate).setScale(2, RoundingMode.HALF_UP))
             .vat(vat.multiply(exchangeRate).setScale(2, RoundingMode.HALF_UP))
             .customsClearance(customsClearance)
             .euDelivery(euDelivery)
@@ -155,21 +161,6 @@ public class ImportCostCalculator {
             case "IL", "OH", "MI", "IN", "WI", "MN", "MO", "IA" -> "MIDWEST";
             default -> "EAST";
         };
-    }
-
-    private BigDecimal resolveExciseRate(AuctionLot lot) {
-        // Polish excise: 3.1% for Euro 6 petrol/hybrid, 18.6% for older/diesel
-        // Simplified: use year as proxy for Euro standard
-        int year = lot.getYear();
-        boolean isDiesel = lot.getFuelType() == AuctionLot.FuelType.DIESEL;
-
-        if (year >= 2020 && !isDiesel) {
-            return new BigDecimal("0.031"); // 3.1%
-        } else if (year >= 2015) {
-            return new BigDecimal("0.086"); // 8.6%
-        } else {
-            return new BigDecimal("0.186"); // 18.6%
-        }
     }
 
     private ImportCalculation.ProfitRating rateProfit(BigDecimal margin, BigDecimal absoluteProfit) {

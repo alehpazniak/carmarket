@@ -19,6 +19,9 @@ export const updateCar = (id: string, data: Partial<CarListing>) =>
 export const deleteCar = (id: string) =>
     api.delete(`/api/cars/${id}`);
 
+export const markCarAsSold = (id: string) =>
+    api.patch<CarListing>(`/api/cars/${id}/sold`).then(r => r.data);
+
 export const uploadCarImages = (carId: string, files: File[]) => {
     const formData = new FormData();
     files.forEach(f => formData.append('files', f));
@@ -26,6 +29,14 @@ export const uploadCarImages = (carId: string, files: File[]) => {
         headers: {'Content-Type': 'multipart/form-data'},
     }).then(r => r.data);
 };
+
+export const setPrimaryCarImage = (carId: string, url: string) =>
+    api.patch<CarListing>(`/api/cars/${carId}/images/primary?url=${encodeURIComponent(url)}`)
+        .then(r => r.data);
+
+export const deleteCarImage = (carId: string, url: string) =>
+    api.delete<CarListing>(`/api/cars/${carId}/images?url=${encodeURIComponent(url)}`)
+        .then(r => r.data);
 
 export const searchCars = (params: Record<string, string | number> = {}) => {
     const query = new URLSearchParams(

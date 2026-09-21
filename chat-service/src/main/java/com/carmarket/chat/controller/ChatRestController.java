@@ -27,9 +27,19 @@ public class ChatRestController {
     @GetMapping("/conversations")
     public ResponseEntity<List<ConversationResponse>> myConversations(
         @RequestHeader("X-User-Id") String userId) {
-        List<ConversationResponse> result = chatService.getMyConversations(UUID.fromString(userId))
-            .stream().map(ConversationResponse::from).toList();
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(chatService.getMyConversations(UUID.fromString(userId)));
+    }
+
+    @GetMapping("/unread-count")
+    public ResponseEntity<Long> unreadCount(@RequestHeader("X-User-Id") String userId) {
+        return ResponseEntity.ok(chatService.unreadCount(UUID.fromString(userId)));
+    }
+
+    @PostMapping("/conversations/{id}/read")
+    public ResponseEntity<Void> markRead(
+        @PathVariable UUID id, @RequestHeader("X-User-Id") String userId) {
+        chatService.markRead(UUID.fromString(userId), id);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/conversations/{id}/messages")

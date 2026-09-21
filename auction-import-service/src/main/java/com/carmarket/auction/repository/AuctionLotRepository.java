@@ -14,7 +14,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface AuctionLotRepository extends JpaRepository<AuctionLot, UUID> {
+public interface  AuctionLotRepository extends JpaRepository<AuctionLot, UUID> {
 
     Optional<AuctionLot> findByLotNumberAndSource(String lotNumber, AuctionLot.AuctionSource source);
 

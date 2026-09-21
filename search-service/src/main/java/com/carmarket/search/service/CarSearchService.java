@@ -57,17 +57,23 @@ public class CarSearchService {
 
         // Full-text query across make, model, description
         if (StringUtils.isNotEmpty(req.getQuery())) {
-            Criteria textSearch = new Criteria("make").contains(req.getQuery())
-                .or(new Criteria("model").contains(req.getQuery()))
-                .or(new Criteria("description").contains(req.getQuery()));
-            criteria = criteria.and(textSearch);
+            // Wildcard queries can't contain blanks, so every word is matched separately
+            // (all words must match make, model or description).
+            for (String token : tokenize(req.getQuery())) {
+                Criteria textSearch = new Criteria("make").contains(token)
+                    .or(new Criteria("model").contains(token))
+                    .or(new Criteria("description").contains(token));
+                criteria = criteria.and(textSearch);
+            }
         }
 
         if (StringUtils.isNotEmpty(req.getMake())) {
             criteria = criteria.and(new Criteria("make").is(req.getMake()));
         }
         if (StringUtils.isNotEmpty(req.getModel())) {
-            criteria = criteria.and(new Criteria("model").contains(req.getModel()));
+            for (String token : tokenize(req.getModel())) {
+                criteria = criteria.and(new Criteria("model").contains(token));
+            }
         }
         if (req.getYearFrom() != null) {
             criteria = criteria.and(new Criteria("year").greaterThanEqual(req.getYearFrom()));
@@ -80,6 +86,9 @@ public class CarSearchService {
         }
         if (req.getPriceTo() != null) {
             criteria = criteria.and(new Criteria("price").lessThanEqual(req.getPriceTo()));
+        }
+        if (req.getMileageMin() != null) {
+            criteria = criteria.and(new Criteria("mileage").greaterThanEqual(req.getMileageMin()));
         }
         if (req.getMileageMax() != null) {
             criteria = criteria.and(new Criteria("mileage").lessThanEqual(req.getMileageMax()));
@@ -102,6 +111,13 @@ public class CarSearchService {
 
         return hits.getSearchHits().stream()
             .map(SearchHit::getContent)
+            .toList();
+    }
+
+    /** Lower-cased words of the input (text fields are indexed lower-cased), quotes and wildcards removed. */
+    private static List<String> tokenize(String input) {
+        return java.util.Arrays.stream(input.toLowerCase().split("[\\s\"'*?]+"))
+            .filter(t -> !t.isBlank())
             .toList();
     }
 

@@ -10,10 +10,11 @@ public record ConversationResponse(
     UUID carId,
     UUID buyerId,
     UUID sellerId,
-    Instant lastMessageAt
+    Instant lastMessageAt,
+    long unreadCount
 ) {
-    public static ConversationResponse from(Conversation c) {
+    public static ConversationResponse from(Conversation c, long unreadCount) {
         return new ConversationResponse(
-            c.getId(), c.getCarId(), c.getBuyerId(), c.getSellerId(), c.getLastMessageAt());
+            c.getId(), c.getCarId(), c.getBuyerId(), c.getSellerId(), c.getLastMessageAt(), unreadCount);
     }
 }

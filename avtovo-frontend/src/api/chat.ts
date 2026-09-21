@@ -18,3 +18,16 @@ export async function getMessages(
     });
     return res.data;
 }
+
+export const UNREAD_CHANGED_EVENT = 'chat:unread-changed';
+
+export async function getUnreadCount(): Promise<number> {
+    const res = await api.get('/api/chat/unread-count');
+    return res.data;
+}
+
+/** Marks the other party's messages in a conversation as read. */
+export async function markConversationRead(conversationId: string): Promise<void> {
+    await api.post(`/api/chat/conversations/${conversationId}/read`);
+    window.dispatchEvent(new Event(UNREAD_CHANGED_EVENT));
+}

@@ -45,7 +45,8 @@ public class AuctionLotService {
     private boolean hasSignificantChanges(AuctionLot existing, AuctionLot incoming) {
         return existing.getAuctionPrice() == null ||
             !existing.getAuctionPrice().equals(incoming.getAuctionPrice()) ||
-            existing.getStatus() != incoming.getStatus();
+            existing.getStatus() != incoming.getStatus() ||
+            (existing.getImageUrls().isEmpty() && !incoming.getImageUrls().isEmpty());
     }
 
     private void updateLot(AuctionLot target, AuctionLot source) {

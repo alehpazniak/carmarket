@@ -3,8 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getCar, deleteCar } from '../api/cars';
 import type {CarListing} from '../types';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, Fuel, Gauge, Calendar, Cog, Palette, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MapPin, Fuel, Gauge, Calendar, Cog, Palette, Trash2, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { ContactSellerButton } from '../components/ContactSellerButton';
+import { EQUIPMENT_CATEGORIES } from '../constants/equipment';
 
 const FUEL_LABELS: Record<string, string> = {
     PETROL: 'Benzyna', DIESEL: 'Diesel', ELECTRIC: 'Elektryczny', HYBRID: 'Hybryda', LPG: 'LPG',
@@ -42,6 +43,10 @@ export default function CarDetail() {
 
     const images = car.imageUrls || [];
     const isOwner = user?.id === car.sellerId;
+    const selectedEquipment = new Set(car.equipment ?? []);
+    const equipmentByCategory = EQUIPMENT_CATEGORIES
+        .map(cat => ({...cat, options: cat.options.filter(o => selectedEquipment.has(o.code))}))
+        .filter(cat => cat.options.length > 0);
 
     return (
         <div className="min-h-screen bg-avtovo-bg py-8">
@@ -125,6 +130,28 @@ export default function CarDetail() {
                             </div>
                         </div>
 
+                        {/* Equipment */}
+                        {equipmentByCategory.length > 0 && (
+                            <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6">
+                                <h2 className="text-avtovo-text font-semibold mb-4">Wyposażenie</h2>
+                                <div className="space-y-4">
+                                    {equipmentByCategory.map(cat => (
+                                        <div key={cat.key}>
+                                            <h3 className="text-sm font-medium text-avtovo-text-secondary mb-2">{cat.label}</h3>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+                                                {cat.options.map(opt => (
+                                                    <div key={opt.code} className="flex items-center gap-2 text-sm text-avtovo-text">
+                                                        <Check size={14} className="text-avtovo-accent flex-shrink-0" />
+                                                        {opt.label}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {/* Description */}
                         {car.description && (
                             <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6">
@@ -151,13 +178,9 @@ export default function CarDetail() {
                                     <Trash2 size={16} />
                                     Usuń ogłoszenie
                                 </button>
-                            ) : (
-                                <div className="bg-avtovo-bg border border-avtovo-border rounded-xl p-4 text-center">
-                                    <p className="text-avtovo-text-secondary text-sm">Skontaktuj się ze sprzedającym</p>
-                                </div>
-                            )}
+                            ) : null}
                         </div>
-                        <ContactSellerButton carId={car.id} sellerId={car.sellerId} />
+                        <div id="contact-seller"><ContactSellerButton carId={car.id} sellerId={car.sellerId} /></div>
                     </div>
                 </div>
             </div>

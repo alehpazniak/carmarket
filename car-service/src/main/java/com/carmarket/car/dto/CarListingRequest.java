@@ -6,6 +6,7 @@ import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -50,4 +51,6 @@ public class CarListingRequest {
 
     @Size(max = 100)
     private String country;
+
+    private Set<String> equipment;
 }

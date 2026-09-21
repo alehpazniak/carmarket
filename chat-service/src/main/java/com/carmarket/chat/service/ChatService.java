@@ -1,5 +1,6 @@
 package com.carmarket.chat.service;
 
+import com.carmarket.chat.dto.ConversationResponse;
 import com.carmarket.chat.dto.MessageResponse;
 import com.carmarket.chat.dto.SendMessageRequest;
 import com.carmarket.chat.entity.Conversation;
@@ -34,12 +35,7 @@ public class ChatService {
      */
     @Transactional
     public MessageResponse saveMessage(UUID senderId, SendMessageRequest req) {
-        Conversation convo = conversationRepository.findByCarIdAndBuyerId(req.carId(), resolveBuyer(senderId, req))
-            .orElseGet(() -> conversationRepository.save(Conversation.builder()
-                .carId(req.carId())
-                .buyerId(resolveBuyer(senderId, req))
-                .sellerId(req.sellerId())
-                .build()));
+        Conversation convo = findOrCreateConversation(senderId, req);
 
         // Authorization: sender must be a participant
         if (!senderId.equals(convo.getBuyerId()) && !senderId.equals(convo.getSellerId())) {
@@ -59,27 +55,49 @@ public class ChatService {
     }
 
     /**
-     * If the sender is the seller of the listing, the buyer is the "other side".
-     * For a first message, the sender is always the buyer (seller can't start a thread
-     * with a buyer who hasn't reached out — there's no buyerId to target).
+     * A seller can only reply to an existing thread (identified by conversationId);
+     * a buyer finds-or-creates the (carId, buyerId) thread.
      */
-    private UUID resolveBuyer(UUID senderId, SendMessageRequest req) {
-        // If sender is the seller, this must be a reply → buyer comes from existing convo.
-        // We look it up; if not found and sender==seller, it's an error (no thread to reply to).
+    private Conversation findOrCreateConversation(UUID senderId, SendMessageRequest req) {
         if (senderId.equals(req.sellerId())) {
-            return conversationRepository.findByCarIdAndBuyerId(req.carId(), req.sellerId())
-                .map(Conversation::getBuyerId)
-                .orElseThrow(() -> new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Seller cannot initiate a conversation; no existing thread"));
+            if (req.conversationId() == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Seller cannot initiate a conversation; conversationId is required");
+            }
+            return conversationRepository.findById(req.conversationId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
         }
-        // Sender is the buyer
-        return senderId;
+        return conversationRepository.findByCarIdAndBuyerId(req.carId(), senderId)
+            .orElseGet(() -> conversationRepository.save(Conversation.builder()
+                .carId(req.carId())
+                .buyerId(senderId)
+                .sellerId(req.sellerId())
+                .build()));
     }
 
     @Transactional(readOnly = true)
-    public List<Conversation> getMyConversations(UUID userId) {
-        return conversationRepository.findByBuyerIdOrSellerIdOrderByLastMessageAtDesc(userId, userId);
+    public List<ConversationResponse> getMyConversations(UUID userId) {
+        return conversationRepository.findByBuyerIdOrSellerIdOrderByLastMessageAtDesc(userId, userId)
+            .stream()
+            .map(c -> ConversationResponse.from(c,
+                messageRepository.countByConversationIdAndSenderIdNotAndReadAtIsNull(c.getId(), userId)))
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public long unreadCount(UUID userId) {
+        return messageRepository.countUnreadForUser(userId);
+    }
+
+    /** Marks all messages sent by the other participant as read. */
+    @Transactional
+    public void markRead(UUID userId, UUID conversationId) {
+        Conversation convo = conversationRepository.findById(conversationId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conversation not found"));
+        if (!userId.equals(convo.getBuyerId()) && !userId.equals(convo.getSellerId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not a participant");
+        }
+        messageRepository.markRead(conversationId, userId, Instant.now());
     }
 
     @Transactional(readOnly = true)

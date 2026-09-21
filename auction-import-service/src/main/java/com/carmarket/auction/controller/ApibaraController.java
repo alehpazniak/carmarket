@@ -4,6 +4,11 @@ import com.carmarket.auction.client.ApibaraClient;
 import com.carmarket.auction.client.ApibaraResponse;
 import com.carmarket.auction.client.ApibaraShippingResponse;
 import com.carmarket.auction.client.ApibaraVehicleDetailResponse;
+import com.carmarket.auction.dto.MaxBidRequest;
+import com.carmarket.auction.dto.MaxBidResponse;
+import com.carmarket.auction.service.UsaShippingRateService;
+import com.carmarket.auction.service.calculator.MaxBidCalculator;
+import com.carmarket.auction.service.calculator.MaxBidInput;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -13,9 +18,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.math.BigDecimal;
 
 /**
  * Direct passthrough to the Apibara vehicle-auction API
@@ -30,6 +39,8 @@ public class ApibaraController {
 
     private static final Logger log = LoggerFactory.getLogger(ApibaraController.class);
     private final ApibaraClient client;
+    private final MaxBidCalculator maxBidCalculator;
+    private final UsaShippingRateService shippingRateService;
 
     @GetMapping("/vehicles/filters")
     public ResponseEntity<JsonNode> getFilters() {
@@ -48,10 +59,7 @@ public class ApibaraController {
 
     @GetMapping("/vehicles/{slugVin}")
     public ResponseEntity<ApibaraVehicleDetailResponse> getVehicle(@PathVariable String slugVin) {
-        ApibaraVehicleDetailResponse vehicle = client.loadMockVehicleDetail();
-        log.info("vehicle={}",vehicle);
-        System.out.println(vehicle);
-         return okOrBadGateway(vehicle);
+        return okOrBadGateway(client.getVehicle(slugVin));
     }
 
     @GetMapping("/vehicles/{slugVin}/history")
@@ -70,7 +78,7 @@ public class ApibaraController {
     public ResponseEntity<ApibaraShippingResponse> getVehicleShipping(
         @PathVariable String slugVin,
         @RequestParam(required = false) String ports) {
-        return okOrBadGateway(client.getVehicleShipping(slugVin, ports));
+        return okOrBadGateway(shippingRateService.getShipping(null, () -> client.getVehicleShipping(slugVin, ports)));
     }
 
     @GetMapping("/shipping/auction-to-port")
@@ -78,7 +86,30 @@ public class ApibaraController {
         @RequestParam(required = false) String vin,
         @RequestParam(name = "lot_number", required = false) String lotNumber,
         @RequestParam(required = false) String ports) {
-        return okOrBadGateway(client.getAuctionToPortShipping(vin, lotNumber, ports));
+        return okOrBadGateway(shippingRateService.getShipping(null, () -> client.getAuctionToPortShipping(vin, lotNumber, ports)));
+    }
+
+    @PostMapping("/vehicles/{slugVin}/max-bid")
+    public ResponseEntity<MaxBidResponse> calculateMaxBid(
+        @PathVariable String slugVin,
+        @RequestBody MaxBidRequest request) {
+
+        BigDecimal shippingCostUsd = null;
+        ApibaraShippingResponse shipping = shippingRateService.getShipping(null, () -> client.getVehicleShipping(slugVin, null));
+        if (shipping != null && shipping.data() != null && shipping.data().shipping() != null) {
+            shippingCostUsd = shipping.data().shipping().recommendedPriceUsd();
+        }
+
+        var result = maxBidCalculator.calculate(MaxBidInput.builder()
+            .budgetPln(request.getBudgetPln())
+            .estimatedRepairCostPln(request.getEstimatedRepairCostPln())
+            .shippingCostUsd(shippingCostUsd)
+            .engineCapacityCm3(request.getEngineCapacityCm3())
+            .fuelType(request.getFuelType())
+            .suv(request.getSuv())
+            .build());
+
+        return ResponseEntity.ok(MaxBidResponse.from(result));
     }
 
     @GetMapping("/locations")

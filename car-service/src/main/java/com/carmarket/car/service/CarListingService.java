@@ -121,8 +121,43 @@ public class CarListingService {
         CarListing car = findAndVerifyOwner(carId, requesterId);
         List<String> urls = s3Service.uploadImages(carId, files);
         car.getImageUrls().addAll(urls);
-        repository.save(car);
+        if (car.getPrimaryImageUrl() == null && !urls.isEmpty()) {
+            car.setPrimaryImageUrl(urls.get(0));
+        }
+        CarListing updated = repository.save(car);
+        eventProducer.publishUpdated(updated);
         log.info("Uploaded {} images for car: {}", urls.size(), carId);
         return urls;
+    }
+
+    // ─── IMAGE MANAGEMENT ──────────────────────────────────────────────────────
+
+    @Transactional
+    public CarListingResponse setPrimaryImage(UUID carId, UUID requesterId, String url) {
+        CarListing car = findAndVerifyOwner(carId, requesterId);
+        if (!car.getImageUrls().contains(url)) {
+            throw new IllegalArgumentException("Image does not belong to this listing");
+        }
+        car.setPrimaryImageUrl(url);
+        CarListing updated = repository.save(car);
+        eventProducer.publishUpdated(updated);
+        log.info("Set primary image for car: {}", carId);
+        return mapper.toResponse(updated);
+    }
+
+    @Transactional
+    public CarListingResponse removeImage(UUID carId, UUID requesterId, String url) {
+        CarListing car = findAndVerifyOwner(carId, requesterId);
+        if (!car.getImageUrls().remove(url)) {
+            throw new IllegalArgumentException("Image does not belong to this listing");
+        }
+        if (url.equals(car.getPrimaryImageUrl())) {
+            car.setPrimaryImageUrl(car.getImageUrls().stream().findFirst().orElse(null));
+        }
+        CarListing updated = repository.save(car);
+        s3Service.deleteImage(url);
+        eventProducer.publishUpdated(updated);
+        log.info("Removed image for car: {}", carId);
+        return mapper.toResponse(updated);
     }
 }

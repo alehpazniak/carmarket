@@ -59,7 +59,7 @@ public class CarDocument {
     @Field(type = FieldType.Text, analyzer = "standard")
     private String description;
 
-    @Field(type = FieldType.Keyword)
+    @Field(type = FieldType.Keyword, normalizer = "lowercase_normalizer")
     private String city;
 
     @Field(type = FieldType.Keyword)
@@ -67,6 +67,9 @@ public class CarDocument {
 
     @Field(type = FieldType.Keyword)
     private String status;
+
+    @Field(type = FieldType.Keyword, index = false)
+    private String primaryImageUrl;
 
     @Field(type = FieldType.Date, format = {DateFormat.date_optional_time, DateFormat.epoch_millis})
     private Instant createdAt;

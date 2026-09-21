@@ -4,6 +4,7 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import AuthCallback from './pages/AuthCallback';
 import AddListing from './pages/AddListing';
+import EditListing from './pages/EditListing';
 import CarDetail from './pages/CarDetail';
 import MyListings from './pages/MyListings';
 import Messages from './pages/Messages';
@@ -35,6 +36,9 @@ function AppRoutes() {
                 <Route path="/aukcje/pojazd/:identifier" element={<ApibaraVehiclePage />} />
                 <Route path="/dodaj-ogloszenie" element={
                     <ProtectedRoute><AddListing /></ProtectedRoute>
+                } />
+                <Route path="/ogloszenia/:id/edytuj" element={
+                    <ProtectedRoute><EditListing /></ProtectedRoute>
                 } />
                 <Route path="/moje-ogloszenia" element={
                     <ProtectedRoute><MyListings /></ProtectedRoute>

@@ -4,7 +4,7 @@ import type { Message, SendMessagePayload } from '../types/chat';
 
 // WebSocket goes directly to chat-service (not through the gateway).
 const CHAT_WS_URL =
-    import.meta.env.VITE_CHAT_WS_URL || 'ws://localhost:8085/ws';
+    import.meta.env.VITE_CHAT_WS_URL || `ws://${window.location.hostname}:8085/ws`;
 
 interface UseChatResult {
     connected: boolean;

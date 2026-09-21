@@ -34,6 +34,9 @@ import:
     customs-clearance-pln: 1500
     eu-delivery-pln: 800
     vat-rate: 0.23
+    customs-duty-rate: 0.10
+    shipping-delivery-usd: 1000
+    shipping-delivery-suv-usd: 1500
 
 #parser:
 #  headless: true
@@ -58,7 +61,8 @@ eureka:
 
 apibara:
   base-url: https://apibara.tech
-  api-key: ${APIBARA_API_KEY:ak_live_vQlgCCdFx2whPdgX1qv5xrhbved26ZgWwWBn8G9hb2YczhxV}      # from .env / env var, NEVER commit
+  api-key: ${APIBARA_API_KEY:ak_live_juGK5bzI5Re9eFdCxwaKvi6B1q7i5i0e4b6BbiWXFZtvX4oy}      # from .env / env var, NEVER commit
+#  api-key: ${APIBARA_API_KEY:ak_live_vQlgCCdFx2whPdgX1qv5xrhbved26ZgWwWBn8G9hb2YczhxV}      # from .env / env var, NEVER commit
   per-page: 50
   targets: []
     # добавляй новые модели здесь — код не трогаешь:

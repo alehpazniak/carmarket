@@ -25,6 +25,7 @@ public class SearchRequest {
     private BigDecimal priceFrom;
     private BigDecimal priceTo;
 
+    private Integer mileageMin;
     private Integer mileageMax;
 
     private String fuelType;

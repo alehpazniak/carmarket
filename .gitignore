@@ -37,3 +37,6 @@ build/
 .env.*
 !.env.example
 application-local.yml
+### Local tunnel overrides ###
+/config/
+auth-service/config/

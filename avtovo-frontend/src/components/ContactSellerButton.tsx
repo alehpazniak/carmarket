@@ -9,14 +9,18 @@ interface ContactSellerButtonProps {
 }
 
 export function ContactSellerButton({carId, sellerId}: ContactSellerButtonProps) {
-    const {user, isAuthenticated} = useAuth();
+    const {user, isAuthenticated, loginWithGoogle} = useAuth();
     const [open, setOpen] = useState(false);
 
     // Don't let the seller message themselves
     if (user?.id === sellerId) return null;
 
     if (!isAuthenticated) {
-        return <p className="contact-hint">Log in to contact the seller</p>;
+        return (
+            <button className="contact-btn" onClick={loginWithGoogle}>
+                <MessageCircle size={18}/> Contact seller
+            </button>
+        );
     }
 
     return (

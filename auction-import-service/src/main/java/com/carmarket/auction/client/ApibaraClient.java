@@ -2,11 +2,9 @@ package com.carmarket.auction.client;
 
 import com.carmarket.auction.config.ParserTargetsConfig;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -14,7 +12,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -41,17 +38,19 @@ public class ApibaraClient {
     private static final String IMAGE_PROXY_PATH = "/api/v1/vehicle-auction/image-proxy";
 
     private static final MultiValueMap<String, String> NO_PARAMS = new LinkedMultiValueMap<>();
-    private static final String MOCK_VEHICLE_DETAIL_RESOURCE = "mock/apibara-vehicle-detail.json";
 
     private final ParserTargetsConfig config;
-    private final ObjectMapper objectMapper;
     private RestClient restClient;
-    private ApibaraVehicleDetailResponse mockVehicleDetail;
 
     @PostConstruct
     void init() {
-
-        this.mockVehicleDetail = loadMockVehicleDetail();
+        if (config.getApiKey() == null || config.getApiKey().isBlank()) {
+            log.warn("apibara.api-key is not set — auction sync will be skipped");
+        }
+        this.restClient = RestClient.builder()
+                .baseUrl(config.getBaseUrl())
+                .defaultHeader("X-API-Key", config.getApiKey() == null ? "" : config.getApiKey())
+                .build();
     }
 
     /**
@@ -79,27 +78,9 @@ public class ApibaraClient {
         return get(VEHICLE_FILTERS_PATH, NO_PARAMS, JsonNode.class);
     }
 
-    /**
-     * GET /vehicles/{slugVin} — full normalized vehicle record.
-     * TEMPORARY: served from a local fixture instead of the real Apibara API, so vehicle-page
-     * development doesn't burn the free-tier monthly quota. Swap back to the {@code get(...)}
-     * call below once live data is needed again.
-     */
+    /** GET /vehicles/{slugVin} — full normalized vehicle record. */
     public ApibaraVehicleDetailResponse getVehicle(String slugVin) {
-        log.info("Apibara vehicle detail for '{}' served from local mock data — real API call skipped", slugVin);
-        return mockVehicleDetail;
-    }
-
-    public ApibaraVehicleDetailResponse loadMockVehicleDetail() {
-        try {
-            return objectMapper.readValue(
-                new ClassPathResource(MOCK_VEHICLE_DETAIL_RESOURCE).getInputStream(),
-                ApibaraVehicleDetailResponse.class
-            );
-        } catch (IOException e) {
-            log.error("Failed to load mock Apibara vehicle detail fixture '{}': {}", MOCK_VEHICLE_DETAIL_RESOURCE, e.getMessage());
-            return null;
-        }
+        return get(VEHICLE_DETAIL_PATH, Map.of("slugVin", slugVin), NO_PARAMS, ApibaraVehicleDetailResponse.class);
     }
 
     /** GET /vehicles/{slugVin}/history — paginated past auction/sale records for the vehicle. */

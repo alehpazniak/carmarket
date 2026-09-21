@@ -3,15 +3,25 @@ import { searchCars } from '../api/cars';
 import type { CarDocument } from '../types';
 import CarCard from '../components/CarCard';
 import { useAuth } from '../context/AuthContext';
-import { Search } from 'lucide-react';
+import { Search, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { MAKES, MODELS_BY_MAKE } from '../constants/cars';
 export default function Home() {
     const [cars, setCars] = useState<CarDocument[]>([]);
     const [loading, setLoading] = useState(true);
     const [query, setQuery] = useState('');
     const [make, setMake] = useState('');
+    const [model, setModel] = useState('');
+    const [transmission, setTransmission] = useState('');
     const [priceFrom, setPriceFrom] = useState('');
     const [priceTo, setPriceTo] = useState('');
+    const [mileageFrom, setMileageFrom] = useState('');
+    const [mileageTo, setMileageTo] = useState('');
     const [fuelType, setFuelType] = useState('');
+    const [yearFrom, setYearFrom] = useState('');
+    const [yearTo, setYearTo] = useState('');
+    const [city, setCity] = useState('');
+    const [sortOption, setSortOption] = useState('createdAt,desc');
+    const [filtersOpen, setFiltersOpen] = useState(true);
     const { loginWithGoogle, isAuthenticated } = useAuth();
     const fetchCars = (params = {}) => {
         setLoading(true);
@@ -20,29 +30,49 @@ export default function Home() {
             .catch(console.error)
             .finally(() => setLoading(false));
     };
+    const buildParams = (sortOverride = sortOption): Record<string, string> => ({
+        ...(query && { query }),
+        ...(make && { make }),
+        ...(model && { model }),
+        ...(transmission && { transmission }),
+        ...(priceFrom && { priceFrom }),
+        ...(priceTo && { priceTo }),
+        ...(mileageFrom && { mileageMin: mileageFrom }),
+        ...(mileageTo && { mileageMax: mileageTo }),
+        ...(fuelType && { fuelType }),
+        ...(yearFrom && { yearFrom }),
+        ...(yearTo && { yearTo }),
+        ...(city && { city }),
+        ...(sortOverride && { sort: sortOverride }),
+    });
     useEffect(() => {
-        searchCars()
-            .then(setCars)
-            .catch(console.error)
-            .finally(() => setLoading(false));
+        fetchCars(buildParams());
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        fetchCars({
-            ...(query && { query }),
-            ...(make && { make }),
-            ...(priceFrom && { priceFrom }),
-            ...(priceTo && { priceTo }),
-            ...(fuelType && { fuelType }),
-        });
+        fetchCars(buildParams());
+        setFiltersOpen(false);
     };
-    const MAKES = ['Audi', 'BMW', 'Ford', 'Honda', 'Hyundai', 'Kia', 'Mazda',
-        'Mercedes-Benz', 'Nissan', 'Opel', 'Peugeot', 'Renault',
-        'Skoda', 'Toyota', 'Volkswagen', 'Volvo'];
+    const handleSortChange = (value: string) => {
+        setSortOption(value);
+        fetchCars(buildParams(value));
+    };
+    const modelsForMake = MODELS_BY_MAKE[make] ?? [];
     const FUEL_LABELS: Record<string, string> = {
         PETROL: 'Benzyna', DIESEL: 'Diesel', ELECTRIC: 'Elektryczny',
         HYBRID: 'Hybryda', LPG: 'LPG',
     };
+    const TRANSMISSION_LABELS: Record<string, string> = {
+        MANUAL: 'Manualna', AUTOMATIC: 'Automatyczna',
+    };
+    const SORT_OPTIONS: { value: string; label: string }[] = [
+        { value: 'createdAt,desc', label: 'Najnowsze' },
+        { value: 'price,asc', label: 'Cena: od najniższej' },
+        { value: 'price,desc', label: 'Cena: od najwyższej' },
+        { value: 'mileage,asc', label: 'Przebieg: od najmniejszego' },
+        { value: 'year,desc', label: 'Rok: najnowszy' },
+    ];
     return (
         <div className="min-h-screen bg-avtovo-bg">
             {/* Hero */}
@@ -67,15 +97,36 @@ export default function Home() {
                                 className="w-full bg-avtovo-card border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-xl pl-12 pr-4 py-4 text-base focus:outline-none focus:border-avtovo-accent transition-colors"
                             />
                         </div>
+                        {/* Filters toggle */}
+                        <button
+                            type="button"
+                            onClick={() => setFiltersOpen(prev => !prev)}
+                            className="flex items-center gap-2 mx-auto text-sm text-avtovo-text-secondary hover:text-avtovo-text transition-colors"
+                        >
+                            <SlidersHorizontal size={14} />
+                            {filtersOpen ? 'Ukryj filtry' : 'Pokaż filtry'}
+                            <ChevronDown size={14} className={`transition-transform duration-300 ${filtersOpen ? 'rotate-180' : ''}`} />
+                        </button>
                         {/* Filters row */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div
+                            className={`grid grid-cols-2 sm:grid-cols-4 gap-3 overflow-hidden transition-all duration-300 ease-in-out ${filtersOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}
+                        >
                             <select
                                 value={make}
-                                onChange={e => setMake(e.target.value)}
+                                onChange={e => { setMake(e.target.value); setModel(''); }}
                                 className="bg-avtovo-card border border-avtovo-border text-avtovo-text rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
                             >
                                 <option value="">Wszystkie marki</option>
                                 {MAKES.map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                            <select
+                                value={model}
+                                onChange={e => setModel(e.target.value)}
+                                disabled={modelsForMake.length === 0}
+                                className="bg-avtovo-card border border-avtovo-border text-avtovo-text rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <option value="">{modelsForMake.length === 0 ? 'Najpierw wybierz markę' : 'Wszystkie modele'}</option>
+                                {modelsForMake.map(m => <option key={m} value={m}>{m}</option>)}
                             </select>
                             <select
                                 value={fuelType}
@@ -87,11 +138,22 @@ export default function Home() {
                                     <option key={v} value={v}>{l}</option>
                                 ))}
                             </select>
+                            <select
+                                value={transmission}
+                                onChange={e => setTransmission(e.target.value)}
+                                className="bg-avtovo-card border border-avtovo-border text-avtovo-text rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
+                            >
+                                <option value="">Wszystkie skrzynie</option>
+                                {Object.entries(TRANSMISSION_LABELS).map(([v, l]) => (
+                                    <option key={v} value={v}>{l}</option>
+                                ))}
+                            </select>
                             <input
                                 type="number"
                                 placeholder="Cena od (zł)"
                                 value={priceFrom}
                                 onChange={e => setPriceFrom(e.target.value)}
+                                step={100} min={0}
                                 className="bg-avtovo-card border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
                             />
                             <input
@@ -99,6 +161,46 @@ export default function Home() {
                                 placeholder="Cena do (zł)"
                                 value={priceTo}
                                 onChange={e => setPriceTo(e.target.value)}
+                                step={100} min={0}
+                                className="bg-avtovo-card border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
+                            />
+                            <input
+                                type="number"
+                                placeholder="Przebieg od (km)"
+                                value={mileageFrom}
+                                onChange={e => setMileageFrom(e.target.value)}
+                                step={100} min={0}
+                                className="bg-avtovo-card border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
+                            />
+                            <input
+                                type="number"
+                                placeholder="Przebieg do (km)"
+                                value={mileageTo}
+                                onChange={e => setMileageTo(e.target.value)}
+                                step={100} min={0}
+                                className="bg-avtovo-card border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
+                            />
+                            <input
+                                type="number"
+                                placeholder="Rok od"
+                                value={yearFrom}
+                                onChange={e => setYearFrom(e.target.value)}
+                                min={1900} max={new Date().getFullYear() + 1}
+                                className="bg-avtovo-card border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
+                            />
+                            <input
+                                type="number"
+                                placeholder="Rok do"
+                                value={yearTo}
+                                onChange={e => setYearTo(e.target.value)}
+                                min={1900} max={new Date().getFullYear() + 1}
+                                className="bg-avtovo-card border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
+                            />
+                            <input
+                                type="text"
+                                placeholder="Lokalizacja (miasto)"
+                                value={city}
+                                onChange={e => setCity(e.target.value)}
                                 className="bg-avtovo-card border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
                             />
                         </div>
@@ -147,7 +249,16 @@ export default function Home() {
                     </div>
                 ) : (
                     <>
-                        <p className="text-avtovo-text-secondary mb-6">{cars.length} ogłoszeń</p>
+                        <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
+                            <p className="text-avtovo-text-secondary">{cars.length} ogłoszeń</p>
+                            <select
+                                value={sortOption}
+                                onChange={e => handleSortChange(e.target.value)}
+                                className="bg-avtovo-card border border-avtovo-border text-avtovo-text rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
+                            >
+                                {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                        </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {cars.map(car => (
                                 <CarCard key={car.id} car={car} />

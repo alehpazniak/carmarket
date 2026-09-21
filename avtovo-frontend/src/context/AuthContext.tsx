@@ -37,7 +37,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const loginWithGoogle = () => {
-        window.location.href = 'http://localhost:8081/auth/oauth2/authorization/google';
+        // Remember where the user was so AuthCallback can send them back after login
+        try {
+            sessionStorage.setItem('post_login_path', window.location.pathname + window.location.search);
+        } catch { /* storage unavailable — fall back to home */ }
+        const authUrl = import.meta.env.VITE_AUTH_URL || `http://${window.location.hostname}:8081`;
+        window.location.href = `${authUrl}/auth/oauth2/authorization/google`;
     };
 
     const logout = async () => {

@@ -52,6 +52,7 @@ public class CarEventProducer {
             car.getTransmission() != null ? car.getTransmission().name() : null,
             car.getCity(),
             car.getStatus().name(),
+            car.getPrimaryImageUrl(),
             car.getCreatedAt()
         );
     }

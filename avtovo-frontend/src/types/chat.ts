@@ -4,6 +4,7 @@ export interface Conversation {
     buyerId: string;
     sellerId: string;
     lastMessageAt: string;
+    unreadCount: number;
 }
 
 export interface Message {
@@ -19,6 +20,7 @@ export interface Message {
 export interface SendMessagePayload {
     carId: string;
     sellerId: string;
+    conversationId?: string;
     content: string;
 }
 

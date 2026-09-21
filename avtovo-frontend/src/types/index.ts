@@ -13,6 +13,8 @@ export interface CarListing {
     country: string;
     description?: string;
     imageUrls?: string[];
+    primaryImageUrl?: string;
+    equipment?: string[];
     status: 'ACTIVE' | 'SOLD' | 'REMOVED';
     createdAt: string;
 }
@@ -55,4 +57,5 @@ export interface CarDocument {
     status: string;
     createdAt: string;
     imageUrls?: string[];
+    primaryImageUrl?: string;
 }

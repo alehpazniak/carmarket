@@ -4,16 +4,20 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
 @Table(name = "car_listings")
+@SQLRestriction("status <> 'REMOVED'")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -64,10 +68,20 @@ public class CarListing {
     @Column(name = "image_url")
     private List<String> imageUrls = new ArrayList<>();
 
+    @Builder.Default
+    @ElementCollection(fetch = FetchType.LAZY)
+    @BatchSize(size = 20)
+    @CollectionTable(name = "car_listing_equipment", joinColumns = @JoinColumn(name = "car_id"))
+    @Column(name = "equipment_code")
+    private Set<String> equipment = new HashSet<>();
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
     private ListingStatus status = ListingStatus.ACTIVE;
+
+    @Column(name = "primary_image_url")
+    private String primaryImageUrl;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

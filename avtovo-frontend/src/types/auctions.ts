@@ -1,5 +1,6 @@
 export type AuctionSource = 'COPART' | 'IAAI';
 export type LotStatus = 'LIVE' | 'SOLD' | 'UNSOLD' | 'EXPIRED' | 'REMOVED';
+export type FuelType = 'PETROL' | 'DIESEL' | 'ELECTRIC' | 'HYBRID' | 'PLUGIN_HYBRID';
 
 export interface AuctionLot {
     id: string;
@@ -36,6 +37,7 @@ export interface ImportCalculationResult {
     oceanFreight: number;
     euPortFee: number;
     excise: number;
+    customsDuty: number;
     vat: number;
     customsClearance: number;
     euDelivery: number;
@@ -46,6 +48,36 @@ export interface ImportCalculationResult {
     estimatedProfitPln: number;
     profitMarginPercent: number;
     profitRating: string;
+}
+
+// POST /api/auctions/lots/{id}/max-bid — reverse calculator: given a total budget, how much
+// can the buyer afford to bid on the car itself once shipping, duty, excise, VAT and repair
+// are all accounted for.
+export interface MaxBidRequest {
+    budgetPln: number;
+    estimatedRepairCostPln?: number;
+    engineCapacityCm3?: number;
+    fuelType?: FuelType;
+    suv?: boolean;
+}
+
+export interface MaxBidResult {
+    budgetPln: number;
+    estimatedRepairCostPln: number;
+    shippingCostUsd: number;
+    shippingCostPln: number;
+    shippingDeliveryUsd: number;
+    shippingDeliveryPln: number;
+    exchangeRate: number;
+    exciseRate: number;
+    customsDutyRate: number;
+    vatRate: number;
+    excise: number;
+    customsDuty: number;
+    vat: number;
+    maxCarPricePln: number;
+    maxCarPriceUsd: number;
+    budgetSufficient: boolean;
 }
 
 // Apibara live-search result — one entry from GET /api/auctions/apibara/vehicles
