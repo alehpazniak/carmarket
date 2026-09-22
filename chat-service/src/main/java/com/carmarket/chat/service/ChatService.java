@@ -4,11 +4,14 @@ import com.carmarket.chat.dto.ConversationResponse;
 import com.carmarket.chat.dto.MessageResponse;
 import com.carmarket.chat.dto.SendMessageRequest;
 import com.carmarket.chat.entity.Conversation;
+import com.carmarket.chat.event.ConversationReadEvent;
+import com.carmarket.chat.event.MessageSentEvent;
 import com.carmarket.chat.entity.Message;
 import com.carmarket.chat.repository.ConversationRepository;
 import com.carmarket.chat.repository.MessageRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -27,6 +30,7 @@ public class ChatService {
 
     private final ConversationRepository conversationRepository;
     private final MessageRepository messageRepository;
+    private final ApplicationEventPublisher events;
 
     /**
      * Persists a message. Finds-or-creates the (carId, buyerId) conversation.
@@ -50,6 +54,12 @@ public class ChatService {
 
         convo.setLastMessageAt(Instant.now());
         conversationRepository.save(convo);
+
+        // Only buyer -> seller messages trigger the "you got a new message" email.
+        if (senderId.equals(convo.getBuyerId())) {
+            events.publishEvent(new MessageSentEvent(saved.getId(), convo.getId(), convo.getCarId(),
+                convo.getBuyerId(), convo.getSellerId(), saved.getCreatedAt()));
+        }
 
         return MessageResponse.from(saved);
     }
@@ -98,7 +108,9 @@ public class ChatService {
         if (!userId.equals(convo.getBuyerId()) && !userId.equals(convo.getSellerId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not a participant");
         }
-        messageRepository.markRead(conversationId, userId, Instant.now());
+        Instant readAt = Instant.now();
+        messageRepository.markRead(conversationId, userId, readAt);
+        events.publishEvent(new ConversationReadEvent(conversationId, userId, readAt));
     }
 
     @Transactional(readOnly = true)
