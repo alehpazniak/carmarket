@@ -438,7 +438,7 @@ services:
     image: carmarket/notification-service:local
     container_name: notification-service
     networks: [carmarket-net]
-    ports: ["8086:8086"]
+    ports: ["8087:8087"]
     depends_on:
       eureka-server:
         condition: service_healthy
