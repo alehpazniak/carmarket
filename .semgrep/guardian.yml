@@ -1,0 +1,26 @@
+serial: 3
+anonymous_user_id: 8a0507ba-1389-4aa0-b4ce-4ee5f8ccb554
+oauth:
+    metadata:
+        issuer: https://login.semgrep.dev
+        authorization_endpoint: https://login.semgrep.dev/oauth2/authorize
+        token_endpoint: https://login.semgrep.dev/oauth2/token
+        registration_endpoint: https://login.semgrep.dev/oauth2/register
+    client:
+        client_id: client_01M2BNXZE37YCM2RHC6NE38HMP
+        callback_url: http://127.0.0.1/callback
+    token:
+        access_token: eyJhbGciOiJSUzI1NiIsImtpZCI6InNzb19vaWRjX2tleV9wYWlyXzAxSldYWjRHVkZIQkZBVFhZOUtQNDlHUFlRIn0.eyJzZW1ncmVwOm9yZ19pZCI6IjExMjE1NCIsImlzcyI6Imh0dHBzOi8vbG9naW4uc2VtZ3JlcC5kZXYiLCJhdWQiOiJjbGllbnRfMDFKV1haNEdaM1dQMUJGV0o1WVRFOUpXSzciLCJzdWIiOiJkZWZhdWx0LTE3OTc2MyIsInNpZCI6ImFwcF9jb25zZW50XzAxTTJCUDAyWDAyN0FYSEtTU1c2VjA2S1NOIiwianRpIjoiMDFNMlhISFhOUzBUSktXWTFNQjM3QzlTREYiLCJjbGllbnRfaWQiOiJjbGllbnRfMDFNMkJOWFpFMzdZQ00yUkhDNk5FMzhITVAiLCJhdXRoX3RpbWUiOjE3ODkyNDYwNDksInNjb3BlIjoiZW1haWwgb2ZmbGluZV9hY2Nlc3Mgb3BlbmlkIHByb2ZpbGUiLCJleHAiOjE3ODk5Mzg5NzAsImlhdCI6MTc4OTg0NTM3MH0.H9fs3XLo6sUidUB9sdW-62Gf-fQe7pweJ-WN4RJvZiUN49ucnvszj1lLAdEzYf-ZYX8RPMBN5eKGkMI60KS2aQ9Pb8oxRqi9jiSwaE7R10_GIRUQTnNtrhN4wBPf_ckAdVlv-wTen9p2Z_nxBhibRcYPjyh6Jxkfy_-Nyj96Pf9fAA_bxYpUtB401U0Y8GJ41ciQgThxU71h0y_7AQnCfPpU3xekGVXsFfml2jXu4_9VmSWN3gPduXpTftl43TQlyJLkfUeezfhd3UjNh2tnhZFyqRo6dcV2F9Tx9ZVq5-m7mx1Fc7gsww3mioAFfK8sP_8hrCjTLTDUwXcRRaLNbg
+        refresh_token: Pp1LQksTuMHZz1NuuAX3wCRCA
+        token_type: bearer
+        expiry: 2026-09-20T23:16:07.4487579+02:00
+deployment:
+    user_id: 179763
+    orgs:
+        - id: 112154
+          name: avtovoby-personal-org
+          display_name: avtovoby-personal-org
+          organization_id: 193828
+semgrep:
+    auth_method: oauth
+expiry: 2026-09-20T05:16:07.4487579+02:00

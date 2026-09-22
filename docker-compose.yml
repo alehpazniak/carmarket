@@ -25,6 +25,7 @@ volumes:
   zookeeper-data:
   elasticsearch-data:
   postgres-chat-data:
+  postgres-notification-data:
   postgres-auction-data:
 
 services:
@@ -389,7 +390,10 @@ services:
         condition: service_healthy
       postgres-chat:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       EUREKA_HOST: eureka-server
       EUREKA_USER: ${EUREKA_USER:-admin}
       EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
@@ -399,6 +403,67 @@ services:
       CHAT_DB_USER: postgres
       CHAT_DB_PASSWORD: postgres
       JWT_SECRET: ${JWT_SECRET:-bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+    restart: on-failure
+
+  # ─── NOTIFICATIONS ──────────────────────────────────────────────────────────
+  postgres-notification:
+    image: postgres:16-alpine
+    container_name: postgres-notification
+    networks: [carmarket-net]
+    ports: ["5438:5432"]
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-notification-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d notification_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Local SMTP catcher: web UI on http://localhost:8025 shows every email sent.
+  # For real delivery set MAIL_HOST / MAIL_PORT / MAIL_USERNAME / MAIL_PASSWORD on notification-service.
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog
+    networks: [carmarket-net]
+    ports: ["1025:1025", "8025:8025"]
+
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    image: carmarket/notification-service:local
+    container_name: notification-service
+    networks: [carmarket-net]
+    ports: ["8086:8086"]
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      postgres-notification:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      EUREKA_HOST: eureka-server
+      EUREKA_USER: ${EUREKA_USER:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      NOTIFICATION_DB_HOST: postgres-notification
+      NOTIFICATION_DB_PORT: 5432
+      NOTIFICATION_DB_NAME: notification_db
+      NOTIFICATION_DB_USER: postgres
+      NOTIFICATION_DB_PASSWORD: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      MAIL_HOST: ${MAIL_HOST:-mailhog}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
+      MAIL_STARTTLS: ${MAIL_STARTTLS:-false}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@carmarket.local}
+      CHAT_MESSAGE_EMAIL_DELAY: ${CHAT_MESSAGE_EMAIL_DELAY:-3m}
     restart: on-failure
 
   # ─── AUCTION DATABASE ───────────────────────────────────────────────────────
