@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # notification-service — standalone build
 # Build:   docker build -t carmarket/notification-service .
-# Run:     docker run -p 8086:8086 carmarket/notification-service
+# Run:     docker run -p 8087:8087 carmarket/notification-service
 # ─────────────────────────────────────────────────────────────────────────────
 
 FROM eclipse-temurin:17-jdk-alpine AS deps
@@ -19,7 +19,7 @@ WORKDIR /app
 RUN addgroup -S app && adduser -S app -G app
 USER app
 COPY --from=builder /build/target/*.jar app.jar
-EXPOSE 8086
+EXPOSE 8087
 ENTRYPOINT ["java", \
   "-XX:+UseContainerSupport", \
   "-XX:MaxRAMPercentage=75.0", \

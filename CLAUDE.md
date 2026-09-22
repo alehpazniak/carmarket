@@ -51,10 +51,8 @@ Health/monitoring UIs when the stack is up: Eureka `:8761` (admin/admin), Kafka 
 | car-service | 8083 | postgres-car, S3 | Car listings CRUD, favorites, publishes `car.*` events |
 | search-service | 8084 | Elasticsearch | Full-text/filter search, indexed from Kafka |
 | chat-service | 8085 | postgres-chat | Buyer↔seller WebSocket/STOMP chat, publishes `chat.*` events |
-| notification-service | 8086 | postgres-notification | Consumes `user.*`/`chat.*` events, sends email (via MailHog locally) |
-| auction-import-service | 8086* | postgres-auction | US auto-auction (Copart/Apibara) import-cost calculator, currency & shipping rates, analytics |
-
-\* `auction-import-service` and `notification-service` both default to container port 8086 in `docker-compose.yml` — check the compose file if running both together.
+| notification-service | 8087 | postgres-notification | Consumes `user.*`/`chat.*` events, sends email (via MailHog locally) |
+| auction-import-service | 8086 | postgres-auction | US auto-auction (Copart/Apibara) import-cost calculator, currency & shipping rates, analytics |
 
 Every backend service module lives at `<service>/src/main/java/com/carmarket/<name>/...`.
 
