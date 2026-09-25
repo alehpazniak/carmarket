@@ -55,11 +55,10 @@ public class ChatService {
         convo.setLastMessageAt(Instant.now());
         conversationRepository.save(convo);
 
-        // Only buyer -> seller messages trigger the "you got a new message" email.
-        if (senderId.equals(convo.getBuyerId())) {
-            events.publishEvent(new MessageSentEvent(saved.getId(), convo.getId(), convo.getCarId(),
-                convo.getBuyerId(), convo.getSellerId(), saved.getCreatedAt()));
-        }
+        // Either direction triggers the "you got a new message" email to the other participant.
+        UUID recipientId = senderId.equals(convo.getBuyerId()) ? convo.getSellerId() : convo.getBuyerId();
+        events.publishEvent(new MessageSentEvent(saved.getId(), convo.getId(), convo.getCarId(),
+            senderId, recipientId, saved.getCreatedAt()));
 
         return MessageResponse.from(saved);
     }

@@ -1,5 +1,6 @@
 package com.carmarket.user.service;
 
+import com.carmarket.user.dto.ContactInfoRequest;
 import com.carmarket.user.entity.UserProfile;
 import com.carmarket.user.repository.UserProfileRepository;
 import lombok.RequiredArgsConstructor;
@@ -97,6 +98,31 @@ public class UserProfileService {
         }
 
         return userProfileRepository.save(existing);
+    }
+
+    /**
+     * Replace the user's phone and address. Unlike {@link #updateProfile}, every field is
+     * written, so a blank house number clears it.
+     *
+     * @param id      User ID
+     * @param request Validated contact info
+     * @return Updated profile
+     */
+    @Transactional
+    public UserProfile updateContactInfo(UUID id, ContactInfoRequest request) {
+        UserProfile existing = userProfileRepository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
+
+        existing.setPhoneNumber(request.getPhoneNumber().trim());
+        existing.setCity(request.getCity().trim());
+        existing.setStreet(request.getStreet().trim());
+        existing.setHouseNumber(trimToNull(request.getHouseNumber()));
+
+        return userProfileRepository.save(existing);
+    }
+
+    private static String trimToNull(String value) {
+        return (value == null || value.isBlank()) ? null : value.trim();
     }
 
     /**

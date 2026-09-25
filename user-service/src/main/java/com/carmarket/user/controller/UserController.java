@@ -1,5 +1,6 @@
 package com.carmarket.user.controller;
 
+import com.carmarket.user.dto.ContactInfoRequest;
 import com.carmarket.user.dto.UserProfileRequest;
 import com.carmarket.user.dto.UserProfileResponse;
 import com.carmarket.user.entity.UserProfile;
@@ -21,6 +22,7 @@ import java.util.UUID;
  * - GET  /api/users/me             — Get current user profile (requires auth)
  * - GET  /api/users/{id}           — Get user public profile
  * - PATCH /api/users/me            — Update own profile (requires auth)
+ * - PUT  /api/users/me/contact     — Replace own phone and address (requires auth)
  * - DELETE /api/users/me           — Deactivate own account (requires auth)
  * <p>
  * Security: X-User-Id header (injected by API Gateway JWT filter)
@@ -70,12 +72,37 @@ public class UserController {
         return userProfileService.getUserProfile(id)
             .map(profile -> {
                 UserProfileResponse response = userProfileMapper.toResponse(profile);
+                // Street address is private: only the owner sees it, via GET /me.
+                response.setStreet(null);
+                response.setHouseNumber(null);
                 return ResponseEntity.ok(response);
             })
             .orElseGet(() -> {
                 log.warn("User not found: {}", id);
                 return ResponseEntity.notFound().build();
             });
+    }
+
+    /**
+     * Replace own phone number and address (phone, city and street required).
+     *
+     * @param userId  User ID from JWT (via gateway)
+     * @param request Contact info with validation
+     * @return Updated profile or 404 if not found
+     */
+    @PutMapping("/me/contact")
+    public ResponseEntity<UserProfileResponse> updateContactInfo(@RequestHeader("X-User-Id") String userId,
+                                                                 @Valid @RequestBody ContactInfoRequest request) {
+        UUID id = UUID.fromString(userId);
+        log.info("Updating contact info for user: {}", id);
+
+        try {
+            UserProfile updated = userProfileService.updateContactInfo(id, request);
+            return ResponseEntity.ok(userProfileMapper.toResponse(updated));
+        } catch (IllegalArgumentException e) {
+            log.warn("Failed to update contact info for user {}: {}", id, e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
     }
 
     /**

@@ -52,6 +52,11 @@ body {
 .chat-panel { flex: 1; }
 .contact-btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; background: #2563eb; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
 .contact-btn:hover { background: #3b82f6; }
+.contact-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.contact-btn-outline { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; background: transparent; color: #3b82f6; border: 1px solid #2a2a2a; border-radius: 8px; cursor: pointer; text-decoration: none; }
+.contact-btn-outline:hover { border-color: #3b82f6; }
+.contact-btn-outline:disabled { opacity: 0.6; cursor: default; }
+.contact-phone-missing { align-self: center; color: #a1a1aa; font-size: 14px; }
 .contact-hint { display: block; width: 100%; padding: 10px 16px; background: transparent; color: #3b82f6; border: 1px solid #2a2a2a; border-radius: 8px; cursor: pointer; }
 .contact-hint:hover { border-color: #3b82f6; }
 .contact-modal { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; overflow: hidden; }

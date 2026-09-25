@@ -27,6 +27,8 @@ public class UserProfileResponse {
     private String displayName;
     private String phoneNumber;
     private String city;
+    private String street;
+    private String houseNumber;
     private String country;
     private String bio;
     private String avatarUrl;

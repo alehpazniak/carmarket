@@ -21,6 +21,8 @@ public interface UserProfileMapper {
      * Convert request DTO to UserProfile entity.
      */
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "street", ignore = true)
+    @Mapping(target = "houseNumber", ignore = true)
     @Mapping(target = "role", ignore = true)
     @Mapping(target = "active", ignore = true)
     @Mapping(target = "listingsCount", ignore = true)

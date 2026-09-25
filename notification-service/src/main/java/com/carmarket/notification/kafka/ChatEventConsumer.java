@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * chat.message.sent: buyer wrote to a seller, so email the seller unless they read it in time.
+ * chat.message.sent: one participant wrote to the other, so email the recipient unless they read it in time.
  * chat.conversation.read: cancels the pending email (or re-arms it if it was already sent).
  */
 @Slf4j

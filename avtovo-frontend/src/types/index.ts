@@ -59,3 +59,20 @@ export interface CarDocument {
     imageUrls?: string[];
     primaryImageUrl?: string;
 }
+/** Profile as returned by user-service (GET /api/users/me). */
+export interface UserProfile {
+    id: string;
+    email: string;
+    displayName?: string;
+    phoneNumber?: string;
+    city?: string;
+    street?: string;
+    houseNumber?: string;
+}
+
+export interface ContactInfo {
+    phoneNumber: string;
+    city: string;
+    street: string;
+    houseNumber: string;
+}
