@@ -39,6 +39,11 @@ public class UserProfile {
 
     private String city;
 
+    private String street;
+
+    @Column(name = "house_number")
+    private String houseNumber;
+
     private String country;
 
     @Column(name = "bio", length = 500)

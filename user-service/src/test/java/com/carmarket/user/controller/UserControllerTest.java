@@ -1,6 +1,7 @@
 package com.carmarket.user.controller;
 
 import com.carmarket.user.config.SecurityConfigTest;
+import com.carmarket.user.dto.ContactInfoRequest;
 import com.carmarket.user.dto.UserProfileRequest;
 import com.carmarket.user.dto.UserProfileResponse;
 import com.carmarket.user.entity.UserProfile;
@@ -22,6 +23,8 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -272,6 +275,78 @@ class UserControllerTest {
             .andExpect(status().isBadRequest());
 
         verify(userProfileService, never()).updateProfile(any(), any());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("PUT /me/contact should return 200 with saved phone and address")
+    void testUpdateContactInfo_Success() throws Exception {
+        ContactInfoRequest request = ContactInfoRequest.builder()
+            .phoneNumber("+48 123 456 789").city("Warsaw").street("Marszałkowska").build();
+        testUserResponse.setStreet("Marszałkowska");
+
+        when(userProfileService.updateContactInfo(eq(testUserId), any(ContactInfoRequest.class))).thenReturn(testUser);
+        when(userProfileMapper.toResponse(testUser)).thenReturn(testUserResponse);
+
+        mockMvc.perform(put("/users/me/contact")
+                .header("X-User-Id", testUserId.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.street").value("Marszałkowska"));
+
+        verify(userProfileService, times(1)).updateContactInfo(eq(testUserId), any(ContactInfoRequest.class));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("PUT /me/contact should return 400 with field errors when phone, city and street are missing")
+    void testUpdateContactInfo_ValidationError_MissingAddress() throws Exception {
+        ContactInfoRequest request = ContactInfoRequest.builder().houseNumber("12").build();
+
+        mockMvc.perform(put("/users/me/contact")
+                .header("X-User-Id", testUserId.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.city").value("City is required"))
+            .andExpect(jsonPath("$.street").value("Street is required"))
+            .andExpect(jsonPath("$.phoneNumber").value("Phone number is required"));
+
+        verify(userProfileService, never()).updateContactInfo(any(), any());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("PUT /me/contact should return 400 when phone number has invalid format")
+    void testUpdateContactInfo_ValidationError_InvalidPhone() throws Exception {
+        ContactInfoRequest request = ContactInfoRequest.builder()
+            .phoneNumber("abc").city("Warsaw").street("Marszałkowska").build();
+
+        mockMvc.perform(put("/users/me/contact")
+                .header("X-User-Id", testUserId.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.phoneNumber").exists());
+
+        verify(userProfileService, never()).updateContactInfo(any(), any());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /{id} should not expose street and house number")
+    void testGetProfile_HidesStreetAddress() throws Exception {
+        testUserResponse.setStreet("Marszałkowska");
+        testUserResponse.setHouseNumber("12");
+        when(userProfileService.getUserProfile(testUserId)).thenReturn(Optional.of(testUser));
+        when(userProfileMapper.toResponse(testUser)).thenReturn(testUserResponse);
+
+        mockMvc.perform(get("/users/{id}", testUserId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.city").value("Warsaw"))
+            .andExpect(jsonPath("$.street").doesNotExist())
+            .andExpect(jsonPath("$.houseNumber").doesNotExist());
     }
 
     @Test

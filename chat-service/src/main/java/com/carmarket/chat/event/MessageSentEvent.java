@@ -3,7 +3,7 @@ package com.carmarket.chat.event;
 import java.time.Instant;
 import java.util.UUID;
 
-/** A buyer sent a message to a seller. Published to Kafka topic {@code chat.message.sent}. */
+/** A participant (buyer or seller) sent a message to the other one. Published to Kafka topic {@code chat.message.sent}. */
 public record MessageSentEvent(
     UUID messageId,
     UUID conversationId,

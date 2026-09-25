@@ -459,11 +459,11 @@ services:
       MAIL_HOST: ${MAIL_HOST:-mailhog}
       MAIL_PORT: ${MAIL_PORT:-1025}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-Gfccdjhl!@3}
       MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
       MAIL_STARTTLS: ${MAIL_STARTTLS:-false}
-      MAIL_FROM: ${MAIL_FROM:-no-reply@carmarket.local}
-      CHAT_MESSAGE_EMAIL_DELAY: ${CHAT_MESSAGE_EMAIL_DELAY:-3m}
+      MAIL_FROM: ${MAIL_FROM:-no-rep}
+      CHAT_MESSAGE_EMAIL_DELAY: ${CHAT_MESSAGE_EMAIL_DELAY:-2m}
     restart: on-failure
 
   # ─── AUCTION DATABASE ───────────────────────────────────────────────────────

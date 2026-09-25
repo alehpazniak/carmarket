@@ -27,6 +27,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.GET, "/users/me").authenticated()
                 .requestMatchers(HttpMethod.PATCH, "/users/me").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/users/me/contact").authenticated()
                 .requestMatchers(HttpMethod.DELETE, "/users/me").authenticated()
                 .requestMatchers(HttpMethod.GET, "/users/{id}").permitAll()
                 .requestMatchers("/actuator/**").permitAll()

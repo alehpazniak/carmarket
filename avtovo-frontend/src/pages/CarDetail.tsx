@@ -161,26 +161,29 @@ export default function CarDetail() {
                         )}
                     </div>
 
-                    {/* Right: price + actions */}
-                    <div className="space-y-4">
-                        <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6 sticky top-20">
-                            <h1 className="text-2xl font-bold text-avtovo-text mb-1">
-                                {car.make} {car.model}
-                            </h1>
-                            <p className="text-avtovo-text-secondary text-sm mb-4">{car.year} · {car.city}</p>
-                            <p className="text-3xl font-bold text-avtovo-accent mb-6">
-                                {car.price.toLocaleString('pl-PL')} zł
-                            </p>
+                    {/* Right: price + actions. Card and contact buttons stick together, so the
+                        card never slides over the buttons; capped to the viewport for the open chat. */}
+                    <div>
+                        <div className="space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+                            <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6">
+                                <h1 className="text-2xl font-bold text-avtovo-text mb-1">
+                                    {car.make} {car.model}
+                                </h1>
+                                <p className="text-avtovo-text-secondary text-sm mb-4">{car.year} · {car.city}</p>
+                                <p className="text-3xl font-bold text-avtovo-accent mb-6">
+                                    {car.price.toLocaleString('pl-PL')} zł
+                                </p>
 
-                            {isOwner ? (
-                                <button onClick={handleDelete}
-                                        className="w-full flex items-center justify-center gap-2 border border-red-500/50 text-red-400 hover:bg-red-500/10 py-3 rounded-xl transition-colors">
-                                    <Trash2 size={16} />
-                                    Usuń ogłoszenie
-                                </button>
-                            ) : null}
+                                {isOwner ? (
+                                    <button onClick={handleDelete}
+                                            className="w-full flex items-center justify-center gap-2 border border-red-500/50 text-red-400 hover:bg-red-500/10 py-3 rounded-xl transition-colors">
+                                        <Trash2 size={16} />
+                                        Usuń ogłoszenie
+                                    </button>
+                                ) : null}
+                            </div>
+                            <div id="contact-seller"><ContactSellerButton carId={car.id} sellerId={car.sellerId} /></div>
                         </div>
-                        <div id="contact-seller"><ContactSellerButton carId={car.id} sellerId={car.sellerId} /></div>
                     </div>
                 </div>
             </div>

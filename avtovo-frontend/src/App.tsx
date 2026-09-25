@@ -8,6 +8,7 @@ import EditListing from './pages/EditListing';
 import CarDetail from './pages/CarDetail';
 import MyListings from './pages/MyListings';
 import Messages from './pages/Messages';
+import Profile from './pages/Profile';
 import AuctionActions from './pages/AuctionActions';
 import AuctionLotDetail from './pages/AuctionLotDetail';
 import ApibaraVehiclePage from './pages/ApibaraVehiclePage';
@@ -42,6 +43,9 @@ function AppRoutes() {
                 } />
                 <Route path="/moje-ogloszenia" element={
                     <ProtectedRoute><MyListings /></ProtectedRoute>
+                } />
+                <Route path="/moj-profil" element={
+                    <ProtectedRoute><Profile /></ProtectedRoute>
                 } />
                 <Route path="/messages" element={<Messages />} />
             </Routes>

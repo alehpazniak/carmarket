@@ -33,9 +33,9 @@ spring:
       mail.smtp.starttls.enable: ${MAIL_STARTTLS:false}
 
 notification:
-  mail-from: ${MAIL_FROM:no-reply@carmarket.local}
-  # How long a message may stay unread before the seller is emailed.
-  chat-message-delay: ${CHAT_MESSAGE_EMAIL_DELAY:3m}
+  mail-from: ${MAIL_FROM:avtovoby@gmail.com}
+  # How long a message may stay unread before the recipient is emailed.
+  chat-message-delay: ${CHAT_MESSAGE_EMAIL_DELAY:2m}
   batch-size: 50
   max-attempts: 5
 

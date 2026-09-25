@@ -119,6 +119,14 @@ export default function Navbar() {
                                                 <Car size={15} />
                                                 Moje ogłoszenia
                                             </Link>
+                                            <Link
+                                                to="/moj-profil"
+                                                onClick={() => setMenuOpen(false)}
+                                                className="flex items-center gap-2 px-4 py-3 text-sm text-avtovo-text hover:bg-white/5 transition-colors"
+                                            >
+                                                <User size={15} />
+                                                Mój profil
+                                            </Link>
                                             <button
                                                 onClick={handleLogout}
                                                 className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-white/5 transition-colors"
