@@ -1,10 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 export default function AuthCallback() {
     const navigate = useNavigate();
+    // StrictMode runs effects twice in dev. The second run would find post_login_path
+    // already consumed and send the user home instead of back to the listing.
+    const handled = useRef(false);
 
     useEffect(() => {
+        if (handled.current) return;
+        handled.current = true;
         const params = new URLSearchParams(window.location.search);
         const accessToken = params.get('access_token');
         const refreshToken = params.get('refresh_token');
