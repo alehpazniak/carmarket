@@ -53,6 +53,7 @@ Health/monitoring UIs when the stack is up: Eureka `:8761` (admin/admin), Kafka 
 | chat-service | 8085 | postgres-chat | Buyer↔seller WebSocket/STOMP chat, publishes `chat.*` events |
 | notification-service | 8087 | postgres-notification | Consumes `user.*`/`chat.*` events, sends email (via MailHog locally) |
 | auction-import-service | 8086 | postgres-auction | US auto-auction (Copart/Apibara) import-cost calculator, currency & shipping rates, analytics |
+| payment-service | 8088 | postgres-payment | Przelewy24 payments: register → P24 page → `urlStatus` webhook → verify; publishes `payment.*` events |
 
 Every backend service module lives at `<service>/src/main/java/com/carmarket/<name>/...`.
 
@@ -75,6 +76,14 @@ Topics are named `<domain>.<event>`, auto-created (`KAFKA_AUTO_CREATE_TOPICS_ENA
 | `car.created` / `car.updated` / `car.deleted` | car-service | search-service (indexes/removes from Elasticsearch) |
 | `chat.message.sent` | chat-service | notification-service (delayed "you have a new message" email, see `CHAT_MESSAGE_EMAIL_DELAY`) |
 | `chat.conversation.read` | chat-service | notification-service (cancels/suppresses pending email) |
+| `payment.completed` / `payment.refunded` | payment-service | — (no consumer yet; e.g. car-service should apply a listing promotion) |
+
+## payment-service (Przelewy24) specifics
+
+- Credentials (`P24_MERCHANT_ID`, `P24_POS_ID`, `P24_CRC`, `P24_API_KEY`, `P24_SANDBOX`) are optional: without them the service starts and payment endpoints answer 503.
+- Prices live in `application.yml` under `payment.products`; the client sends only `productCode` + `referenceId`, never an amount.
+- A payment is `PAID` only after `transaction/verify` succeeds. That happens either in the `POST /payments/p24/notify` webhook (public at the gateway, authenticated by the SHA-384 `sign`) or in `POST /payments/{id}/sync`, which the frontend return page `/platnosc/:id` calls. On localhost P24 can't reach the webhook, so sync is what completes the payment there.
+- The sign is SHA-384 over JSON with a fixed field order (`Przelewy24SignCalculator`), and the order differs between register, verify and notification.
 
 When changing an event's payload shape, update the DTO in **both** the producing and consuming service — there's no shared event-schema module; each service has its own copy of the event DTO (e.g. `car-service/.../dto/CarUpdatedEvent.java` and `search-service/.../dto/CarUpdatedEvent.java`).
 

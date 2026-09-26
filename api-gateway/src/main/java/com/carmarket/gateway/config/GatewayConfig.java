@@ -155,6 +155,27 @@ public class GatewayConfig {
                         .setKeyResolver(keyResolver)))
                 .uri("lb://auction-import-service"))
 
+            // ─── PAYMENT SERVICE (Przelewy24) ─────────────────────────────
+            .route("payment-service", r -> r
+                .path("/api/payments/**")
+                .filters(f -> f
+                    .circuitBreaker(c -> c.setName("payment-cb").setFallbackUri("forward:/fallback/payment"))
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(standardRateLimiter)
+                        .setKeyResolver(keyResolver))
+                    .rewritePath("/api/payments/(?<segment>.*)", "/payments/${segment}"))
+                .uri("lb://payment-service"))
+
+            .route("payment-service-root", r -> r
+                .path("/api/payments")
+                .filters(f -> f
+                    .circuitBreaker(c -> c.setName("payment-cb").setFallbackUri("forward:/fallback/payment"))
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(standardRateLimiter)
+                        .setKeyResolver(keyResolver))
+                    .rewritePath("/api/payments", "/payments"))
+                .uri("lb://payment-service"))
+
             .route("auction-analytics", r -> r
                 .path("/api/analytics/**")
                 .filters(f -> f

@@ -115,6 +115,13 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                 pathMatcher.match("/api/auctions/lots/**", path))) {
             return true;
         }
+        // Przelewy24 server-to-server webhook (verified by sign in payment-service) and the price list
+        if ("POST".equals(method) && pathMatcher.match("/api/payments/p24/notify", path)) {
+            return true;
+        }
+        if ("GET".equals(method) && pathMatcher.match("/api/payments/products", path)) {
+            return true;
+        }
         return PUBLIC_ROUTES.stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
     }
 
