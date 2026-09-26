@@ -35,6 +35,12 @@ public class FallbackController {
         return fallback("search-service");
     }
 
+    // Any method: payments are mostly POSTs, and a forwarded POST would 405 on a GET-only mapping
+    @RequestMapping("/payment")
+    public ResponseEntity<Map<String, String>> paymentFallback() {
+        return fallback("payment-service");
+    }
+
     private ResponseEntity<Map<String, String>> fallback(String service) {
         return ResponseEntity
             .status(HttpStatus.SERVICE_UNAVAILABLE)

@@ -76,3 +76,32 @@ export interface ContactInfo {
     street: string;
     houseNumber: string;
 }
+
+/** payment-service (Przelewy24). Amounts are in grosz: 1999 = 19.99 PLN. */
+export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+
+export interface PaymentProduct {
+    code: string;
+    amount: number;
+    currency: string;
+    description: string;
+}
+
+export interface Payment {
+    id: string;
+    productCode: string;
+    referenceId?: string;
+    amount: number;
+    currency: string;
+    description: string;
+    status: PaymentStatus;
+    createdAt: string;
+    paidAt?: string;
+    refundedAt?: string;
+}
+
+export interface CreatePaymentResponse {
+    paymentId: string;
+    status: PaymentStatus;
+    redirectUrl: string;
+}

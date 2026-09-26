@@ -1,0 +1,82 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: payment-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5439}/${DB_NAME:payment_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+      acks: all
+      retries: 3
+
+# Przelewy24 credentials come from the P24 panel ("Moje dane" → "Dane API i konfiguracja").
+# While merchant-id / crc / api-key are empty the service still starts, but every payment
+# call answers 503 "Payments are not configured".
+przelewy24:
+  sandbox: ${P24_SANDBOX:true}
+  merchant-id: ${P24_MERCHANT_ID:}
+  # posId defaults to merchantId (same number unless P24 gave you a separate shop)
+  pos-id: ${P24_POS_ID:}
+  crc: ${P24_CRC:}
+  # "Klucz do raportów" / secretId — the Basic-auth password for the REST API
+  api-key: ${P24_API_KEY:}
+  # Where P24 sends the customer after paying; "/<paymentId>" is appended
+  url-return: ${P24_URL_RETURN:http://localhost:5173/platnosc}
+  # Public HTTPS address of the notification webhook (P24 must be able to reach it)
+  url-status: ${P24_URL_STATUS:http://localhost:8080/api/payments/p24/notify}
+  # Minutes the customer has to finish the payment (0 = no limit, max 99)
+  time-limit: ${P24_TIME_LIMIT:15}
+  language: pl
+  # Reject webhook calls from outside the Przelewy24 server ranges
+  verify-notification-ip: ${P24_VERIFY_NOTIFICATION_IP:false}
+  notification-ips:
+    - 5.252.202.254/31
+    - 20.215.81.124/32
+    - 193.178.213.0/24
+    - 91.220.177.0/24
+    - 20.215.183.48/28
+    - 134.112.88.8/29
+
+# What can be bought. The client only sends a product code; amounts are never taken from the request.
+# amount is in grosz (1999 = 19.99 PLN).
+payment:
+  products:
+    LISTING_PROMOTION:
+      amount: 1999
+      currency: PLN
+      description: "Promowanie ogłoszenia (7 dni)"
+    LISTING_HIGHLIGHT:
+      amount: 999
+      currency: PLN
+      description: "Wyróżnienie ogłoszenia (7 dni)"
+
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD:admin}@${EUREKA_HOST:localhost}:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

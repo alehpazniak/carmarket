@@ -27,6 +27,7 @@ volumes:
   postgres-chat-data:
   postgres-notification-data:
   postgres-auction-data:
+  postgres-payment-data:
 
 services:
 
@@ -509,4 +510,61 @@ services:
       DB_PASS: postgres
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       APIBARA_API_KEY: ${APIBARA_API_KEY:?APIBARA_API_KEY must be set}
+    restart: on-failure
+
+  # ─── PAYMENT DATABASE ───────────────────────────────────────────────────────
+  postgres-payment:
+    image: postgres:16-alpine
+    container_name: postgres-payment
+    networks: [carmarket-net]
+    ports: ["5439:5432"]
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-payment-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d payment_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── PAYMENT SERVICE (Przelewy24) ───────────────────────────────────────────
+  # Rebuild: docker compose build payment-service
+  # Restart: docker compose up -d --build --no-deps payment-service
+  # Starts without P24 credentials; payment endpoints answer 503 until P24_* are set in .env.
+  payment-service:
+    build:
+      context: ./payment-service
+      dockerfile: Dockerfile
+    image: carmarket/payment-service:local
+    container_name: payment-service
+    networks: [carmarket-net]
+    ports: ["8088:8088"]
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      postgres-payment:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      EUREKA_HOST: eureka-server
+      EUREKA_USER: ${EUREKA_USER:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      DB_HOST: postgres-payment
+      DB_PORT: 5432
+      DB_NAME: payment_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      P24_SANDBOX: ${P24_SANDBOX:-true}
+      P24_MERCHANT_ID: ${P24_MERCHANT_ID:-}
+      P24_POS_ID: ${P24_POS_ID:-}
+      P24_CRC: ${P24_CRC:-}
+      P24_API_KEY: ${P24_API_KEY:-}
+      P24_URL_RETURN: ${P24_URL_RETURN:-http://localhost:5173/platnosc}
+      P24_URL_STATUS: ${P24_URL_STATUS:-http://localhost:8080/api/payments/p24/notify}
+      P24_VERIFY_NOTIFICATION_IP: ${P24_VERIFY_NOTIFICATION_IP:-false}
     restart: on-failure

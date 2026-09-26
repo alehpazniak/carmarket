@@ -12,6 +12,7 @@ import Profile from './pages/Profile';
 import AuctionActions from './pages/AuctionActions';
 import AuctionLotDetail from './pages/AuctionLotDetail';
 import ApibaraVehiclePage from './pages/ApibaraVehiclePage';
+import PaymentReturn from './pages/PaymentReturn';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, isLoading } = useAuth();
@@ -48,6 +49,9 @@ function AppRoutes() {
                     <ProtectedRoute><Profile /></ProtectedRoute>
                 } />
                 <Route path="/messages" element={<Messages />} />
+                <Route path="/platnosc/:id" element={
+                    <ProtectedRoute><PaymentReturn /></ProtectedRoute>
+                } />
             </Routes>
         </div>
     );
