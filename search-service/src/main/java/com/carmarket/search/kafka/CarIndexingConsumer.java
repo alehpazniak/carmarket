@@ -57,6 +57,7 @@ public class CarIndexingConsumer {
             .year(event.year())
             .price(event.price())
             .mileage(event.mileage())
+            .category(event.category())
             .fuelType(event.fuelType())
             .transmission(event.transmission())
             .city(event.city())

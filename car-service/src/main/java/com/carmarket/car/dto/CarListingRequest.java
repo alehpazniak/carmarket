@@ -2,6 +2,7 @@ package com.carmarket.car.dto;
 
 import com.carmarket.car.entity.FuelType;
 import com.carmarket.car.entity.Transmission;
+import com.carmarket.car.entity.VehicleCategory;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
@@ -35,6 +36,8 @@ public class CarListingRequest {
 
     @Min(0)
     private Integer mileage;
+
+    private VehicleCategory category;
 
     private FuelType fuelType;
 

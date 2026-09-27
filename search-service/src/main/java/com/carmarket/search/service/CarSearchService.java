@@ -93,6 +93,15 @@ public class CarSearchService {
         if (req.getMileageMax() != null) {
             criteria = criteria.and(new Criteria("mileage").lessThanEqual(req.getMileageMax()));
         }
+        if (StringUtils.isNotEmpty(req.getCategory())) {
+            String category = req.getCategory().toUpperCase();
+            Criteria categoryCriteria = new Criteria("category").is(category);
+            if ("PASSENGER".equals(category)) {
+                // Listings indexed before categories existed have no category — they are passenger cars.
+                categoryCriteria = categoryCriteria.or(new Criteria("category").exists().not());
+            }
+            criteria = criteria.and(categoryCriteria);
+        }
         if (StringUtils.isNotEmpty(req.getFuelType())) {
             criteria = criteria.and(new Criteria("fuelType").is(req.getFuelType().toUpperCase()));
         }

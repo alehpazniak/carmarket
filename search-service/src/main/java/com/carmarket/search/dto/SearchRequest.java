@@ -28,6 +28,7 @@ public class SearchRequest {
     private Integer mileageMin;
     private Integer mileageMax;
 
+    private String category;
     private String fuelType;
     private String transmission;
     private String city;

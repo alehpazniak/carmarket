@@ -24,7 +24,9 @@ public class ElasticsearchIndexInitializer {
     public void createIndexIfMissing() {
         IndexOperations indexOps = elasticsearchOperations.indexOps(CarDocument.class);
         if (indexOps.exists()) {
-            log.info("Elasticsearch index 'car_listings' already exists");
+            // Adds mappings for fields introduced after the index was created (e.g. category).
+            indexOps.putMapping();
+            log.info("Elasticsearch index 'car_listings' already exists, mapping updated");
             return;
         }
         boolean created = indexOps.createWithMapping(); // creates index + applies @Field mappings from CarDocument
