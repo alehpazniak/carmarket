@@ -1,3 +1,6 @@
+export type VehicleCategory =
+    'PASSENGER' | 'TRUCK' | 'CONSTRUCTION' | 'VAN' | 'MOTORCYCLE' | 'TRAILER' | 'AGRICULTURAL';
+
 export interface CarListing {
     id: string;
     sellerId: string;
@@ -6,6 +9,7 @@ export interface CarListing {
     year: number;
     price: number;
     mileage: number;
+    category?: VehicleCategory;
     fuelType: 'PETROL' | 'DIESEL' | 'ELECTRIC' | 'HYBRID' | 'LPG';
     transmission: 'MANUAL' | 'AUTOMATIC';
     color: string;
@@ -48,6 +52,7 @@ export interface CarDocument {
     year: number;
     price: number;
     mileage: number;
+    category?: string;
     fuelType: string;
     transmission: string;
     color?: string;

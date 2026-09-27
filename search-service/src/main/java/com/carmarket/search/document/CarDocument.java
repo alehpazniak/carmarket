@@ -48,6 +48,9 @@ public class CarDocument {
     private Integer mileage;
 
     @Field(type = FieldType.Keyword)
+    private String category;
+
+    @Field(type = FieldType.Keyword)
     private String fuelType;
 
     @Field(type = FieldType.Keyword)

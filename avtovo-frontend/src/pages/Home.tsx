@@ -3,11 +3,26 @@ import { searchCars } from '../api/cars';
 import type { CarDocument } from '../types';
 import CarCard from '../components/CarCard';
 import { useAuth } from '../context/AuthContext';
-import { Search, SlidersHorizontal, ChevronDown } from 'lucide-react';
-import { MAKES, MODELS_BY_MAKE } from '../constants/cars';
+import { Search, SlidersHorizontal, ChevronDown, Car, Zap, Truck, Construction, Van, Motorbike, Caravan, Tractor, type LucideIcon } from 'lucide-react';
+import { CATEGORY_LABELS, hasModelList, makesFor, modelsFor } from '../constants/cars';
+import type { VehicleCategory } from '../types';
+
+/** Category tabs like on otomoto.pl. "Elektryczne" is not a separate category — it's passenger cars with fuel = ELECTRIC. */
+type CategoryTab = { id: string; label: string; icon: LucideIcon; category: VehicleCategory; fuelType?: string };
+const CATEGORY_TABS: CategoryTab[] = [
+    { id: 'PASSENGER', label: CATEGORY_LABELS.PASSENGER, icon: Car, category: 'PASSENGER' },
+    { id: 'ELECTRIC', label: 'Elektryczne', icon: Zap, category: 'PASSENGER', fuelType: 'ELECTRIC' },
+    { id: 'TRUCK', label: CATEGORY_LABELS.TRUCK, icon: Truck, category: 'TRUCK' },
+    { id: 'CONSTRUCTION', label: CATEGORY_LABELS.CONSTRUCTION, icon: Construction, category: 'CONSTRUCTION' },
+    { id: 'VAN', label: CATEGORY_LABELS.VAN, icon: Van, category: 'VAN' },
+    { id: 'MOTORCYCLE', label: CATEGORY_LABELS.MOTORCYCLE, icon: Motorbike, category: 'MOTORCYCLE' },
+    { id: 'TRAILER', label: CATEGORY_LABELS.TRAILER, icon: Caravan, category: 'TRAILER' },
+    { id: 'AGRICULTURAL', label: CATEGORY_LABELS.AGRICULTURAL, icon: Tractor, category: 'AGRICULTURAL' },
+];
 export default function Home() {
     const [cars, setCars] = useState<CarDocument[]>([]);
     const [loading, setLoading] = useState(true);
+    const [tab, setTab] = useState<CategoryTab>(CATEGORY_TABS[0]);
     const [query, setQuery] = useState('');
     const [make, setMake] = useState('');
     const [model, setModel] = useState('');
@@ -30,7 +45,8 @@ export default function Home() {
             .catch(console.error)
             .finally(() => setLoading(false));
     };
-    const buildParams = (sortOverride = sortOption): Record<string, string> => ({
+    const buildParams = (sortOverride = sortOption, tabOverride = tab, fuelOverride = fuelType): Record<string, string> => ({
+        category: tabOverride.category,
         ...(query && { query }),
         ...(make && { make }),
         ...(model && { model }),
@@ -39,7 +55,7 @@ export default function Home() {
         ...(priceTo && { priceTo }),
         ...(mileageFrom && { mileageMin: mileageFrom }),
         ...(mileageTo && { mileageMax: mileageTo }),
-        ...(fuelType && { fuelType }),
+        ...(fuelOverride && { fuelType: fuelOverride }),
         ...(yearFrom && { yearFrom }),
         ...(yearTo && { yearTo }),
         ...(city && { city }),
@@ -58,7 +74,24 @@ export default function Home() {
         setSortOption(value);
         fetchCars(buildParams(value));
     };
-    const modelsForMake = MODELS_BY_MAKE[make] ?? [];
+    const handleTabChange = (next: CategoryTab) => {
+        if (next.id === tab.id) return;
+        // Entering "Elektryczne" forces fuel = ELECTRIC; leaving it drops that forced filter.
+        const nextFuel = next.fuelType ?? (tab.fuelType ? '' : fuelType);
+        setTab(next);
+        setFuelType(nextFuel);
+        const params = buildParams(sortOption, next, nextFuel);
+        // Each category has its own makes: drop a make (and its model) the new category doesn't have
+        if (next.category !== tab.category && make && !makesFor(next.category).includes(make)) {
+            setMake('');
+            setModel('');
+            delete params.make;
+            delete params.model;
+        }
+        fetchCars(params);
+    };
+    const makes = makesFor(tab.category);
+    const modelsForMake = modelsFor(tab.category, make);
     const FUEL_LABELS: Record<string, string> = {
         PETROL: 'Benzyna', DIESEL: 'Diesel', ELECTRIC: 'Elektryczny',
         HYBRID: 'Hybryda', LPG: 'LPG',
@@ -84,6 +117,27 @@ export default function Home() {
                     <p className="text-avtovo-text-secondary text-lg mb-8">
                         Tysiące ogłoszeń motoryzacyjnych w jednym miejscu
                     </p>
+                    {/* Category tabs */}
+                    <div className="flex gap-1 overflow-x-auto pb-2 mb-6 sm:justify-center [scrollbar-width:none]">
+                        {CATEGORY_TABS.map(t => {
+                            const active = t.id === tab.id;
+                            const Icon = t.icon;
+                            return (
+                                <button
+                                    key={t.id}
+                                    type="button"
+                                    onClick={() => handleTabChange(t)}
+                                    aria-pressed={active}
+                                    className={`flex items-center gap-2 shrink-0 rounded-full px-5 py-2.5 text-sm sm:text-base transition-colors border ${active
+                                        ? 'border-avtovo-accent bg-avtovo-accent/10 text-avtovo-accent font-semibold'
+                                        : 'border-transparent text-avtovo-text-secondary hover:text-avtovo-text'}`}
+                                >
+                                    <Icon size={active ? 22 : 18} />
+                                    {t.label}
+                                </button>
+                            );
+                        })}
+                    </div>
                     {/* Search form */}
                     <form onSubmit={handleSearch} className="max-w-4xl mx-auto space-y-3">
                         {/* Main search bar */}
@@ -117,17 +171,27 @@ export default function Home() {
                                 className="bg-avtovo-card border border-avtovo-border text-avtovo-text rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
                             >
                                 <option value="">Wszystkie marki</option>
-                                {MAKES.map(m => <option key={m} value={m}>{m}</option>)}
+                                {makes.map(m => <option key={m} value={m}>{m}</option>)}
                             </select>
-                            <select
-                                value={model}
-                                onChange={e => setModel(e.target.value)}
-                                disabled={modelsForMake.length === 0}
-                                className="bg-avtovo-card border border-avtovo-border text-avtovo-text rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <option value="">{modelsForMake.length === 0 ? 'Najpierw wybierz markę' : 'Wszystkie modele'}</option>
-                                {modelsForMake.map(m => <option key={m} value={m}>{m}</option>)}
-                            </select>
+                            {hasModelList(tab.category) ? (
+                                <select
+                                    value={model}
+                                    onChange={e => setModel(e.target.value)}
+                                    disabled={modelsForMake.length === 0}
+                                    className="bg-avtovo-card border border-avtovo-border text-avtovo-text rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <option value="">{modelsForMake.length === 0 ? 'Najpierw wybierz markę' : 'Wszystkie modele'}</option>
+                                    {modelsForMake.map(m => <option key={m} value={m}>{m}</option>)}
+                                </select>
+                            ) : (
+                                <input
+                                    type="text"
+                                    placeholder="Model"
+                                    value={model}
+                                    onChange={e => setModel(e.target.value)}
+                                    className="bg-avtovo-card border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
+                                />
+                            )}
                             <select
                                 value={fuelType}
                                 onChange={e => setFuelType(e.target.value)}

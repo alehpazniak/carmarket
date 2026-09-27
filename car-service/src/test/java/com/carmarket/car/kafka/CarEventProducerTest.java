@@ -14,6 +14,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -414,5 +416,40 @@ class CarEventProducerTest {
 
         assertThat(topicCaptor.getAllValues())
             .contains("car.created", "car.updated", "car.deleted");
+    }
+
+    // ==================== TRANSACTION TESTS ====================
+
+    @Test
+    @DisplayName("Should defer publishing until the transaction commits")
+    void testPublishInTransaction_SentAfterCommit() {
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            carEventProducer.publishCreated(testCar);
+            verifyNoInteractions(kafkaTemplate);
+
+            TransactionSynchronizationManager.getSynchronizations().forEach(TransactionSynchronization::afterCommit);
+
+            verify(kafkaTemplate).send(eq("car.created"), eq(testCarId.toString()), any(CarUpdatedEvent.class));
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
+
+    @Test
+    @DisplayName("Should not publish when the transaction rolls back")
+    void testPublishInTransaction_NotSentOnRollback() {
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            carEventProducer.publishCreated(testCar);
+            carEventProducer.publishDeleted(testCarId.toString());
+
+            TransactionSynchronizationManager.getSynchronizations()
+                .forEach(sync -> sync.afterCompletion(TransactionSynchronization.STATUS_ROLLED_BACK));
+
+            verifyNoInteractions(kafkaTemplate);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 }

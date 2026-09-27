@@ -3,9 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { getCar, deleteCar } from '../api/cars';
 import type {CarListing} from '../types';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, Fuel, Gauge, Calendar, Cog, Palette, Trash2, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { MapPin, Fuel, Gauge, Calendar, Cog, Palette, Tag, Trash2, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { ContactSellerButton } from '../components/ContactSellerButton';
 import { EQUIPMENT_CATEGORIES } from '../constants/equipment';
+import { CATEGORY_LABELS } from '../constants/cars';
 
 const FUEL_LABELS: Record<string, string> = {
     PETROL: 'Benzyna', DIESEL: 'Diesel', ELECTRIC: 'Elektryczny', HYBRID: 'Hybryda', LPG: 'LPG',
@@ -112,6 +113,7 @@ export default function CarDetail() {
                             <h2 className="text-avtovo-text font-semibold mb-4">Dane techniczne</h2>
                             <div className="grid grid-cols-2 gap-4">
                                 {[
+                                    { icon: <Tag size={16} />, label: 'Kategoria', value: CATEGORY_LABELS[car.category ?? 'PASSENGER'] },
                                     { icon: <Calendar size={16} />, label: 'Rok produkcji', value: car.year },
                                     { icon: <Gauge size={16} />, label: 'Przebieg', value: `${car.mileage.toLocaleString('pl-PL')} km` },
                                     { icon: <Fuel size={16} />, label: 'Paliwo', value: FUEL_LABELS[car.fuelType] || car.fuelType },

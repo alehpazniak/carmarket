@@ -3,6 +3,7 @@ package com.carmarket.car.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.BatchSize;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -45,6 +46,12 @@ public class CarListing {
     private BigDecimal price;
 
     private Integer mileage;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    @ColumnDefault("'PASSENGER'")
+    @Builder.Default
+    private VehicleCategory category = VehicleCategory.PASSENGER;
 
     @Enumerated(EnumType.STRING)
     private FuelType fuelType;

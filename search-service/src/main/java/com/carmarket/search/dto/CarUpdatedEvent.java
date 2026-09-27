@@ -15,7 +15,8 @@ public record CarUpdatedEvent(String carId,
                               String city,
                               String status,
                               String primaryImageUrl,
-                              LocalDateTime createdAt
+                              LocalDateTime createdAt,
+                              String category
 
 ) {
 }

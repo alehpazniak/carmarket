@@ -2,9 +2,9 @@ import {useEffect, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
 import {deleteCarImage, getCar, setPrimaryCarImage, updateCar, uploadCarImages} from '../api/cars';
 import {useAuth} from '../context/AuthContext';
-import type {CarListing} from '../types';
+import type {CarListing, VehicleCategory} from '../types';
 import {Loader2, Star, Upload, X} from "lucide-react";
-import {MAKES, MODELS_BY_MAKE} from '../constants/cars';
+import {CATEGORY_LABELS, VEHICLE_CATEGORIES, makesFor, modelsFor} from '../constants/cars';
 import {EQUIPMENT_CATEGORIES} from '../constants/equipment';
 
 const FUEL_TYPES = ['PETROL', 'DIESEL', 'ELECTRIC', 'HYBRID', 'LPG'];
@@ -25,7 +25,7 @@ export default function EditListing() {
     const [primaryImageUrl, setPrimaryImageUrl] = useState<string | undefined>(undefined);
     const [form, setForm] = useState({
         make: '', model: '', year: new Date().getFullYear(), price: '',
-        mileage: '', fuelType: 'PETROL', transmission: 'MANUAL',
+        mileage: '', category: 'PASSENGER', fuelType: 'PETROL', transmission: 'MANUAL',
         color: '', city: '', country: 'Polska', description: '',
     });
     const [equipment, setEquipment] = useState<Set<string>>(new Set());
@@ -38,7 +38,7 @@ export default function EditListing() {
             setPrimaryImageUrl(data.primaryImageUrl);
             setForm({
                 make: data.make, model: data.model, year: data.year, price: String(data.price),
-                mileage: String(data.mileage ?? ''), fuelType: data.fuelType, transmission: data.transmission,
+                mileage: String(data.mileage ?? ''), category: data.category ?? 'PASSENGER', fuelType: data.fuelType, transmission: data.transmission,
                 color: data.color ?? '', city: data.city, country: data.country ?? 'Polska',
                 description: data.description ?? '',
             });
@@ -59,10 +59,20 @@ export default function EditListing() {
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const {name, value} = e.target;
-        setForm(prev => ({...prev, [name]: value, ...(name === 'make' ? {model: ''} : {})}));
+        setForm(prev => ({
+            ...prev,
+            [name]: value,
+            // make list depends on category, model list on make
+            ...(name === 'category' ? {make: '', model: ''} : {}),
+            ...(name === 'make' ? {model: ''} : {}),
+        }));
     };
 
-    const modelsForMake = MODELS_BY_MAKE[form.make] ?? [];
+    const category = form.category as VehicleCategory;
+    const makes = makesFor(category);
+    // A listing's current make/model stays selectable even if it's not in the list (e.g. saved before the lists changed)
+    const makeOptions = form.make && !makes.includes(form.make) ? [form.make, ...makes] : makes;
+    const modelsForMake = modelsFor(category, form.make);
     const modelOptions = form.model && !modelsForMake.includes(form.model)
         ? [form.model, ...modelsForMake]
         : modelsForMake;
@@ -129,6 +139,7 @@ export default function EditListing() {
                 year: Number(form.year),
                 price: Number(form.price),
                 mileage: Number(form.mileage),
+                category: form.category as VehicleCategory,
                 fuelType: form.fuelType as CarListing['fuelType'],
                 transmission: form.transmission as CarListing['transmission'],
                 equipment: Array.from(equipment),
@@ -210,12 +221,19 @@ export default function EditListing() {
                     <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6">
                         <h2 className="text-avtovo-text font-semibold mb-4">Podstawowe informacje</h2>
                         <div className="grid grid-cols-2 gap-4">
+                            <div className="col-span-2">
+                                <label className="block text-sm text-avtovo-text-secondary mb-1">Kategoria *</label>
+                                <select name="category" value={form.category} onChange={handleChange}
+                                        className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent">
+                                    {VEHICLE_CATEGORIES.map(c => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
+                                </select>
+                            </div>
                             <div>
                                 <label className="block text-sm text-avtovo-text-secondary mb-1">Marka *</label>
                                 <select name="make" value={form.make} onChange={handleChange} required
                                         className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent">
                                     <option value="">Wybierz markę</option>
-                                    {MAKES.map(m => <option key={m} value={m}>{m}</option>)}
+                                    {makeOptions.map(m => <option key={m} value={m}>{m}</option>)}
                                 </select>
                             </div>
                             <div>
@@ -228,7 +246,7 @@ export default function EditListing() {
                                     </select>
                                 ) : (
                                     <input name="model" value={form.model} onChange={handleChange} required
-                                           placeholder="np. Golf, Corolla"
+                                           placeholder="Wpisz model"
                                            className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted"/>
                                 )}
                             </div>

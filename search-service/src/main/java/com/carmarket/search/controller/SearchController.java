@@ -42,6 +42,7 @@ public class SearchController {
                                                     @RequestParam(required = false) BigDecimal priceTo,
                                                     @RequestParam(required = false) Integer mileageMin,
                                                     @RequestParam(required = false) Integer mileageMax,
+                                                    @RequestParam(required = false) String category,
                                                     @RequestParam(required = false) String fuelType,
                                                     @RequestParam(required = false) String transmission,
                                                     @RequestParam(required = false) String city,
@@ -58,6 +59,7 @@ public class SearchController {
             .priceTo(priceTo)
             .mileageMin(mileageMin)
             .mileageMax(mileageMax)
+            .category(category)
             .fuelType(fuelType)
             .transmission(transmission)
             .city(city)

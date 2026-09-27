@@ -3,6 +3,7 @@ package com.carmarket.car.dto;
 import com.carmarket.car.entity.FuelType;
 import com.carmarket.car.entity.ListingStatus;
 import com.carmarket.car.entity.Transmission;
+import com.carmarket.car.entity.VehicleCategory;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -24,6 +25,7 @@ public class CarListingResponse {
     private Integer year;
     private BigDecimal price;
     private Integer mileage;
+    private VehicleCategory category;
     private FuelType fuelType;
     private Transmission transmission;
     private String color;
