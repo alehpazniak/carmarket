@@ -24,5 +24,9 @@ public class PaymentProductProperties {
         private int amount;
         private String currency = "PLN";
         private String description;
+        /** How long the bought feature lasts; 0 for products without a duration. */
+        private int durationDays;
+        /** referenceId must be the id of an ACTIVE listing owned by the buyer. */
+        private boolean requiresOwnListing;
     }
 }
