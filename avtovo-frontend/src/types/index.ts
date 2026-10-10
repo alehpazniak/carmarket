@@ -23,6 +23,9 @@ export interface CarListing {
     videoUrl?: string | null;
     technicalData?: TechnicalData | null;
     status: 'ACTIVE' | 'SOLD' | 'REMOVED';
+    /** End of a paid promotion / highlight (car-service LocalDateTime, no zone); null when none. */
+    promotedUntil?: string | null;
+    highlightedUntil?: string | null;
     createdAt: string;
 }
 
@@ -91,6 +94,11 @@ export interface CarDocument {
     createdAt: string;
     imageUrls?: string[];
     primaryImageUrl?: string;
+    promotedUntil?: string | null;
+    highlightedUntil?: string | null;
+    /** Computed by search-service at indexing time; the source of truth for search results. */
+    promoted?: boolean;
+    highlighted?: boolean;
 }
 /** Profile as returned by user-service (GET /api/users/me). */
 export interface UserProfile {
@@ -121,6 +129,8 @@ export interface PaymentProduct {
     amount: number;
     currency: string;
     description: string;
+    /** How long the feature lasts; absent for products without a duration. */
+    durationDays?: number;
 }
 
 export interface Payment {

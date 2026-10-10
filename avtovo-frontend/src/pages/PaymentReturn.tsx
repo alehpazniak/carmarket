@@ -1,7 +1,7 @@
 import {useEffect, useState} from 'react';
 import {Link, useParams} from 'react-router-dom';
 import {CheckCircle2, Loader2, XCircle, Clock} from 'lucide-react';
-import {formatAmount, syncPayment} from '../api/payments';
+import {formatAmount, LISTING_PRODUCT_CODES, syncPayment} from '../api/payments';
 import type {Payment} from '../types';
 
 const POLL_INTERVAL_MS = 3000;
@@ -72,15 +72,30 @@ export default function PaymentReturn() {
         text = 'Nie otrzymaliśmy jeszcze potwierdzenia od Przelewy24. Status zaktualizuje się automatycznie.';
     }
 
+    const listingId = payment && payment.referenceId && LISTING_PRODUCT_CODES.includes(payment.productCode)
+        ? payment.referenceId : null;
+
     return (
         <div className="min-h-screen bg-avtovo-bg flex items-center justify-center px-4">
             <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-8 max-w-md w-full text-center">
                 {icon}
                 <h1 className="text-xl font-bold text-avtovo-text mt-4 mb-2">{title}</h1>
                 <p className="text-avtovo-text-secondary mb-6">{text}</p>
-                <Link to="/moje-ogloszenia" className="text-avtovo-accent hover:text-avtovo-accent-hover">
-                    Przejdź do moich ogłoszeń
-                </Link>
+                {listingId && payment?.status === 'PAID' && (
+                    <p className="text-avtovo-text-secondary text-sm mb-6">
+                        Promocja pojawi się na ogłoszeniu w ciągu kilku sekund.
+                    </p>
+                )}
+                <div className="flex flex-col gap-2">
+                    {listingId && (
+                        <Link to={`/ogloszenia/${listingId}`} className="text-avtovo-accent hover:text-avtovo-accent-hover">
+                            Wróć do ogłoszenia
+                        </Link>
+                    )}
+                    <Link to="/moje-ogloszenia" className="text-avtovo-accent hover:text-avtovo-accent-hover">
+                        Przejdź do moich ogłoszeń
+                    </Link>
+                </div>
             </div>
         </div>
     );
