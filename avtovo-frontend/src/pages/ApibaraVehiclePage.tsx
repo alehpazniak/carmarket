@@ -108,7 +108,7 @@ export default function ApibaraVehiclePage() {
         if (!identifier) return;
         setLoadingHistory(true);
         getVehicleHistory(identifier)
-            .then(result => setHistory(Array.isArray(result.data) ? result.data : result.data?.items ?? []))
+            .then(result => setHistory(result.data?.history ?? []))
             .catch(() => setHistory([]))
             .finally(() => setLoadingHistory(false));
     };
@@ -430,8 +430,8 @@ export default function ApibaraVehiclePage() {
                     ) : (
                         <div className="space-y-2">
                             {history.map((entry, i) => {
-                                const date = entry.sale_date ?? entry.auction_at;
-                                const price = entry.price_usd ?? entry.current_bid_usd;
+                                const date = entry.date;
+                                const price = entry.price;
                                 return (
                                     <div key={i} className="flex items-center justify-between text-sm bg-avtovo-bg border border-avtovo-border rounded-lg px-4 py-3">
                                         <span className="text-avtovo-text">

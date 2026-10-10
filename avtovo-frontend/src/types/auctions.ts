@@ -167,17 +167,21 @@ export interface ApibaraShippingResult {
 // GET /api/auctions/apibara/vehicles/{slugVin}/history — raw Apibara passthrough (snake_case, unmapped).
 // Field names are the API's own — kept loose since the backend forwards the JSON as-is.
 export interface ApibaraHistoryEntry {
-    status?: string;
     platform?: string;
-    sale_date?: string;
-    auction_at?: string;
-    price_usd?: number;
-    current_bid_usd?: number;
+    lot_number?: number | string;
+    date?: string;
+    price?: number;
+    status?: string;
     [key: string]: unknown;
 }
 
 export interface ApibaraHistoryResult {
-    data?: ApibaraHistoryEntry[] | { items?: ApibaraHistoryEntry[] };
+    ok?: boolean;
+    data?: {
+        vehicle?: { slug_vin?: string; vin?: string; platform?: string; lot_number?: string };
+        history?: ApibaraHistoryEntry[];
+    };
+    meta?: { per_page?: number; next_cursor?: string | null; prev_cursor?: string | null };
 }
 
 // GET /api/auctions/apibara/vehicles/{slugVin}/related — raw Apibara passthrough, grouped by relation.
