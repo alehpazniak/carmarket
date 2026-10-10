@@ -5,6 +5,7 @@ import Home from './pages/Home';
 import AuthCallback from './pages/AuthCallback';
 import AddListing from './pages/AddListing';
 import EditListing from './pages/EditListing';
+import ConfirmDealerUpgrade from './pages/ConfirmDealerUpgrade';
 import CarDetail from './pages/CarDetail';
 import MyListings from './pages/MyListings';
 import Messages from './pages/Messages';
@@ -49,6 +50,8 @@ function AppRoutes() {
                     <ProtectedRoute><Profile /></ProtectedRoute>
                 } />
                 <Route path="/messages" element={<Messages />} />
+                {/* Not protected: the emailed link may be opened in a browser that isn't logged in */}
+                <Route path="/konto-dealera/potwierdz" element={<ConfirmDealerUpgrade />} />
                 <Route path="/platnosc/:id" element={
                     <ProtectedRoute><PaymentReturn /></ProtectedRoute>
                 } />

@@ -90,6 +90,13 @@ public class CarListing {
     @Column(name = "primary_image_url")
     private String primaryImageUrl;
 
+    /** Canonical YouTube, TikTok or Instagram link, see {@code VideoLinkService}. */
+    @Column(name = "video_url", length = 500)
+    private String videoUrl;
+
+    @Embedded
+    private TechnicalData technicalData;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

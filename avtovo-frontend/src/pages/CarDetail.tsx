@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { getCar, deleteCar } from '../api/cars';
 import type {CarListing} from '../types';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, Fuel, Gauge, Calendar, Cog, Palette, Tag, Trash2, ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { MapPin, Fuel, Gauge, Calendar, Cog, Palette, Tag, Trash2, ChevronLeft, ChevronRight, Check, Pencil, Zap, Car, Hash, Globe, ShieldCheck, Settings2 } from 'lucide-react';
 import { ContactSellerButton } from '../components/ContactSellerButton';
 import { EQUIPMENT_CATEGORIES } from '../constants/equipment';
 import { CATEGORY_LABELS } from '../constants/cars';
+import { BODY_LABELS, CONDITION_LABELS, DRIVE_LABELS, FLAG_LABELS, type FlagField } from '../constants/technical';
+import VideoPlayer from '../components/VideoPlayer';
 
 const FUEL_LABELS: Record<string, string> = {
     PETROL: 'Benzyna', DIESEL: 'Diesel', ELECTRIC: 'Elektryczny', HYBRID: 'Hybryda', LPG: 'LPG',
@@ -48,6 +50,28 @@ export default function CarDetail() {
     const equipmentByCategory = EQUIPMENT_CATEGORIES
         .map(cat => ({...cat, options: cat.options.filter(o => selectedEquipment.has(o.code))}))
         .filter(cat => cat.options.length > 0);
+    const tech = car.technicalData ?? {};
+    const flags = (Object.keys(FLAG_LABELS) as FlagField[]).filter(f => tech[f]);
+    const specs = [
+        { icon: <Tag size={16} />, label: 'Kategoria', value: CATEGORY_LABELS[car.category ?? 'PASSENGER'] },
+        { icon: <ShieldCheck size={16} />, label: 'Stan', value: tech.condition && CONDITION_LABELS[tech.condition] },
+        { icon: <Car size={16} />, label: 'Wersja', value: tech.version },
+        { icon: <Calendar size={16} />, label: 'Rok produkcji', value: car.year },
+        { icon: <Gauge size={16} />, label: 'Przebieg', value: `${car.mileage.toLocaleString('pl-PL')} km` },
+        { icon: <Fuel size={16} />, label: 'Paliwo', value: FUEL_LABELS[car.fuelType] || car.fuelType },
+        { icon: <Settings2 size={16} />, label: 'Pojemność skokowa', value: tech.engineCapacity != null && `${tech.engineCapacity.toLocaleString('pl-PL')} cm³` },
+        { icon: <Zap size={16} />, label: 'Moc', value: tech.powerHp != null && `${tech.powerHp} KM` },
+        { icon: <Cog size={16} />, label: 'Skrzynia', value: car.transmission === 'MANUAL' ? 'Manualna' : 'Automatyczna' },
+        { icon: <Cog size={16} />, label: 'Napęd', value: tech.driveType && DRIVE_LABELS[tech.driveType] },
+        { icon: <Car size={16} />, label: 'Typ nadwozia', value: tech.bodyType && BODY_LABELS[tech.bodyType] },
+        { icon: <Car size={16} />, label: 'Liczba drzwi', value: tech.doors },
+        { icon: <Car size={16} />, label: 'Liczba miejsc', value: tech.seats },
+        { icon: <Palette size={16} />, label: 'Kolor', value: car.color || '—' },
+        { icon: <Hash size={16} />, label: 'VIN', value: tech.vin },
+        { icon: <Globe size={16} />, label: 'Kraj pochodzenia', value: tech.originCountry },
+        { icon: <Calendar size={16} />, label: 'Pierwsza rejestracja', value: tech.firstRegistrationDate && new Date(tech.firstRegistrationDate).toLocaleDateString('pl-PL') },
+        { icon: <MapPin size={16} />, label: 'Lokalizacja', value: `${car.city}, ${car.country}` },
+    ].filter(s => s.value !== null && s.value !== undefined && s.value !== false && s.value !== '');
 
     return (
         <div className="min-h-screen bg-avtovo-bg py-8">
@@ -112,15 +136,7 @@ export default function CarDetail() {
                         <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6">
                             <h2 className="text-avtovo-text font-semibold mb-4">Dane techniczne</h2>
                             <div className="grid grid-cols-2 gap-4">
-                                {[
-                                    { icon: <Tag size={16} />, label: 'Kategoria', value: CATEGORY_LABELS[car.category ?? 'PASSENGER'] },
-                                    { icon: <Calendar size={16} />, label: 'Rok produkcji', value: car.year },
-                                    { icon: <Gauge size={16} />, label: 'Przebieg', value: `${car.mileage.toLocaleString('pl-PL')} km` },
-                                    { icon: <Fuel size={16} />, label: 'Paliwo', value: FUEL_LABELS[car.fuelType] || car.fuelType },
-                                    { icon: <Cog size={16} />, label: 'Skrzynia', value: car.transmission === 'MANUAL' ? 'Manualna' : 'Automatyczna' },
-                                    { icon: <Palette size={16} />, label: 'Kolor', value: car.color || '—' },
-                                    { icon: <MapPin size={16} />, label: 'Lokalizacja', value: `${car.city}, ${car.country}` },
-                                ].map(({ icon, label, value }) => (
+                                {specs.map(({ icon, label, value }) => (
                                     <div key={label} className="flex items-start gap-3">
                                         <span className="text-avtovo-accent mt-0.5">{icon}</span>
                                         <div>
@@ -130,7 +146,25 @@ export default function CarDetail() {
                                     </div>
                                 ))}
                             </div>
+                            {flags.length > 0 && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 mt-5 pt-4 border-t border-avtovo-border">
+                                    {flags.map(f => (
+                                        <div key={f} className="flex items-center gap-2 text-sm text-avtovo-text">
+                                            <Check size={14} className="text-avtovo-accent flex-shrink-0" />
+                                            {FLAG_LABELS[f]}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
+
+                        {/* Video */}
+                        {car.videoUrl && (
+                            <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6">
+                                <h2 className="text-avtovo-text font-semibold mb-4">Film</h2>
+                                <VideoPlayer url={car.videoUrl} title={`${car.make} ${car.model} – film`} />
+                            </div>
+                        )}
 
                         {/* Equipment */}
                         {equipmentByCategory.length > 0 && (
@@ -177,11 +211,18 @@ export default function CarDetail() {
                                 </p>
 
                                 {isOwner ? (
-                                    <button onClick={handleDelete}
-                                            className="w-full flex items-center justify-center gap-2 border border-red-500/50 text-red-400 hover:bg-red-500/10 py-3 rounded-xl transition-colors">
-                                        <Trash2 size={16} />
-                                        Usuń ogłoszenie
-                                    </button>
+                                    <div className="space-y-2">
+                                        <Link to={`/ogloszenia/${car.id}/edytuj`}
+                                              className="w-full flex items-center justify-center gap-2 bg-avtovo-accent hover:bg-avtovo-accent-hover text-white py-3 rounded-xl font-medium transition-colors">
+                                            <Pencil size={16} />
+                                            Edytuj ogłoszenie
+                                        </Link>
+                                        <button onClick={handleDelete}
+                                                className="w-full flex items-center justify-center gap-2 border border-red-500/50 text-red-400 hover:bg-red-500/10 py-3 rounded-xl transition-colors">
+                                            <Trash2 size={16} />
+                                            Usuń ogłoszenie
+                                        </button>
+                                    </div>
                                 ) : null}
                             </div>
                             <div id="contact-seller"><ContactSellerButton carId={car.id} sellerId={car.sellerId} /></div>

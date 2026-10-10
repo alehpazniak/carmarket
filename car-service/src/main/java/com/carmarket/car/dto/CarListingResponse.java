@@ -35,6 +35,8 @@ public class CarListingResponse {
     private List<String> imageUrls;
     private String primaryImageUrl;
     private Set<String> equipment;
+    private String videoUrl;
+    private TechnicalDataDto technicalData;
     private ListingStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

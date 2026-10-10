@@ -92,6 +92,10 @@ app:
     redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:5173/auth/callback}
 #    redirect-uri: ${OAUTH2_REDIRECT_URI:http://localhost:3000/auth/callback}
     allowed-redirect-hosts: ${OAUTH2_ALLOWED_HOSTS:localhost}
+  # Base of links in emails, e.g. the dealer-account confirmation link
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  dealer-upgrade:
+    token-ttl: 24h
 
 management:
   endpoints:

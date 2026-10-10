@@ -1,8 +1,9 @@
 import {useEffect, useState} from 'react';
 import {isAxiosError} from 'axios';
-import {CheckCircle2, Loader2} from 'lucide-react';
+import {CheckCircle2, Loader2, Mail, Store} from 'lucide-react';
 import {getMyProfile, updateContactInfo} from '../api/users';
-import type {ContactInfo} from '../types';
+import {requestDealerUpgrade} from '../api/auth';
+import type {ContactInfo, UserRole} from '../types';
 
 type Field = keyof ContactInfo;
 type Errors = Partial<Record<Field, string>>;
@@ -33,11 +34,15 @@ export default function Profile() {
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [loadError, setLoadError] = useState(false);
+    const [role, setRole] = useState<UserRole>('USER');
+    const [upgradeState, setUpgradeState] = useState<'idle' | 'confirming' | 'sending' | 'sent'>('idle');
+    const [upgradeError, setUpgradeError] = useState<string | null>(null);
 
     useEffect(() => {
         getMyProfile()
             .then((p) => {
                 setEmail(p.email);
+                setRole(p.role ?? 'USER');
                 setForm({
                     phoneNumber: p.phoneNumber ?? '',
                     city: p.city ?? '',
@@ -75,6 +80,25 @@ export default function Profile() {
             }
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleDealerUpgrade = async () => {
+        setUpgradeState('sending');
+        setUpgradeError(null);
+        try {
+            await requestDealerUpgrade();
+            setUpgradeState('sent');
+        } catch (err) {
+            setUpgradeState('confirming');
+            if (isAxiosError(err) && err.response?.status === 429) {
+                setUpgradeError('E-mail został już wysłany. Spróbuj ponownie za minutę.');
+            } else if (isAxiosError(err) && err.response?.status === 409) {
+                setUpgradeError('To konto jest już kontem dealera.');
+            } else {
+                console.error(err);
+                setUpgradeError('Nie udało się wysłać e-maila. Spróbuj ponownie.');
+            }
         }
     };
 
@@ -145,6 +169,47 @@ export default function Profile() {
                         </p>
                     )}
                 </form>
+
+                <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6 mt-6 space-y-4">
+                    <h2 className="text-avtovo-text font-semibold">Typ konta</h2>
+                    <p className="flex items-center gap-2 text-avtovo-text">
+                        <Store size={16} className="text-avtovo-accent"/>
+                        {role === 'USER' ? 'Konto prywatne' : role === 'DEALER' ? 'Konto dealera' : 'Administrator'}
+                    </p>
+                    {role === 'USER' && upgradeState === 'idle' && (
+                        <button type="button" onClick={() => setUpgradeState('confirming')}
+                                className="w-full border border-avtovo-accent text-avtovo-accent hover:bg-avtovo-accent/10 py-3 rounded-xl font-medium transition-colors">
+                            Przejdź na konto dealera
+                        </button>
+                    )}
+                    {role === 'USER' && (upgradeState === 'confirming' || upgradeState === 'sending') && (
+                        <div className="space-y-3">
+                            <p className="text-sm text-avtovo-text-secondary">
+                                Wyślemy link potwierdzający na adres <span className="text-avtovo-text">{email}</span>.
+                                Konto zmieni się na konto dealera dopiero po kliknięciu w link (ważny 24 godziny).
+                            </p>
+                            <div className="flex gap-2">
+                                <button type="button" onClick={handleDealerUpgrade} disabled={upgradeState === 'sending'}
+                                        className="flex-1 bg-avtovo-accent hover:bg-avtovo-accent-hover disabled:opacity-50 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2">
+                                    {upgradeState === 'sending' && <Loader2 size={16} className="animate-spin"/>}
+                                    Wyślij link
+                                </button>
+                                <button type="button" onClick={() => { setUpgradeState('idle'); setUpgradeError(null); }}
+                                        disabled={upgradeState === 'sending'}
+                                        className="flex-1 border border-avtovo-border text-avtovo-text-secondary hover:text-avtovo-text py-3 rounded-xl">
+                                    Anuluj
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {role === 'USER' && upgradeState === 'sent' && (
+                        <p role="status" className="flex items-start gap-2 text-sm text-green-400">
+                            <Mail size={16} className="mt-0.5 flex-shrink-0"/>
+                            Wysłaliśmy link potwierdzający na {email}. Kliknij go, aby przejść na konto dealera.
+                        </p>
+                    )}
+                    {upgradeError && <p className="text-sm text-red-400">{upgradeError}</p>}
+                </div>
             </div>
         </div>
     );

@@ -3,6 +3,7 @@ package com.carmarket.car.dto;
 import com.carmarket.car.entity.FuelType;
 import com.carmarket.car.entity.Transmission;
 import com.carmarket.car.entity.VehicleCategory;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
@@ -56,4 +57,8 @@ public class CarListingRequest {
     private String country;
 
     private Set<String> equipment;
+
+    /** Replaces the whole block when present, so cleared fields are cleared. */
+    @Valid
+    private TechnicalDataDto technicalData;
 }

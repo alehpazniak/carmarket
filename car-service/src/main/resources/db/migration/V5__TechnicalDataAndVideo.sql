@@ -1,0 +1,17 @@
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS video_url               VARCHAR(500);
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS version                 VARCHAR(100);
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS engine_capacity         INT;
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS power_hp                INT;
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS drive_type              VARCHAR(20);
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS body_type               VARCHAR(20);
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS doors                   INT;
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS seats                   INT;
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS vin                     VARCHAR(17);
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS vehicle_condition       VARCHAR(10);
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS origin_country          VARCHAR(100);
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS first_registration_date DATE;
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS registered_in_poland    BOOLEAN;
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS first_owner             BOOLEAN;
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS accident_free           BOOLEAN;
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS aso_serviced            BOOLEAN;
+ALTER TABLE car_listings ADD COLUMN IF NOT EXISTS damaged                 BOOLEAN;
