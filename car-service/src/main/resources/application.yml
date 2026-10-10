@@ -47,6 +47,23 @@ spring:
         spring.json.add.type.headers: false
       acks: all
       retries: 3
+    # payment.completed / payment.refunded from payment-service (ListingPromotionService).
+    # Producers send no type headers, so every message is read as PaymentEvent;
+    # ErrorHandlingDeserializer skips a malformed message instead of retrying it forever.
+    consumer:
+      group-id: car-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "com.carmarket.*"
+        spring.json.value.default.type: com.carmarket.car.dto.PaymentEvent
+        spring.json.use.type.headers: false
+
+promotion:
+  expiry:
+    fixed-delay-ms: 600000   # how often expired promotions are cleared (10 min)
 
 gateway:
   internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
