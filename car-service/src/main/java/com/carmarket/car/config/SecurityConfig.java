@@ -31,7 +31,8 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(gatewaySignatureFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/cars/admin/**").permitAll()
+                // Must stay above the GET /cars/** permitAll rule — the first match wins
+                .requestMatchers("/cars/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/cars/favorites").authenticated()
                 .requestMatchers(HttpMethod.GET, "/cars/*/favorite").authenticated()
                 .requestMatchers(HttpMethod.GET, "/cars", "/cars/**").permitAll()

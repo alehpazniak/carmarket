@@ -153,8 +153,8 @@ public class UserController {
 
     /**
      * Increment user's listings count.
-     * Called by car-service when user creates a new listing.
-     * Internal endpoint (not exposed via gateway).
+     * Meant for car-service when a user creates a listing (not called by any service yet).
+     * Admin only (see SecurityConfig) — the gateway routes all of /api/users/**.
      *
      * @param userId User ID
      * @return Updated profile
@@ -179,8 +179,8 @@ public class UserController {
 
     /**
      * Decrement user's listings count.
-     * Called by car-service when user deletes a listing.
-     * Internal endpoint (not exposed via gateway).
+     * Meant for car-service when a user deletes a listing (not called by any service yet).
+     * Admin only (see SecurityConfig) — the gateway routes all of /api/users/**.
      *
      * @param userId User ID
      * @return Updated profile
