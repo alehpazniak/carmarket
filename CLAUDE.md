@@ -48,7 +48,7 @@ Health/monitoring UIs when the stack is up: Eureka `:8761` (admin/admin), Kafka 
 | api-gateway | 8080 | — | Single client entry point: JWT validation, routing (`lb://`), rate limiting (Redis), circuit breaking |
 | auth-service | 8081 | postgres-auth, Redis | Google/Facebook OAuth2, JWT issue/refresh/revoke |
 | user-service | 8082 | postgres-user | User profiles, auto-created from `user.registered` |
-| car-service | 8083 | postgres-car, S3 | Car listings CRUD, favorites, publishes `car.*` events |
+| car-service | 8083 | postgres-car, S3 | Car listings CRUD, favorites, paid promotions; publishes `car.*`, consumes `payment.*` |
 | search-service | 8084 | Elasticsearch | Full-text/filter search, indexed from Kafka |
 | chat-service | 8085 | postgres-chat | Buyer↔seller WebSocket/STOMP chat, publishes `chat.*` events |
 | notification-service | 8087 | postgres-notification | Consumes `user.*`/`chat.*` events, sends email (via MailHog locally) |
@@ -78,14 +78,21 @@ Topics are named `<domain>.<event>`, auto-created (`KAFKA_AUTO_CREATE_TOPICS_ENA
 | `car.created` / `car.updated` / `car.deleted` | car-service | search-service (indexes/removes from Elasticsearch) |
 | `chat.message.sent` | chat-service | notification-service (delayed "you have a new message" email, see `CHAT_MESSAGE_EMAIL_DELAY`) |
 | `chat.conversation.read` | chat-service | notification-service (cancels/suppresses pending email) |
-| `payment.completed` / `payment.refunded` | payment-service | — (no consumer yet; e.g. car-service should apply a listing promotion) |
+| `payment.completed` / `payment.refunded` | payment-service | car-service (applies/reverts `LISTING_PROMOTION` / `LISTING_HIGHLIGHT`, see below) |
 
 ## payment-service (Przelewy24) specifics
 
 - Credentials (`P24_MERCHANT_ID`, `P24_POS_ID`, `P24_CRC`, `P24_API_KEY`, `P24_SANDBOX`) are optional: without them the service starts and payment endpoints answer 503.
 - Prices live in `application.yml` under `payment.products`; the client sends only `productCode` + `referenceId`, never an amount.
+- Products with `requires-own-listing: true` (the two listing products) only accept a `referenceId` that is the UUID of the buyer's own ACTIVE listing; `create` checks it via car-service `GET /cars/{id}` (`CarListingClient`, load-balanced through Eureka). `duration-days` is returned by `/payments/products` and sent as `durationDays` in `payment.*` events.
 - A payment is `PAID` only after `transaction/verify` succeeds. That happens either in the `POST /payments/p24/notify` webhook (public at the gateway, authenticated by the SHA-384 `sign`) or in `POST /payments/{id}/sync`, which the frontend return page `/platnosc/:id` calls. On localhost P24 can't reach the webhook, so sync is what completes the payment there.
 - The sign is SHA-384 over JSON with a fixed field order (`Przelewy24SignCalculator`), and the order differs between register, verify and notification.
+
+## car-service listing promotion
+
+- `car_listings.promoted_until` / `highlighted_until` (V6, `CarListing.promotedUntil` / `highlightedUntil`) are set only by `ListingPromotionService` from `payment.completed`; `CarListingMapper` ignores them, so owners can't set them via `PUT /cars/{id}`. They're in `CarListingResponse` and `CarUpdatedEvent`.
+- Purchases stack (`max(now, current) + durationDays`). Every processed payment is a row in `listing_promotion_payments` (idempotent redelivery; refunds subtract exactly `days_applied`). A payment for a missing / non-ACTIVE / someone else's listing is recorded with `days_applied = 0` and not applied — refund it manually.
+- `PromotionExpiryJob` (`promotion.expiry.fixed-delay-ms`, 10 min) clears expired dates and re-publishes `car.updated`; search-service stores `promoted`/`highlighted` booleans computed at indexing time and ranks `promoted` first only for the default sort (none or `createdAt,desc`).
 
 When changing an event's payload shape, update the DTO in **both** the producing and consuming service — there's no shared event-schema module; each service has its own copy of the event DTO (e.g. `car-service/.../dto/CarUpdatedEvent.java` and `search-service/.../dto/CarUpdatedEvent.java`).
 
