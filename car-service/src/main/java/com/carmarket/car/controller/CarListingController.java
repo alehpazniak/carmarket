@@ -2,6 +2,7 @@ package com.carmarket.car.controller;
 
 import com.carmarket.car.dto.CarListingRequest;
 import com.carmarket.car.dto.CarListingResponse;
+import com.carmarket.car.dto.VideoRequest;
 import com.carmarket.car.service.CarListingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,8 @@ import java.util.UUID;
  * PUT    /cars/{id}          → update own listing (authenticated)
  * PATCH  /cars/{id}/sold     → mark as sold  (authenticated, owner only)
  * DELETE /cars/{id}          → soft-delete   (authenticated, owner only)
+ * PUT    /cars/{id}/video    → attach a YouTube/TikTok/Instagram link (authenticated, owner only)
+ * DELETE /cars/{id}/video    → remove the video link        (authenticated, owner only)
  */
 @RestController
 @RequestMapping("/cars")
@@ -97,5 +100,18 @@ public class CarListingController {
                                                           @RequestHeader("X-User-Id") String userId,
                                                           @RequestParam String url) {
         return ResponseEntity.ok(service.removeImage(id, UUID.fromString(userId), url));
+    }
+
+    @PutMapping("/{id}/video")
+    public ResponseEntity<CarListingResponse> setVideo(@PathVariable UUID id,
+                                                       @RequestHeader("X-User-Id") String userId,
+                                                       @Valid @RequestBody VideoRequest request) {
+        return ResponseEntity.ok(service.setVideo(id, UUID.fromString(userId), request.url()));
+    }
+
+    @DeleteMapping("/{id}/video")
+    public ResponseEntity<CarListingResponse> removeVideo(@PathVariable UUID id,
+                                                          @RequestHeader("X-User-Id") String userId) {
+        return ResponseEntity.ok(service.removeVideo(id, UUID.fromString(userId)));
     }
 }

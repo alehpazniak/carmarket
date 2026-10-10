@@ -1,11 +1,14 @@
 import {useEffect, useState} from 'react';
 import {useNavigate, useParams} from 'react-router-dom';
-import {deleteCarImage, getCar, setPrimaryCarImage, updateCar, uploadCarImages} from '../api/cars';
+import {deleteCarImage, deleteCarVideo, getCar, setCarVideo, setPrimaryCarImage, updateCar, uploadCarImages} from '../api/cars';
 import {useAuth} from '../context/AuthContext';
 import type {CarListing, VehicleCategory} from '../types';
 import {Loader2, Star, Upload, X} from "lucide-react";
 import {CATEGORY_LABELS, VEHICLE_CATEGORIES, makesFor, modelsFor} from '../constants/cars';
 import {EQUIPMENT_CATEGORIES} from '../constants/equipment';
+import {EMPTY_TECHNICAL_FORM, technicalFormFrom, toTechnicalData} from '../constants/technical';
+import TechnicalDataFields from '../components/TechnicalDataFields';
+import VideoLinkField from '../components/VideoLinkField';
 
 const FUEL_TYPES = ['PETROL', 'DIESEL', 'ELECTRIC', 'HYBRID', 'LPG'];
 const FUEL_LABELS: Record<string, string> = {
@@ -29,6 +32,8 @@ export default function EditListing() {
         color: '', city: '', country: 'Polska', description: '',
     });
     const [equipment, setEquipment] = useState<Set<string>>(new Set());
+    const [technical, setTechnical] = useState(EMPTY_TECHNICAL_FORM);
+    const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
     useEffect(() => {
         if (!id) return;
@@ -43,6 +48,8 @@ export default function EditListing() {
                 description: data.description ?? '',
             });
             setEquipment(new Set(data.equipment ?? []));
+            setTechnical(technicalFormFrom(data.technicalData));
+            setVideoUrl(data.videoUrl ?? null);
         }).catch(err => {
             console.error(err);
             alert('Nie udało się wczytać ogłoszenia');
@@ -129,6 +136,28 @@ export default function EditListing() {
         }
     };
 
+    const handleAddVideo = async (url: string) => {
+        if (!id) return;
+        try {
+            const updated = await setCarVideo(id, url);
+            setVideoUrl(updated.videoUrl ?? null);
+        } catch (err) {
+            console.error(err);
+            throw new Error('Nie udało się dodać filmu. Sprawdź link do YouTube, TikToka lub Instagrama.');
+        }
+    };
+
+    const handleRemoveVideo = async () => {
+        if (!id) return;
+        try {
+            await deleteCarVideo(id);
+            setVideoUrl(null);
+        } catch (err) {
+            console.error(err);
+            throw new Error('Nie udało się usunąć filmu');
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!id) return;
@@ -143,6 +172,7 @@ export default function EditListing() {
                 fuelType: form.fuelType as CarListing['fuelType'],
                 transmission: form.transmission as CarListing['transmission'],
                 equipment: Array.from(equipment),
+                technicalData: toTechnicalData(technical, form.category as VehicleCategory),
             });
             navigate(`/ogloszenia/${id}`);
         } catch (err) {
@@ -216,6 +246,8 @@ export default function EditListing() {
                         </div>
                         <p className="text-xs text-avtovo-muted mt-2">Maksymalnie 8 zdjęć. Kliknij gwiazdkę, aby ustawić zdjęcie główne.</p>
                     </div>
+
+                    <VideoLinkField videoUrl={videoUrl} onAdd={handleAddVideo} onRemove={handleRemoveVideo}/>
 
                     {/* Basic info */}
                     <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6">
@@ -308,10 +340,13 @@ export default function EditListing() {
                         <div className="mt-4">
                             <label className="block text-sm text-avtovo-text-secondary mb-1">Opis</label>
                             <textarea name="description" value={form.description} onChange={handleChange}
-                                      rows={4} placeholder="Opisz swoje auto..."
-                                      className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted resize-none"/>
+                                      rows={8} maxLength={2000} placeholder="Opisz swoje auto..."
+                                      className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted resize-y"/>
+                            <p className="text-xs text-avtovo-muted mt-1 text-right">{form.description.length} / 2000</p>
                         </div>
                     </div>
+
+                    <TechnicalDataFields category={category} value={technical} onChange={setTechnical}/>
 
                     {/* Equipment */}
                     <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6">

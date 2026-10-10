@@ -1,10 +1,13 @@
 import {useState} from 'react';
 import {useNavigate} from 'react-router-dom';
-import {createCar, setPrimaryCarImage, uploadCarImages} from '../api/cars';
+import {createCar, setCarVideo, setPrimaryCarImage, uploadCarImages} from '../api/cars';
 import type {CarListing, VehicleCategory} from '../types';
 import {Loader2, Star, Upload, X} from "lucide-react";
 import {CATEGORY_LABELS, VEHICLE_CATEGORIES, makesFor, modelsFor} from '../constants/cars';
 import {EQUIPMENT_CATEGORIES} from '../constants/equipment';
+import {EMPTY_TECHNICAL_FORM, toTechnicalData} from '../constants/technical';
+import TechnicalDataFields from '../components/TechnicalDataFields';
+import VideoLinkField from '../components/VideoLinkField';
 
 const FUEL_TYPES = ['PETROL', 'DIESEL', 'ELECTRIC', 'HYBRID', 'LPG'];
 const FUEL_LABELS: Record<string, string> = {
@@ -23,6 +26,9 @@ export default function AddListing() {
         color: '', city: '', country: 'Polska', description: '',
     });
     const [equipment, setEquipment] = useState<Set<string>>(new Set());
+    const [technical, setTechnical] = useState(EMPTY_TECHNICAL_FORM);
+    // Attached after the listing is created, since the endpoint needs its id
+    const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const {name, value} = e.target;
@@ -80,6 +86,7 @@ export default function AddListing() {
                 fuelType: form.fuelType as CarListing['fuelType'],
                 transmission: form.transmission as CarListing['transmission'],
                 equipment: Array.from(equipment),
+                technicalData: toTechnicalData(technical, form.category as VehicleCategory),
             });
 
             if (images.length > 0) {
@@ -87,6 +94,15 @@ export default function AddListing() {
                 const mainUrl = urls[mainIndex] ?? urls[0];
                 if (mainUrl) {
                     await setPrimaryCarImage(car.id, mainUrl);
+                }
+            }
+
+            if (videoUrl) {
+                try {
+                    await setCarVideo(car.id, videoUrl);
+                } catch (err) {
+                    console.error(err);
+                    alert('Ogłoszenie zostało dodane, ale nie udało się dodać filmu. Możesz go dodać w edycji ogłoszenia.');
                 }
             }
 
@@ -147,6 +163,10 @@ export default function AddListing() {
                         </div>
                         <p className="text-xs text-avtovo-muted mt-2">Maksymalnie 8 zdjęć. Kliknij gwiazdkę, aby ustawić zdjęcie główne.</p>
                     </div>
+
+                    <VideoLinkField videoUrl={videoUrl}
+                                    onAdd={async url => setVideoUrl(url)}
+                                    onRemove={async () => setVideoUrl(null)}/>
 
                     {/* Basic info */}
                     <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6">
@@ -239,10 +259,13 @@ export default function AddListing() {
                         <div className="mt-4">
                             <label className="block text-sm text-avtovo-text-secondary mb-1">Opis</label>
                             <textarea name="description" value={form.description} onChange={handleChange}
-                                      rows={4} placeholder="Opisz swoje auto..."
-                                      className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted resize-none"/>
+                                      rows={8} maxLength={2000} placeholder="Opisz swoje auto..."
+                                      className="w-full bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2.5 focus:outline-none focus:border-avtovo-accent placeholder-avtovo-muted resize-y"/>
+                            <p className="text-xs text-avtovo-muted mt-1 text-right">{form.description.length} / 2000</p>
                         </div>
                     </div>
+
+                    <TechnicalDataFields category={category} value={technical} onChange={setTechnical}/>
 
                     {/* Equipment */}
                     <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6">

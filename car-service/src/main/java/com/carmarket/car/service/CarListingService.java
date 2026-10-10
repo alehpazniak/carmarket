@@ -29,6 +29,7 @@ public class CarListingService {
     private final CarListingMapper mapper;
     private final CarEventProducer eventProducer;
     private final S3Service s3Service;
+    private final VideoLinkService videoLinkService;
 
     // ─── CREATE ────────────────────────────────────────────────────────────────
 
@@ -73,6 +74,9 @@ public class CarListingService {
     public CarListingResponse update(UUID id, CarListingRequest request, UUID requesterId) {
         CarListing car = findAndVerifyOwner(id, requesterId);
         mapper.updateEntity(request, car);
+        if (request.getTechnicalData() != null) {
+            car.setTechnicalData(mapper.toTechnicalData(request.getTechnicalData()));
+        }
 
         CarListing updated = repository.save(car);
         eventProducer.publishUpdated(updated);
@@ -158,6 +162,26 @@ public class CarListingService {
         s3Service.deleteImage(url);
         eventProducer.publishUpdated(updated);
         log.info("Removed image for car: {}", carId);
+        return mapper.toResponse(updated);
+    }
+
+    // ─── VIDEO ─────────────────────────────────────────────────────────────────
+
+    @Transactional
+    public CarListingResponse setVideo(UUID carId, UUID requesterId, String url) {
+        CarListing car = findAndVerifyOwner(carId, requesterId);
+        car.setVideoUrl(videoLinkService.normalize(url));
+        CarListing updated = repository.save(car);
+        log.info("Set video for car: {}", carId);
+        return mapper.toResponse(updated);
+    }
+
+    @Transactional
+    public CarListingResponse removeVideo(UUID carId, UUID requesterId) {
+        CarListing car = findAndVerifyOwner(carId, requesterId);
+        car.setVideoUrl(null);
+        CarListing updated = repository.save(car);
+        log.info("Removed video for car: {}", carId);
         return mapper.toResponse(updated);
     }
 }

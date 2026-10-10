@@ -73,6 +73,8 @@ Topics are named `<domain>.<event>`, auto-created (`KAFKA_AUTO_CREATE_TOPICS_ENA
 | Topic | Producer | Consumer(s) |
 |---|---|---|
 | `user.registered` | auth-service | user-service (creates profile), notification-service (welcome email) |
+| `user.dealer-upgrade.requested` | auth-service | notification-service (emails the USER→DEALER confirmation link) |
+| `user.role-changed` | auth-service | user-service (updates profile role) |
 | `car.created` / `car.updated` / `car.deleted` | car-service | search-service (indexes/removes from Elasticsearch) |
 | `chat.message.sent` | chat-service | notification-service (delayed "you have a new message" email, see `CHAT_MESSAGE_EMAIL_DELAY`) |
 | `chat.conversation.read` | chat-service | notification-service (cancels/suppresses pending email) |
@@ -108,6 +110,16 @@ This is the most complex module — a US-auction (Copart, via the Apibara API) i
 - `service/calculator/` — `ImportCostCalculator` and `MaxBidCalculator` compute landed cost / max recommended bid from `CalculationInput`, using `ExciseRateResolver`, `CurrencyExchangeService`, and cached USA-to-port shipping rates (`UsaShippingRateService`/`UsaShippingRateCacheWriter`).
 - `analytics/` — separate aggregation of `VehicleStats` for reporting, distinct from the calculator flow.
 - `scheduler/LotSyncScheduler` periodically pulls/refreshes auction lots in the background.
+
+## avtovo/ — monolith variant
+
+`avtovo/` is a separate, standalone Spring Boot app (own `pom.xml`, own `docker-compose.yml`, own single Postgres DB) that folds api-gateway + auth-service + the profile part of user-service + auction-import-service + the frontend (`avtovo/frontend/`, embedded into the jar as `classpath:/static`) into one process. It has no listings, chat, search, payments, Eureka, Kafka or Redis. Package root is `com.carmarket.avtovo` (`auth/`, `user/`, `auction/`, `security/`, `config/`).
+
+- Security is one `SecurityFilterChain` (`config/SecurityConfig`): `security/JwtAuthenticationFilter` replaces the gateway JWT filter and there is no `GatewaySignatureFilter` — controllers read the user id from `Authentication#getName()`, not `X-User-Id`. Both filters are built with `new` inside `SecurityConfig`, not `@Component`, so Boot doesn't also register them as global servlet filters.
+- All endpoints live under `/api/**` (OAuth2 at `/api/auth/oauth2/authorization|callback/*`); anything else is the SPA (`config/SpaWebConfig` falls back to `index.html`).
+- Apibara sync covers Copart **and** IAAI: `apibara.platforms` × `apibara.targets`, lots unique per `(source, lot_number)`.
+- Flyway + `ddl-auto: validate`, migrations independent of the microservices'. Tests (`mvn test` in `avtovo/`) boot the app against Postgres via Testcontainers, so Docker must be running.
+- Changes to the auction/auth logic in the microservices are **not** shared with `avtovo/` (the code was copied) — port fixes to both places when they apply to both.
 
 ## Kubernetes
 

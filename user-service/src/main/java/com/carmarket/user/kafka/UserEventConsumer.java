@@ -45,4 +45,20 @@ public class UserEventConsumer {
         userProfileRepository.save(profile);
         log.info("UserProfile created for: {}", event.get("email"));
     }
+
+    /** user.role-changed: auth-service changed the account role, e.g. USER → DEALER after email confirmation. */
+    @KafkaListener(topics = "user.role-changed", groupId = "user-service")
+    public void handleRoleChanged(Map<String, String> event) {
+        String userId = event.get("userId");
+        String role = event.get("role");
+        if (userId == null || role == null) {
+            log.warn("Ignoring malformed user.role-changed: {}", event.keySet());
+            return;
+        }
+        userProfileRepository.findById(UUID.fromString(userId)).ifPresentOrElse(profile -> {
+            profile.setRole(UserProfile.UserRole.valueOf(role));
+            userProfileRepository.save(profile);
+            log.info("UserProfile {} role changed to {}", userId, role);
+        }, () -> log.warn("No UserProfile for role change of userId: {}", userId));
+    }
 }

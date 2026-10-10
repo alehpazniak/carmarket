@@ -38,6 +38,13 @@ export const deleteCarImage = (carId: string, url: string) =>
     api.delete<CarListing>(`/api/cars/${carId}/images?url=${encodeURIComponent(url)}`)
         .then(r => r.data);
 
+/** Attaches a YouTube, TikTok or Instagram link; the backend rejects anything else with 400. */
+export const setCarVideo = (carId: string, url: string) =>
+    api.put<CarListing>(`/api/cars/${carId}/video`, {url}).then(r => r.data);
+
+export const deleteCarVideo = (carId: string) =>
+    api.delete<CarListing>(`/api/cars/${carId}/video`).then(r => r.data);
+
 export const searchCars = (params: Record<string, string | number> = {}) => {
     const query = new URLSearchParams(
         Object.entries(params)

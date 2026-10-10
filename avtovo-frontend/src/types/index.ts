@@ -19,8 +19,36 @@ export interface CarListing {
     imageUrls?: string[];
     primaryImageUrl?: string;
     equipment?: string[];
+    /** Canonical YouTube, TikTok or Instagram link (car-service normalizes whatever the seller pasted). */
+    videoUrl?: string | null;
+    technicalData?: TechnicalData | null;
     status: 'ACTIVE' | 'SOLD' | 'REMOVED';
     createdAt: string;
+}
+
+export type DriveType = 'FRONT' | 'REAR' | 'AWD_AUTO' | 'AWD_MANUAL' | 'AWD_PERMANENT';
+export type BodyType = 'MINI' | 'CITY' | 'COUPE' | 'CABRIO' | 'ESTATE' | 'COMPACT' | 'MINIVAN' | 'SEDAN' | 'SUV';
+export type VehicleCondition = 'NEW' | 'USED';
+
+/** "Dane techniczne" block; every field is optional. */
+export interface TechnicalData {
+    version?: string | null;
+    engineCapacity?: number | null;
+    powerHp?: number | null;
+    driveType?: DriveType | null;
+    bodyType?: BodyType | null;
+    doors?: number | null;
+    seats?: number | null;
+    vin?: string | null;
+    condition?: VehicleCondition | null;
+    originCountry?: string | null;
+    /** ISO date, yyyy-MM-dd */
+    firstRegistrationDate?: string | null;
+    registeredInPoland?: boolean | null;
+    firstOwner?: boolean | null;
+    accidentFree?: boolean | null;
+    asoServiced?: boolean | null;
+    damaged?: boolean | null;
 }
 
 export interface User {
@@ -73,7 +101,10 @@ export interface UserProfile {
     city?: string;
     street?: string;
     houseNumber?: string;
+    role?: UserRole;
 }
+
+export type UserRole = 'USER' | 'DEALER' | 'ADMIN';
 
 export interface ContactInfo {
     phoneNumber: string;
