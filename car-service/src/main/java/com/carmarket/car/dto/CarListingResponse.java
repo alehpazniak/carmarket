@@ -38,6 +38,8 @@ public class CarListingResponse {
     private String videoUrl;
     private TechnicalDataDto technicalData;
     private ListingStatus status;
+    private LocalDateTime promotedUntil;
+    private LocalDateTime highlightedUntil;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

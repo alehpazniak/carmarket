@@ -11,6 +11,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 /**
@@ -48,7 +49,8 @@ public class CarIndexingConsumer {
         searchService.removeCar(carId);
     }
 
-    private CarDocument toDocument(CarUpdatedEvent event) {
+    CarDocument toDocument(CarUpdatedEvent event) {
+        LocalDateTime now = LocalDateTime.now();
         return CarDocument.builder()
             .id(event.carId())
             .sellerId(event.sellerId())
@@ -66,6 +68,15 @@ public class CarIndexingConsumer {
             .createdAt(event.createdAt() != null
                     ? event.createdAt().atZone(ZoneId.systemDefault()).toInstant()
                     : Instant.now())
+            .promotedUntil(toInstant(event.promotedUntil()))
+            .highlightedUntil(toInstant(event.highlightedUntil()))
+            .promoted(event.promotedUntil() != null && event.promotedUntil().isAfter(now))
+            .highlighted(event.highlightedUntil() != null && event.highlightedUntil().isAfter(now))
             .build();
+    }
+
+    /** car-service sends LocalDateTime in its own (system) zone, like createdAt. */
+    private static Instant toInstant(LocalDateTime value) {
+        return value != null ? value.atZone(ZoneId.systemDefault()).toInstant() : null;
     }
 }

@@ -97,6 +97,14 @@ public class CarListing {
     @Embedded
     private TechnicalData technicalData;
 
+    /** Set only by ListingPromotionService (paid LISTING_PROMOTION); never from the request. */
+    @Column(name = "promoted_until")
+    private LocalDateTime promotedUntil;
+
+    /** Set only by ListingPromotionService (paid LISTING_HIGHLIGHT); never from the request. */
+    @Column(name = "highlighted_until")
+    private LocalDateTime highlightedUntil;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

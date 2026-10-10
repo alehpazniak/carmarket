@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type {CarDocument, CarListing} from '../types';
-import { MapPin, Fuel, Gauge, Calendar, Pencil, MoreVertical, Tag, Trash2 } from 'lucide-react';
+import { MapPin, Fuel, Gauge, Calendar, Pencil, MoreVertical, Tag, Trash2, Sparkles } from 'lucide-react';
+import { isHighlighted, isPromoted } from '../utils/promotion';
 
 interface Props {
     car: CarListing | CarDocument;
     editHref?: string;
     onMarkSold?: (id: string) => void;
     onDelete?: (id: string) => void;
+    /** Owner menu: buy a promotion (shown for ACTIVE listings only). */
+    onPromote?: (id: string) => void;
 }
 
 const FUEL_LABELS: Record<string, string> = {
@@ -23,12 +26,14 @@ const STATUS_LABELS: Record<string, string> = {
     REMOVED: 'Usunięte',
 };
 
-export default function CarCard({ car, editHref, onMarkSold, onDelete }: Props) {
+export default function CarCard({ car, editHref, onMarkSold, onDelete, onPromote }: Props) {
     const navigate = useNavigate();
     const mainImage = car.primaryImageUrl || car.imageUrls?.[0];
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const statusLabel = STATUS_LABELS[car.status];
+    const promoted = car.status === 'ACTIVE' && isPromoted(car);
+    const highlighted = car.status === 'ACTIVE' && isHighlighted(car);
 
     useEffect(() => {
         if (!menuOpen) return;
@@ -43,9 +48,14 @@ export default function CarCard({ car, editHref, onMarkSold, onDelete }: Props) 
 
     return (
         <Link to={`/ogloszenia/${car.id}`} className="group block">
-            <div className={`bg-avtovo-card border border-avtovo-border rounded-xl overflow-hidden hover:border-gray-600 transition-all duration-200 hover:shadow-lg hover:shadow-black/20 ${car.status !== 'ACTIVE' ? 'opacity-70' : ''}`}>
+            <div className={`bg-avtovo-card border border-avtovo-border rounded-xl overflow-hidden hover:border-gray-600 transition-all duration-200 hover:shadow-lg hover:shadow-black/20 ${car.status !== 'ACTIVE' ? 'opacity-70' : ''} ${highlighted ? 'ring-2 ring-avtovo-accent' : ''}`}>
                 {/* Image */}
                 <div className="relative aspect-[16/10] bg-avtovo-bg overflow-hidden">
+                    {promoted && !statusLabel && (
+                        <span className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-avtovo-accent text-white text-[11px] font-medium px-2 py-1 rounded-md">
+                            <Sparkles size={11}/> Promowane
+                        </span>
+                    )}
                     {statusLabel && (
                         <span className="absolute top-2 left-2 z-10 bg-black/70 text-white text-[11px] font-medium px-2 py-1 rounded-md">
                             {statusLabel}
@@ -79,6 +89,20 @@ export default function CarCard({ car, editHref, onMarkSold, onDelete }: Props) 
                                     >
                                         <Pencil size={14}/> Edytuj
                                     </button>
+                                    {onPromote && car.status === 'ACTIVE' && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                setMenuOpen(false);
+                                                onPromote(car.id);
+                                            }}
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-avtovo-text hover:bg-avtovo-bg text-left"
+                                        >
+                                            <Sparkles size={14}/> Promuj
+                                        </button>
+                                    )}
                                     {onMarkSold && car.status === 'ACTIVE' && (
                                         <button
                                             type="button"

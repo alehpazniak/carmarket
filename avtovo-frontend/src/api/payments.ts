@@ -1,6 +1,9 @@
 import api from './client';
 import type {CreatePaymentResponse, Payment, PaymentProduct} from '../types';
 
+/** Products bought for one listing (referenceId = car id); car-service applies them after payment. */
+export const LISTING_PRODUCT_CODES = ['LISTING_PROMOTION', 'LISTING_HIGHLIGHT'];
+
 /** Price list (public). */
 export async function getPaymentProducts(): Promise<PaymentProduct[]> {
     const res = await api.get('/api/payments/products');

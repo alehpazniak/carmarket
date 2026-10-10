@@ -60,10 +60,14 @@ payment:
       amount: 1999
       currency: PLN
       description: "Promowanie ogłoszenia (7 dni)"
+      duration-days: 7
+      requires-own-listing: true
     LISTING_HIGHLIGHT:
       amount: 999
       currency: PLN
       description: "Wyróżnienie ogłoszenia (7 dni)"
+      duration-days: 7
+      requires-own-listing: true
 
 gateway:
   internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}

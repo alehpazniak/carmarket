@@ -8,7 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHit;
 import org.springframework.data.elasticsearch.core.SearchHits;
@@ -115,12 +117,32 @@ public class CarSearchService {
             criteria = criteria.and(new Criteria("country").is(req.getCountry()));
         }
 
-        Query query = new CriteriaQuery(criteria).setPageable(pageable);
+        Query query = new CriteriaQuery(criteria).setPageable(withPromotedFirst(pageable));
         SearchHits<CarDocument> hits = esOperations.search(query, CarDocument.class);
 
         return hits.getSearchHits().stream()
             .map(SearchHit::getContent)
             .toList();
+    }
+
+    private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "createdAt");
+
+    /**
+     * Product decision: paid promotion (LISTING_PROMOTION) only moves a listing to the top of the
+     * default order — no sort (relevance) or newest first. An explicit price/year/mileage sort stays
+     * a pure sort: someone asking for the cheapest cars must get the cheapest first, promoted or not.
+     * Documents indexed before promotions existed have no "promoted" field and sort last.
+     */
+    static Pageable withPromotedFirst(Pageable pageable) {
+        Sort sort = pageable.getSort();
+        if (sort.isSorted() && !sort.equals(NEWEST_FIRST)) {
+            return pageable;
+        }
+        Sort tieBreak = sort.isSorted() ? sort : Sort.by(Sort.Direction.DESC, "_score");
+        Sort ranked = Sort.by(Sort.Direction.DESC, "promoted").and(tieBreak);
+        return pageable.isPaged()
+            ? PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), ranked)
+            : Pageable.unpaged(ranked);
     }
 
     /** Lower-cased words of the input (text fields are indexed lower-cased), quotes and wildcards removed. */

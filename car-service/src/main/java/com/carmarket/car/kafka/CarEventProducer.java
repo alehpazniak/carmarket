@@ -76,7 +76,9 @@ public class CarEventProducer {
             car.getStatus().name(),
             car.getPrimaryImageUrl(),
             car.getCreatedAt(),
-            car.getCategory() != null ? car.getCategory().name() : null
+            car.getCategory() != null ? car.getCategory().name() : null,
+            car.getPromotedUntil(),
+            car.getHighlightedUntil()
         );
     }
 }

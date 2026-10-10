@@ -76,4 +76,23 @@ public class CarDocument {
 
     @Field(type = FieldType.Date, format = {DateFormat.date_optional_time, DateFormat.epoch_millis})
     private Instant createdAt;
+
+    /** Paid promotion end (car-service); null when never promoted. */
+    @Field(type = FieldType.Date, format = {DateFormat.date_optional_time, DateFormat.epoch_millis})
+    private Instant promotedUntil;
+
+    /** Paid highlight end (car-service); null when never highlighted. */
+    @Field(type = FieldType.Date, format = {DateFormat.date_optional_time, DateFormat.epoch_millis})
+    private Instant highlightedUntil;
+
+    /**
+     * promotedUntil is in the future, computed at indexing time. car-service's expiry job
+     * re-publishes car.updated when it runs out, which flips this back to false.
+     */
+    @Field(type = FieldType.Boolean)
+    private boolean promoted;
+
+    /** highlightedUntil is in the future, see {@link #promoted}. */
+    @Field(type = FieldType.Boolean)
+    private boolean highlighted;
 }

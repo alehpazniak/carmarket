@@ -25,6 +25,8 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(gatewaySignatureFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
+                // The gateway routes all of /api/users/**, so these are reachable by any logged-in user
+                .requestMatchers(HttpMethod.POST, "/users/*/increment-listings", "/users/*/decrement-listings").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/users/me").authenticated()
                 .requestMatchers(HttpMethod.PATCH, "/users/me").authenticated()
                 .requestMatchers(HttpMethod.PUT, "/users/me/contact").authenticated()

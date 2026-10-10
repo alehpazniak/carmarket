@@ -1,5 +1,6 @@
 package com.carmarket.payment.kafka;
 
+import com.carmarket.payment.config.PaymentProductProperties;
 import com.carmarket.payment.entity.Payment;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ public class PaymentEventProducer {
     static final String TOPIC_PAYMENT_REFUNDED = "payment.refunded";
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final PaymentProductProperties productProperties;
 
     public record PaymentEvent(
         String paymentId,
@@ -32,7 +34,9 @@ public class PaymentEventProducer {
         int amount,
         String currency,
         Long p24OrderId,
-        Instant occurredAt
+        Instant occurredAt,
+        /** From the product catalogue at publish time; null for products without a duration. */
+        Integer durationDays
     ) {
     }
 
@@ -70,7 +74,11 @@ public class PaymentEventProducer {
             p.getAmount(),
             p.getCurrency(),
             p.getP24OrderId(),
-            occurredAt
+            occurredAt,
+            productProperties.find(p.getProductCode())
+                .map(PaymentProductProperties.Product::getDurationDays)
+                .filter(days -> days > 0)
+                .orElse(null)
         );
     }
 }

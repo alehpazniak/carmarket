@@ -1,5 +1,7 @@
 package com.carmarket.payment.service;
 
+import com.carmarket.payment.client.CarListingClient;
+import com.carmarket.payment.client.CarListingClient.CarListingSummary;
 import com.carmarket.payment.config.PaymentProductProperties;
 import com.carmarket.payment.dto.PaymentDtos.CreatePaymentRequest;
 import com.carmarket.payment.dto.PaymentDtos.CreatePaymentResponse;
@@ -42,6 +44,7 @@ class PaymentServiceTest {
     private final PaymentRepository repository = mock(PaymentRepository.class);
     private final Przelewy24Client client = mock(Przelewy24Client.class);
     private final PaymentEventProducer producer = mock(PaymentEventProducer.class);
+    private final CarListingClient carListingClient = mock(CarListingClient.class);
     private final Przelewy24SignCalculator signCalculator = new Przelewy24SignCalculator();
     private final Przelewy24Properties p24 = new Przelewy24Properties();
     private PaymentService service;
@@ -58,10 +61,15 @@ class PaymentServiceTest {
         product.setAmount(1999);
         product.setDescription("Promowanie ogłoszenia");
         PaymentProductProperties products = new PaymentProductProperties();
-        products.setProducts(Map.of("LISTING_PROMOTION", product));
+        PaymentProductProperties.Product highlight = new PaymentProductProperties.Product();
+        highlight.setAmount(999);
+        highlight.setDescription("Wyróżnienie ogłoszenia");
+        highlight.setDurationDays(7);
+        highlight.setRequiresOwnListing(true);
+        products.setProducts(Map.of("LISTING_PROMOTION", product, "LISTING_HIGHLIGHT", highlight));
 
         when(repository.save(any(Payment.class))).thenAnswer(inv -> inv.getArgument(0));
-        service = new PaymentService(repository, products, p24, client, signCalculator, producer);
+        service = new PaymentService(repository, products, p24, client, signCalculator, producer, carListingClient);
     }
 
     @Test
@@ -172,6 +180,76 @@ class PaymentServiceTest {
 
         assertThatThrownBy(() -> service.sync(UUID.randomUUID(), payment.getId()))
             .hasMessage("Payment not found");
+    }
+
+    // ─── referenceId validation for products that require the buyer's own listing ───
+
+    @Test
+    void listingProductRegistersForOwnActiveListing() {
+        UUID carId = UUID.randomUUID();
+        when(carListingClient.findListing(carId)).thenReturn(Optional.of(new CarListingSummary(carId, USER_ID, "ACTIVE")));
+        when(client.registerTransaction(anyString(), anyInt(), anyString(), anyString(), anyString(), anyString()))
+            .thenReturn("TOKEN123");
+
+        service.create(USER_ID, "a@b.pl", new CreatePaymentRequest("LISTING_HIGHLIGHT", " " + carId + " ", null));
+
+        verify(repository, org.mockito.Mockito.atLeastOnce())
+            .save(org.mockito.ArgumentMatchers.argThat(p -> carId.toString().equals(p.getReferenceId())));
+        verify(client).registerTransaction(anyString(), eq(999), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void listingProductRequiresReferenceId() {
+        assertCreateFails(new CreatePaymentRequest("LISTING_HIGHLIGHT", null, null), HttpStatus.BAD_REQUEST);
+        assertCreateFails(new CreatePaymentRequest("LISTING_HIGHLIGHT", "  ", null), HttpStatus.BAD_REQUEST);
+        verify(carListingClient, never()).findListing(any());
+    }
+
+    @Test
+    void listingProductRejectsNonUuidReferenceId() {
+        assertCreateFails(new CreatePaymentRequest("LISTING_HIGHLIGHT", "car-1", null), HttpStatus.BAD_REQUEST);
+        verify(carListingClient, never()).findListing(any());
+    }
+
+    @Test
+    void listingProductRejectsMissingListing() {
+        UUID carId = UUID.randomUUID();
+        when(carListingClient.findListing(carId)).thenReturn(Optional.empty());
+        assertCreateFails(new CreatePaymentRequest("LISTING_HIGHLIGHT", carId.toString(), null), HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void listingProductRejectsSomeoneElsesListing() {
+        UUID carId = UUID.randomUUID();
+        when(carListingClient.findListing(carId))
+            .thenReturn(Optional.of(new CarListingSummary(carId, UUID.randomUUID(), "ACTIVE")));
+        assertCreateFails(new CreatePaymentRequest("LISTING_HIGHLIGHT", carId.toString(), null), HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void listingProductRejectsInactiveListing() {
+        UUID carId = UUID.randomUUID();
+        when(carListingClient.findListing(carId)).thenReturn(Optional.of(new CarListingSummary(carId, USER_ID, "SOLD")));
+        assertCreateFails(new CreatePaymentRequest("LISTING_HIGHLIGHT", carId.toString(), null), HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void productsExposeDuration() {
+        assertThat(service.listProducts())
+            .filteredOn(p -> p.code().equals("LISTING_HIGHLIGHT"))
+            .singleElement()
+            .extracting(p -> p.durationDays())
+            .isEqualTo(7);
+    }
+
+    /** Rejected before anything is saved or registered at P24. */
+    private void assertCreateFails(CreatePaymentRequest request, HttpStatus status) {
+        assertThatThrownBy(() -> service.create(USER_ID, "a@b.pl", request))
+            .isInstanceOf(PaymentException.class)
+            .extracting(e -> ((PaymentException) e).getStatus())
+            .isEqualTo(status);
+        verify(repository, never()).save(any());
+        verify(client, never()).registerTransaction(anyString(), anyInt(), anyString(), anyString(), anyString(), anyString());
     }
 
     private Payment pendingPayment() {

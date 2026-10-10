@@ -1,5 +1,7 @@
 package com.carmarket.payment.service;
 
+import com.carmarket.payment.client.CarListingClient;
+import com.carmarket.payment.client.CarListingClient.CarListingSummary;
 import com.carmarket.payment.config.PaymentProductProperties;
 import com.carmarket.payment.config.PaymentProductProperties.Product;
 import com.carmarket.payment.dto.PaymentDtos.CreatePaymentRequest;
@@ -53,11 +55,13 @@ public class PaymentService {
     private final Przelewy24Client p24Client;
     private final Przelewy24SignCalculator signCalculator;
     private final PaymentEventProducer eventProducer;
+    private final CarListingClient carListingClient;
 
     public List<ProductResponse> listProducts() {
         return productProperties.getProducts().entrySet().stream()
             .map(e -> new ProductResponse(e.getKey(), e.getValue().getAmount(),
-                e.getValue().getCurrency(), e.getValue().getDescription()))
+                e.getValue().getCurrency(), e.getValue().getDescription(),
+                e.getValue().getDurationDays() > 0 ? e.getValue().getDurationDays() : null))
             .toList();
     }
 
@@ -67,6 +71,9 @@ public class PaymentService {
         Product product = productProperties.find(request.productCode())
             .orElseThrow(() -> new PaymentException(HttpStatus.BAD_REQUEST,
                 "Unknown product: " + request.productCode()));
+        String referenceId = product.isRequiresOwnListing()
+            ? requireOwnActiveListing(userId, request.referenceId()).toString()
+            : request.referenceId();
         String email = resolveEmail(tokenEmail, request.email());
 
         UUID id = UUID.randomUUID();
@@ -75,7 +82,7 @@ public class PaymentService {
             .sessionId(id.toString())
             .userId(userId)
             .productCode(request.productCode())
-            .referenceId(request.referenceId())
+            .referenceId(referenceId)
             .amount(product.getAmount())
             .currency(product.getCurrency())
             .description(product.getDescription())
@@ -226,6 +233,31 @@ public class PaymentService {
         payment.setPaidAt(Instant.now());
         eventProducer.publishCompleted(payment);
         log.info("Payment {} PAID (P24 order {})", payment.getId(), orderId);
+    }
+
+    /**
+     * Listing products may only be bought for the buyer's own ACTIVE listing — otherwise the money
+     * would be taken and car-service would refuse to apply the promotion.
+     */
+    private UUID requireOwnActiveListing(UUID userId, String referenceId) {
+        if (referenceId == null || referenceId.isBlank()) {
+            throw new PaymentException(HttpStatus.BAD_REQUEST, "referenceId (listing id) is required");
+        }
+        UUID carId;
+        try {
+            carId = UUID.fromString(referenceId.trim());
+        } catch (IllegalArgumentException e) {
+            throw new PaymentException(HttpStatus.BAD_REQUEST, "referenceId must be a listing id");
+        }
+        CarListingSummary listing = carListingClient.findListing(carId)
+            .orElseThrow(() -> new PaymentException(HttpStatus.NOT_FOUND, "Listing not found"));
+        if (!userId.equals(listing.sellerId())) {
+            throw new PaymentException(HttpStatus.FORBIDDEN, "You can only promote your own listing");
+        }
+        if (!"ACTIVE".equals(listing.status())) {
+            throw new PaymentException(HttpStatus.CONFLICT, "Only active listings can be promoted");
+        }
+        return carId;
     }
 
     private void requireConfigured() {

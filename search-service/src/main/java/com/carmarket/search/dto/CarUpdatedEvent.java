@@ -16,7 +16,9 @@ public record CarUpdatedEvent(String carId,
                               String status,
                               String primaryImageUrl,
                               LocalDateTime createdAt,
-                              String category
+                              String category,
+                              LocalDateTime promotedUntil,
+                              LocalDateTime highlightedUntil
 
 ) {
 }

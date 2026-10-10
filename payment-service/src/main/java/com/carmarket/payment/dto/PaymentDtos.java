@@ -48,7 +48,7 @@ public final class PaymentDtos {
         }
     }
 
-    public record ProductResponse(String code, int amount, String currency, String description) {
+    public record ProductResponse(String code, int amount, String currency, String description, Integer durationDays) {
     }
 
     public record RefundRequest(@Size(max = 35) String description) {

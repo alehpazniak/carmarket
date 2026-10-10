@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom';
 import { getMyCars, markCarAsSold, deleteCar } from '../api/cars';
 import type {CarListing, Page} from '../types';
 import CarCard from '../components/CarCard';
+import PromoteListingDialog from '../components/PromoteListingDialog';
 import { Plus, Car } from 'lucide-react';
 
 export default function MyListings() {
     const [carsPage, setCarsPage] = useState<Page<CarListing> | null>(null);
     const [loading, setLoading] = useState(true);
+    const [promoting, setPromoting] = useState<CarListing | null>(null);
 
     useEffect(() => {
         getMyCars().then(setCarsPage).catch(console.error).finally(() => setLoading(false));
@@ -86,11 +88,13 @@ export default function MyListings() {
                                 editHref={`/ogloszenia/${car.id}/edytuj`}
                                 onMarkSold={handleMarkSold}
                                 onDelete={handleDelete}
+                                onPromote={id => setPromoting(cars.find(c => c.id === id) ?? null)}
                             />
                         ))}
                     </div>
                 )}
             </div>
+            {promoting && <PromoteListingDialog car={promoting} onClose={() => setPromoting(null)}/>}
         </div>
     );
 }

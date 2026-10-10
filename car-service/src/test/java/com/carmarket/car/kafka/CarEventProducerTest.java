@@ -132,6 +132,35 @@ class CarEventProducerTest {
     }
 
     @Test
+    @DisplayName("Should include promotion and highlight end dates in event")
+    void testPublishUpdated_PromotionFields() {
+        LocalDateTime promotedUntil = LocalDateTime.of(2026, 10, 18, 12, 0);
+        LocalDateTime highlightedUntil = LocalDateTime.of(2026, 10, 20, 9, 30);
+        testCar.setPromotedUntil(promotedUntil);
+        testCar.setHighlightedUntil(highlightedUntil);
+
+        carEventProducer.publishUpdated(testCar);
+
+        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(kafkaTemplate).send(eq("car.updated"), anyString(), eventCaptor.capture());
+        CarUpdatedEvent event = (CarUpdatedEvent) eventCaptor.getValue();
+        assertThat(event.promotedUntil()).isEqualTo(promotedUntil);
+        assertThat(event.highlightedUntil()).isEqualTo(highlightedUntil);
+    }
+
+    @Test
+    @DisplayName("Should leave promotion fields null for a listing that was never promoted")
+    void testPublishCreated_NoPromotion() {
+        carEventProducer.publishCreated(testCar);
+
+        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(kafkaTemplate).send(eq("car.created"), anyString(), eventCaptor.capture());
+        CarUpdatedEvent event = (CarUpdatedEvent) eventCaptor.getValue();
+        assertThat(event.promotedUntil()).isNull();
+        assertThat(event.highlightedUntil()).isNull();
+    }
+
+    @Test
     @DisplayName("Should handle null optional fields in created event")
     void testPublishCreated_NullOptionalFields() {
         // Arrange

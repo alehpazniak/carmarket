@@ -3,12 +3,14 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { getCar, deleteCar } from '../api/cars';
 import type {CarListing} from '../types';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, Fuel, Gauge, Calendar, Cog, Palette, Tag, Trash2, ChevronLeft, ChevronRight, Check, Pencil, Zap, Car, Hash, Globe, ShieldCheck, Settings2 } from 'lucide-react';
+import { MapPin, Fuel, Gauge, Calendar, Cog, Palette, Tag, Trash2, ChevronLeft, ChevronRight, Check, Pencil, Zap, Car, Hash, Globe, ShieldCheck, Settings2, Sparkles } from 'lucide-react';
 import { ContactSellerButton } from '../components/ContactSellerButton';
 import { EQUIPMENT_CATEGORIES } from '../constants/equipment';
 import { CATEGORY_LABELS } from '../constants/cars';
 import { BODY_LABELS, CONDITION_LABELS, DRIVE_LABELS, FLAG_LABELS, type FlagField } from '../constants/technical';
 import VideoPlayer from '../components/VideoPlayer';
+import PromoteListingDialog from '../components/PromoteListingDialog';
+import { activeUntilLabel } from '../utils/promotion';
 
 const FUEL_LABELS: Record<string, string> = {
     PETROL: 'Benzyna', DIESEL: 'Diesel', ELECTRIC: 'Elektryczny', HYBRID: 'Hybryda', LPG: 'LPG',
@@ -21,6 +23,7 @@ export default function CarDetail() {
     const [car, setCar] = useState<CarListing | null>(null);
     const [loading, setLoading] = useState(true);
     const [imgIdx, setImgIdx] = useState(0);
+    const [promoteOpen, setPromoteOpen] = useState(false);
 
     useEffect(() => {
         if (id) getCar(id).then(setCar).catch(console.error).finally(() => setLoading(false));
@@ -217,6 +220,20 @@ export default function CarDetail() {
                                             <Pencil size={16} />
                                             Edytuj ogłoszenie
                                         </Link>
+                                        {car.status === 'ACTIVE' && (
+                                            <>
+                                                <button onClick={() => setPromoteOpen(true)}
+                                                        className="w-full flex items-center justify-center gap-2 border border-avtovo-accent/60 text-avtovo-accent hover:bg-avtovo-accent/10 py-3 rounded-xl font-medium transition-colors">
+                                                    <Sparkles size={16} />
+                                                    Promuj ogłoszenie
+                                                </button>
+                                                {activeUntilLabel(car.promotedUntil) && (
+                                                    <p className="text-center text-xs text-avtovo-text-secondary">
+                                                        Promowane do {activeUntilLabel(car.promotedUntil)}
+                                                    </p>
+                                                )}
+                                            </>
+                                        )}
                                         <button onClick={handleDelete}
                                                 className="w-full flex items-center justify-center gap-2 border border-red-500/50 text-red-400 hover:bg-red-500/10 py-3 rounded-xl transition-colors">
                                             <Trash2 size={16} />
@@ -230,6 +247,7 @@ export default function CarDetail() {
                     </div>
                 </div>
             </div>
+            {promoteOpen && isOwner && <PromoteListingDialog car={car} onClose={() => setPromoteOpen(false)} />}
         </div>
     );
 }
