@@ -1,10 +1,13 @@
 package com.carmarket.user.controller;
 
 import com.carmarket.user.dto.ContactInfoRequest;
+import com.carmarket.user.dto.PhoneNumberResponse;
+import com.carmarket.user.dto.PublicUserProfileResponse;
 import com.carmarket.user.dto.UserProfileRequest;
 import com.carmarket.user.dto.UserProfileResponse;
 import com.carmarket.user.entity.UserProfile;
 import com.carmarket.user.mapper.UserProfileMapper;
+import com.carmarket.user.service.SellerPhoneService;
 import com.carmarket.user.service.UserProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +23,8 @@ import java.util.UUID;
  * <p>
  * Endpoints:
  * - GET  /api/users/me             — Get current user profile (requires auth)
- * - GET  /api/users/{id}           — Get user public profile
+ * - GET  /api/users/{id}           — Get user public profile (allow-listed fields only)
+ * - GET  /api/users/{id}/phone?carId= — Seller's phone for one of their ACTIVE listings (requires auth)
  * - PATCH /api/users/me            — Update own profile (requires auth)
  * - PUT  /api/users/me/contact     — Replace own phone and address (requires auth)
  * - DELETE /api/users/me           — Deactivate own account (requires auth)
@@ -35,6 +39,7 @@ public class UserController {
 
     private final UserProfileService userProfileService;
     private final UserProfileMapper userProfileMapper;
+    private final SellerPhoneService sellerPhoneService;
 
     /**
      * Get current user's profile.
@@ -60,27 +65,46 @@ public class UserController {
 
     /**
      * Get any user's public profile.
-     * Public endpoint — no authentication required.
+     * Public endpoint — no authentication required, so it returns only the allow-listed
+     * {@link PublicUserProfileResponse} fields (no email, phone, address or account state).
      *
      * @param id User ID to fetch
-     * @return User profile or 404 if not found
+     * @return Public profile, or 404 if not found or deactivated
      */
     @GetMapping("/{id}")
-    public ResponseEntity<UserProfileResponse> getProfile(@PathVariable UUID id) {
+    public ResponseEntity<PublicUserProfileResponse> getProfile(@PathVariable UUID id) {
         log.info("Fetching public profile for user: {}", id);
 
         return userProfileService.getUserProfile(id)
-            .map(profile -> {
-                UserProfileResponse response = userProfileMapper.toResponse(profile);
-                // Street address is private: only the owner sees it, via GET /me.
-                response.setStreet(null);
-                response.setHouseNumber(null);
-                return ResponseEntity.ok(response);
-            })
+            .filter(UserProfile::isActive)
+            .map(profile -> ResponseEntity.ok(PublicUserProfileResponse.from(profile)))
             .orElseGet(() -> {
-                log.warn("User not found: {}", id);
+                log.warn("User not found or inactive: {}", id);
                 return ResponseEntity.notFound().build();
             });
+    }
+
+    /**
+     * A seller's phone number, only for one of their ACTIVE listings. Requires a valid gateway
+     * signature (see SecurityConfig) and is rate-limited per user at the gateway.
+     * <p>
+     * Every failed check answers the same bare 404, so the response doesn't reveal whether the
+     * listing, its owner or the phone number was the problem. 503 if car-service can't be asked.
+     *
+     * @param requesterId Caller's user ID (via gateway), for the audit log
+     * @param id          Seller's user ID
+     * @param carId       Listing the phone number is requested for
+     */
+    @GetMapping("/{id}/phone")
+    public ResponseEntity<PhoneNumberResponse> getSellerPhone(@RequestHeader("X-User-Id") String requesterId,
+                                                              @PathVariable UUID id,
+                                                              @RequestParam UUID carId) {
+        // Audit trail for phone lookups; never log the number itself
+        log.info("Phone number requested: requester={} seller={} car={}", requesterId, id, carId);
+
+        return sellerPhoneService.findPhoneForListing(id, carId)
+            .map(phone -> ResponseEntity.ok(new PhoneNumberResponse(phone)))
+            .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     /**

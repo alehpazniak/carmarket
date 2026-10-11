@@ -1,18 +1,22 @@
 import {useState} from 'react';
+import axios from 'axios';
 import {Loader2, MessageCircle, Phone} from 'lucide-react';
 import {useAuth} from '../context/AuthContext';
-import {getUserProfile} from '../api/users';
+import {getSellerPhone} from '../api/users';
 
 interface ContactSellerButtonProps {
+    carId: string;
     sellerId: string;
+    /** The phone number is only available for ACTIVE listings, so "Zadzwoń" is hidden otherwise. */
+    listingActive: boolean;
     /** "Napisz": opens the chat section at the bottom of the listing. */
     onWrite: () => void;
 }
 
-/** undefined = not fetched yet, null = seller has no phone number. */
+/** undefined = not fetched yet, null = no number to show (none given, or the backend refused). */
 type PhoneState = string | null | undefined;
 
-export function ContactSellerButton({sellerId, onWrite}: ContactSellerButtonProps) {
+export function ContactSellerButton({carId, sellerId, listingActive, onWrite}: ContactSellerButtonProps) {
     const {user, isAuthenticated, loginWithGoogle} = useAuth();
     const [phone, setPhone] = useState<PhoneState>(undefined);
     const [loadingPhone, setLoadingPhone] = useState(false);
@@ -28,17 +32,18 @@ export function ContactSellerButton({sellerId, onWrite}: ContactSellerButtonProp
         }
         setLoadingPhone(true);
         try {
-            const seller = await getUserProfile(sellerId);
-            setPhone(seller.phoneNumber?.trim() || null);
+            setPhone(await getSellerPhone(sellerId, carId));
         } catch (err) {
             console.error(err);
-            alert('Nie udało się pobrać numeru telefonu');
+            alert(axios.isAxiosError(err) && err.response?.status === 429
+                ? 'Zbyt wiele prób, spróbuj ponownie za chwilę'
+                : 'Nie udało się pobrać numeru telefonu');
         } finally {
             setLoadingPhone(false);
         }
     };
 
-    const callButton = phone ? (
+    const callButton = !listingActive ? null : phone ? (
         <a className="contact-btn-outline" href={`tel:${phone.replace(/[^\d+]/g, '')}`}>
             <Phone size={18}/> {phone}
         </a>

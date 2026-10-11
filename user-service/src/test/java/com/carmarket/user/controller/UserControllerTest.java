@@ -1,11 +1,15 @@
 package com.carmarket.user.controller;
 
+import com.carmarket.user.client.CarListingClient;
+import com.carmarket.user.client.CarListingClient.CarListingSummary;
 import com.carmarket.user.config.SecurityConfigTest;
 import com.carmarket.user.dto.ContactInfoRequest;
 import com.carmarket.user.dto.UserProfileRequest;
 import com.carmarket.user.dto.UserProfileResponse;
 import com.carmarket.user.entity.UserProfile;
+import com.carmarket.user.exception.CarServiceUnavailableException;
 import com.carmarket.user.mapper.UserProfileMapper;
+import com.carmarket.user.service.SellerPhoneService;
 import com.carmarket.user.service.UserProfileService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +22,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -37,6 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Endpoints covered:
  * - GET  /api/users/me             ✓
  * - GET  /api/users/{id}           ✓
+ * - GET  /api/users/{id}/phone     ✓ (real SellerPhoneService, mocked car-service client)
  * - PATCH /api/users/me            ✓
  * - DELETE /api/users/me           ✓
  * - POST /{userId}/increment-listings ✓
@@ -44,7 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 
 @WebMvcTest(UserController.class)
-@Import(SecurityConfigTest.class)
+@Import({SecurityConfigTest.class, SellerPhoneService.class})
 @DisplayName("UserController Tests")
 class UserControllerTest {
 
@@ -53,6 +59,9 @@ class UserControllerTest {
 
     @MockBean
     private UserProfileMapper userProfileMapper;
+
+    @MockBean
+    private CarListingClient carListingClient;
 
     @Autowired
     private MockMvc mockMvc;
@@ -147,18 +156,34 @@ class UserControllerTest {
 
     @Test
     @WithMockUser
-    @DisplayName("GET /{id} should return 200 with user profile")
+    @DisplayName("GET /{id} should return 200 with only the public profile fields")
     void testGetProfile_Success() throws Exception {
         when(userProfileService.getUserProfile(testUserId)).thenReturn(Optional.of(testUser));
-        when(userProfileMapper.toResponse(testUser)).thenReturn(testUserResponse);
 
         mockMvc.perform(get("/users/{id}", testUserId)
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(testUserId.toString()))
-            .andExpect(jsonPath("$.email").value("test@example.com"));
+            .andExpect(jsonPath("$.displayName").value("Test User"))
+            .andExpect(jsonPath("$.avatarUrl").value("https://example.com/avatar.jpg"))
+            .andExpect(jsonPath("$.city").value("Warsaw"))
+            .andExpect(jsonPath("$.bio").value("Test bio"))
+            .andExpect(jsonPath("$.role").value("USER"))
+            .andExpect(jsonPath("$.memberSince").exists());
 
         verify(userProfileService, times(1)).getUserProfile(testUserId);
+        verify(userProfileMapper, never()).toResponse(any());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /{id} should return 404 for a deactivated user")
+    void testGetProfile_Inactive() throws Exception {
+        testUser.setActive(false);
+        when(userProfileService.getUserProfile(testUserId)).thenReturn(Optional.of(testUser));
+
+        mockMvc.perform(get("/users/{id}", testUserId))
+            .andExpect(status().isNotFound());
     }
 
     @Test
@@ -335,18 +360,122 @@ class UserControllerTest {
 
     @Test
     @WithMockUser
-    @DisplayName("GET /{id} should not expose street and house number")
-    void testGetProfile_HidesStreetAddress() throws Exception {
-        testUserResponse.setStreet("Marszałkowska");
-        testUserResponse.setHouseNumber("12");
+    @DisplayName("GET /{id} should not expose private fields")
+    void testGetProfile_HidesPrivateFields() throws Exception {
+        testUser.setStreet("Marszałkowska");
+        testUser.setHouseNumber("12");
         when(userProfileService.getUserProfile(testUserId)).thenReturn(Optional.of(testUser));
-        when(userProfileMapper.toResponse(testUser)).thenReturn(testUserResponse);
 
         mockMvc.perform(get("/users/{id}", testUserId))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.city").value("Warsaw"))
+            .andExpect(jsonPath("$.email").doesNotExist())
+            .andExpect(jsonPath("$.phoneNumber").doesNotExist())
             .andExpect(jsonPath("$.street").doesNotExist())
-            .andExpect(jsonPath("$.houseNumber").doesNotExist());
+            .andExpect(jsonPath("$.houseNumber").doesNotExist())
+            .andExpect(jsonPath("$.country").doesNotExist())
+            .andExpect(jsonPath("$.active").doesNotExist())
+            .andExpect(jsonPath("$.listingsCount").doesNotExist())
+            .andExpect(jsonPath("$.createdAt").doesNotExist())
+            .andExpect(jsonPath("$.updatedAt").doesNotExist());
+    }
+
+    // ─── GET /{id}/phone (real SellerPhoneService, mocked car-service client) ───
+
+    private final UUID carId = UUID.randomUUID();
+
+    private void listing(UUID sellerId, String status) {
+        when(carListingClient.findListing(carId)).thenReturn(Optional.of(new CarListingSummary(carId, sellerId, status)));
+    }
+
+    private ResultActions requestPhone(Object carIdParam) throws Exception {
+        return mockMvc.perform(get("/users/{id}/phone", testUserId)
+            .param("carId", String.valueOf(carIdParam))
+            .header("X-User-Id", UUID.randomUUID().toString()));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /{id}/phone returns the phone for the seller's ACTIVE listing")
+    void testGetSellerPhone_Success() throws Exception {
+        listing(testUserId, "ACTIVE");
+        when(userProfileService.getUserProfile(testUserId)).thenReturn(Optional.of(testUser));
+
+        requestPhone(carId)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.phoneNumber").value("123456789"));
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /{id}/phone returns 404 when the listing isn't ACTIVE")
+    void testGetSellerPhone_ListingNotActive() throws Exception {
+        listing(testUserId, "SOLD");
+        when(userProfileService.getUserProfile(testUserId)).thenReturn(Optional.of(testUser));
+
+        requestPhone(carId).andExpect(status().isNotFound()).andExpect(jsonPath("$.phoneNumber").doesNotExist());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /{id}/phone returns 404 when the listing belongs to someone else")
+    void testGetSellerPhone_SellerMismatch() throws Exception {
+        listing(UUID.randomUUID(), "ACTIVE");
+        when(userProfileService.getUserProfile(testUserId)).thenReturn(Optional.of(testUser));
+
+        requestPhone(carId).andExpect(status().isNotFound()).andExpect(jsonPath("$.phoneNumber").doesNotExist());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /{id}/phone returns 404 when the listing doesn't exist")
+    void testGetSellerPhone_ListingNotFound() throws Exception {
+        when(carListingClient.findListing(carId)).thenReturn(Optional.empty());
+        when(userProfileService.getUserProfile(testUserId)).thenReturn(Optional.of(testUser));
+
+        requestPhone(carId).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /{id}/phone returns 404 when the seller has no phone")
+    void testGetSellerPhone_NoPhone() throws Exception {
+        listing(testUserId, "ACTIVE");
+        testUser.setPhoneNumber(null);
+        when(userProfileService.getUserProfile(testUserId)).thenReturn(Optional.of(testUser));
+
+        requestPhone(carId).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /{id}/phone returns 404 when the seller is deactivated")
+    void testGetSellerPhone_InactiveSeller() throws Exception {
+        listing(testUserId, "ACTIVE");
+        testUser.setActive(false);
+        when(userProfileService.getUserProfile(testUserId)).thenReturn(Optional.of(testUser));
+
+        requestPhone(carId).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /{id}/phone returns 503 when car-service is down")
+    void testGetSellerPhone_CarServiceDown() throws Exception {
+        when(carListingClient.findListing(carId)).thenThrow(new CarServiceUnavailableException("Listing service is unavailable"));
+
+        requestPhone(carId).andExpect(status().isServiceUnavailable());
+    }
+
+    @Test
+    @WithMockUser
+    @DisplayName("GET /{id}/phone returns 400 for an invalid or missing carId")
+    void testGetSellerPhone_BadCarId() throws Exception {
+        requestPhone("not-a-uuid").andExpect(status().isBadRequest());
+        mockMvc.perform(get("/users/{id}/phone", testUserId).header("X-User-Id", UUID.randomUUID().toString()))
+            .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(carListingClient);
     }
 
     @Test

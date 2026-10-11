@@ -88,6 +88,12 @@ Topics are named `<domain>.<event>`, auto-created (`KAFKA_AUTO_CREATE_TOPICS_ENA
 - A payment is `PAID` only after `transaction/verify` succeeds. That happens either in the `POST /payments/p24/notify` webhook (public at the gateway, authenticated by the SHA-384 `sign`) or in `POST /payments/{id}/sync`, which the frontend return page `/platnosc/:id` calls. On localhost P24 can't reach the webhook, so sync is what completes the payment there.
 - The sign is SHA-384 over JSON with a fixed field order (`Przelewy24SignCalculator`), and the order differs between register, verify and notification.
 
+## user-service profile privacy
+
+- `GET /users/{id}` (public, `permitAll`, port 8082 is published) returns `PublicUserProfileResponse`, an explicit allow-list (`id`, `displayName`, `avatarUrl`, `city`, `bio`, `role`, `memberSince`) built by a hand-written `from()`, not MapStruct, so new entity fields never leak. Missing or deactivated profiles are 404. Only `/users/me` returns the full `UserProfileResponse` (email, phone, address).
+- A seller's phone is only available via `GET /users/{id}/phone?carId=` (gateway signature required): `SellerPhoneService` asks car-service (`CarListingClient`, load-balanced like payment-service's) that the listing exists, is `ACTIVE` and belongs to `{id}`. Every failed check is the same bare 404; car-service down → 503. Requests are audit-logged without the number.
+- The gateway routes `/api/users/*/phone` separately (above the generic user routes) with `phoneRateLimiter` (10 burst, then 2/min per user) under its own `phone:<userId>` key: `RedisRateLimiter` keys buckets by the resolved key only, not per route, so sharing the user-id key would share the standard limiter's bucket. Limiters are injected by `@Qualifier` because `@Primary` beats parameter-name matching.
+
 ## car-service listing promotion
 
 - `car_listings.promoted_until` / `highlighted_until` (V6, `CarListing.promotedUntil` / `highlightedUntil`) are set only by `ListingPromotionService` from `payment.completed`; `CarListingMapper` ignores them, so owners can't set them via `PUT /cars/{id}`. They're in `CarListingResponse` and `CarUpdatedEvent`.
