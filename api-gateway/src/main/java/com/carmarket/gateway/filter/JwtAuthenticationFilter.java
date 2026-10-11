@@ -122,6 +122,10 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         if ("GET".equals(method) && pathMatcher.match("/api/payments/products", path)) {
             return true;
         }
+        // Import order client page: secured by the order password / X-Order-Token in import-order-service
+        if (("GET".equals(method) || "POST".equals(method)) && pathMatcher.match("/api/import-orders/public/**", path)) {
+            return true;
+        }
         return PUBLIC_ROUTES.stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
     }
 

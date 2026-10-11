@@ -8,6 +8,7 @@ import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.http.HttpMethod;
 import reactor.core.publisher.Mono;
 
 /**
@@ -78,6 +79,25 @@ public class GatewayConfig {
     static final KeyResolver PHONE_KEY_RESOLVER = exchange ->
         Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst("X-User-Id")).map(userId -> "phone:" + userId);
 
+    /**
+     * Client page password check (POST /api/import-orders/public/{code}/access) — anti-bruteforce per IP,
+     * on top of the per-order lockout in import-order-service: burst 10, then 1 per second.
+     */
+    @Bean
+    public RedisRateLimiter importOrderAccessRateLimiter() {
+        return new RedisRateLimiter(1, 10, 1);
+    }
+
+    /**
+     * The access route is public (no X-User-Id), so it is keyed by IP — but under its own prefix: with the
+     * plain IP it would share the Redis bucket of every other anonymous request from that address, and
+     * the standard limiter's refill would undo the strict one.
+     */
+    static final KeyResolver IMPORT_ACCESS_KEY_RESOLVER = exchange -> Mono.just("import-access:" + (
+        exchange.getRequest().getRemoteAddress() != null
+            ? exchange.getRequest().getRemoteAddress().getAddress().getHostAddress()
+            : "unknown"));
+
     /*
      * Limiters are picked by @Qualifier: @Primary wins over a matching parameter name, so without it
      * every RedisRateLimiter parameter would get standardRateLimiter.
@@ -87,7 +107,8 @@ public class GatewayConfig {
                                KeyResolver keyResolver,
                                @Qualifier("authRateLimiter") RedisRateLimiter authRateLimiter,
                                @Qualifier("standardRateLimiter") RedisRateLimiter standardRateLimiter,
-                               @Qualifier("phoneRateLimiter") RedisRateLimiter phoneRateLimiter) {
+                               @Qualifier("phoneRateLimiter") RedisRateLimiter phoneRateLimiter,
+                               @Qualifier("importOrderAccessRateLimiter") RedisRateLimiter importOrderAccessRateLimiter) {
         return builder.routes()
 
             // ─── AUTH SERVICE ────────────────────────────────────────────
@@ -213,6 +234,48 @@ public class GatewayConfig {
                         .setKeyResolver(keyResolver))
                     .rewritePath("/api/payments", "/payments"))
                 .uri("lb://payment-service"))
+
+            // ─── IMPORT ORDER SERVICE — client password check (must stay above the other import-order routes) ───
+            .route("import-order-service-access", r -> r
+                .path("/api/import-orders/public/*/access").and().method(HttpMethod.POST)
+                .filters(f -> f
+                    .circuitBreaker(c -> c.setName("import-order-cb").setFallbackUri("forward:/fallback/import-order"))
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(importOrderAccessRateLimiter)
+                        .setKeyResolver(IMPORT_ACCESS_KEY_RESOLVER))
+                    .rewritePath("/api/import-orders/(?<segment>.*)", "/import-orders/${segment}"))
+                .uri("lb://import-order-service"))
+
+            // ─── IMPORT ORDER SERVICE — uploads: no circuit breaker, its time limit would cut off large uploads ───
+            .route("import-order-service-files", r -> r
+                .path("/api/import-orders/*/files").and().method(HttpMethod.POST)
+                .filters(f -> f
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(standardRateLimiter)
+                        .setKeyResolver(keyResolver))
+                    .rewritePath("/api/import-orders/(?<segment>.*)", "/import-orders/${segment}"))
+                .uri("lb://import-order-service"))
+
+            // Root before /** — "/**" also matches the bare path, and then the rewrite below would not apply
+            .route("import-order-service-root", r -> r
+                .path("/api/import-orders")
+                .filters(f -> f
+                    .circuitBreaker(c -> c.setName("import-order-cb").setFallbackUri("forward:/fallback/import-order"))
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(standardRateLimiter)
+                        .setKeyResolver(keyResolver))
+                    .rewritePath("/api/import-orders", "/import-orders"))
+                .uri("lb://import-order-service"))
+
+            .route("import-order-service", r -> r
+                .path("/api/import-orders/**")
+                .filters(f -> f
+                    .circuitBreaker(c -> c.setName("import-order-cb").setFallbackUri("forward:/fallback/import-order"))
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(standardRateLimiter)
+                        .setKeyResolver(keyResolver))
+                    .rewritePath("/api/import-orders/(?<segment>.*)", "/import-orders/${segment}"))
+                .uri("lb://import-order-service"))
 
             .route("auction-analytics", r -> r
                 .path("/api/analytics/**")

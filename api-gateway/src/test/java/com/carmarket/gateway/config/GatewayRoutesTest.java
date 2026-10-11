@@ -10,6 +10,7 @@ import org.springframework.mock.web.server.MockServerWebExchange;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.net.InetSocketAddress;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,6 +45,38 @@ class GatewayRoutesTest {
 
         assertThat(GatewayConfig.PHONE_KEY_RESOLVER.resolve(exchange).block()).isEqualTo("phone:u1");
         assertThat(GatewayConfig.PHONE_KEY_RESOLVER.resolve(exchange("/api/users/abc/phone")).blockOptional()).isEmpty();
+    }
+
+    @Test
+    void importOrderPasswordChecksHitTheStrictRouteFirst() {
+        List<Route> routes = routeLocator.getRoutes().collectList().block();
+        assertThat(routes).isNotNull();
+
+        assertThat(firstMatch(routes, MockServerHttpRequest.post("/api/import-orders/public/abc/access")))
+            .isEqualTo("import-order-service-access");
+        assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/import-orders/public/abc")))
+            .isEqualTo("import-order-service");
+        assertThat(firstMatch(routes, MockServerHttpRequest.post("/api/import-orders/123/files")))
+            .isEqualTo("import-order-service-files");
+        assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/import-orders/123/files/456/url")))
+            .isEqualTo("import-order-service");
+        assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/import-orders")))
+            .isEqualTo("import-order-service-root");
+    }
+
+    @Test
+    void importAccessKeyResolverUsesItsOwnBucketPerIp() {
+        ServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.post("/api/import-orders/public/abc/access")
+            .remoteAddress(new InetSocketAddress("203.0.113.9", 4000)));
+
+        assertThat(GatewayConfig.IMPORT_ACCESS_KEY_RESOLVER.resolve(exchange).block()).isEqualTo("import-access:203.0.113.9");
+    }
+
+    private static String firstMatch(List<Route> routes, MockServerHttpRequest.BaseBuilder<?> request) {
+        MockServerHttpRequest built = request.build();
+        return routes.stream()
+            .filter(r -> Boolean.TRUE.equals(Mono.from(r.getPredicate().apply(MockServerWebExchange.from(built))).block()))
+            .findFirst().orElseThrow().getId();
     }
 
     private static boolean matches(Route route, String uri) {

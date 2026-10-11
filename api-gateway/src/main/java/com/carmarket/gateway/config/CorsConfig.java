@@ -20,7 +20,9 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowCredentials(true);
         config.setAllowedOriginPatterns(List.of("*")); // restrict in prod
-        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedHeaders(List.of("*")); // incl. X-Order-Token of the import order client page
+        // Readable by cross-origin JS (the client page shows how long an order stays locked)
+        config.setExposedHeaders(List.of("Retry-After"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setMaxAge(3600L);
 
