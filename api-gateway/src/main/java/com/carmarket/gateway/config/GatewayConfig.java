@@ -1,5 +1,6 @@
 package com.carmarket.gateway.config;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
 import org.springframework.cloud.gateway.route.RouteLocator;
@@ -56,11 +57,37 @@ public class GatewayConfig {
         return new RedisRateLimiter(20, 40, 1);
     }
 
+    /**
+     * Phone-number lookups (GET /api/users/{id}/phone) — anti-harvesting, per user.
+     * <p>
+     * RedisRateLimiter is a token bucket refilled at replenishRate tokens per second up to
+     * burstCapacity, and each request costs requestedTokens. With (1, 300, 30):
+     * burst = 300 / 30 = 10 requests, then one request per 30 tokens / 1 token/s = 30 s,
+     * i.e. 2 per minute; an idle user is back to a full burst after 300 s.
+     */
+    @Bean
+    public RedisRateLimiter phoneRateLimiter() {
+        return new RedisRateLimiter(1, 300, 30);
+    }
+
+    /**
+     * RedisRateLimiter keys its Redis bucket by the resolved key only, not by route, so the phone
+     * route needs its own key; with the plain user id it would share the standard limiter's bucket.
+     * The route requires a JWT, so X-User-Id is always set by JwtAuthenticationFilter.
+     */
+    static final KeyResolver PHONE_KEY_RESOLVER = exchange ->
+        Mono.justOrEmpty(exchange.getRequest().getHeaders().getFirst("X-User-Id")).map(userId -> "phone:" + userId);
+
+    /*
+     * Limiters are picked by @Qualifier: @Primary wins over a matching parameter name, so without it
+     * every RedisRateLimiter parameter would get standardRateLimiter.
+     */
     @Bean
     public RouteLocator routes(RouteLocatorBuilder builder,
                                KeyResolver keyResolver,
-                               RedisRateLimiter authRateLimiter,
-                               RedisRateLimiter standardRateLimiter) {
+                               @Qualifier("authRateLimiter") RedisRateLimiter authRateLimiter,
+                               @Qualifier("standardRateLimiter") RedisRateLimiter standardRateLimiter,
+                               @Qualifier("phoneRateLimiter") RedisRateLimiter phoneRateLimiter) {
         return builder.routes()
 
             // ─── AUTH SERVICE ────────────────────────────────────────────
@@ -73,6 +100,17 @@ public class GatewayConfig {
                         .setKeyResolver(keyResolver))
                     .rewritePath("/api/auth/(?<segment>.*)", "/auth/${segment}"))
                 .uri("lb://auth-service"))
+
+            // ─── USER SERVICE — seller phone (must stay above the generic user routes) ───
+            .route("user-service-phone", r -> r
+                .path("/api/users/*/phone")
+                .filters(f -> f
+                    .circuitBreaker(c -> c.setName("user-cb").setFallbackUri("forward:/fallback/user"))
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(phoneRateLimiter)
+                        .setKeyResolver(PHONE_KEY_RESOLVER))
+                    .rewritePath("/api/users/(?<segment>.*)", "/users/${segment}"))
+                .uri("lb://user-service"))
 
             // ─── USER SERVICE — root ──────────────────────────────────────
             .route("user-service-root", r -> r
