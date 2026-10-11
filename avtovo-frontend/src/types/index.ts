@@ -100,7 +100,18 @@ export interface CarDocument {
     promoted?: boolean;
     highlighted?: boolean;
 }
-/** Profile as returned by user-service (GET /api/users/me). */
+/** Another user's profile (GET /api/users/{id}): an allow-list, no email, phone or address. */
+export interface PublicUserProfile {
+    id: string;
+    displayName?: string;
+    avatarUrl?: string;
+    city?: string;
+    bio?: string;
+    role?: UserRole;
+    memberSince?: string;
+}
+
+/** The logged-in user's own full profile (GET /api/users/me only). */
 export interface UserProfile {
     id: string;
     email: string;

@@ -244,7 +244,8 @@ export default function CarDetail() {
                                     </div>
                                 ) : null}
                             </div>
-                            <ContactSellerButton sellerId={car.sellerId} onWrite={() => chatRef.current?.openAndFocus()} />
+                            <ContactSellerButton carId={car.id} sellerId={car.sellerId}
+                                                 listingActive={car.status === 'ACTIVE'} onWrite={() => chatRef.current?.openAndFocus()} />
                         </div>
                     </div>
                 </div>
