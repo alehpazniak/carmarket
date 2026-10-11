@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Car } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getConversations, UNREAD_CHANGED_EVENT } from '../api/chat';
@@ -10,10 +10,11 @@ import type { CarListing } from '../types';
 
 export default function Messages() {
     const { user } = useAuth();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const carFilter = searchParams.get('car');
+    // The open conversation lives in the URL (/messages/:conversationId), so the navbar link
+    // and Back always return to the list. A legacy ?car= filter is ignored.
+    const { conversationId: activeId } = useParams<{ conversationId: string }>();
+    const navigate = useNavigate();
     const [conversations, setConversations] = useState<Conversation[]>([]);
-    const [activeId, setActiveId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [cars, setCars] = useState<Record<string, CarListing | null>>({});
 
@@ -44,18 +45,20 @@ export default function Messages() {
         });
     }, [conversations, cars]);
 
-    // Coming from a listing page: open its conversation if there is exactly one
-    const forCar = carFilter ? conversations.filter((c) => c.carId === carFilter) : conversations;
-    useEffect(() => {
-        if (carFilter && forCar.length === 1) {
-            setActiveId(forCar[0].id);
-            setSearchParams({}, { replace: true });
-        }
-    }, [carFilter, forCar, setSearchParams]);
-
     if (loading) return <div className="messages-page">Loading…</div>;
 
     const active = conversations.find((c) => c.id === activeId) ?? null;
+
+    if (activeId && !active) {
+        return (
+            <div className="messages-page" style={{ flexDirection: 'column' }}>
+                <p>Conversation not found.</p>
+                <Link to="/messages" style={{ textDecoration: 'underline', color: '#3b82f6' }}>
+                    Back to all messages
+                </Link>
+            </div>
+        );
+    }
 
     if (active) {
         const car = cars[active.carId];
@@ -63,10 +66,7 @@ export default function Messages() {
             <div className="messages-page" style={{ flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <button
-                        onClick={() => {
-                            setActiveId(null);
-                            load();
-                        }}
+                        onClick={() => navigate('/messages')}
                         style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: 'none', color: '#a1a1aa', cursor: 'pointer' }}
                     >
                         <ArrowLeft size={16} /> All messages
@@ -93,9 +93,9 @@ export default function Messages() {
     return (
         <div className="messages-page" style={{ flexDirection: 'column' }}>
             <h2>Messages</h2>
-            {forCar.length === 0 && <p>No conversations yet.</p>}
+            {conversations.length === 0 && <p>No conversations yet.</p>}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
-                {forCar.map((c) => {
+                {conversations.map((c) => {
                     const car = cars[c.carId];
                     const photo = car?.primaryImageUrl ?? car?.imageUrls?.[0];
                     const role = c.buyerId === user?.id ? 'Seller' : 'Buyer';
@@ -104,8 +104,8 @@ export default function Messages() {
                             key={c.id}
                             role="button"
                             tabIndex={0}
-                            onClick={() => setActiveId(c.id)}
-                            onKeyDown={(e) => e.key === 'Enter' && setActiveId(c.id)}
+                            onClick={() => navigate(`/messages/${c.id}`)}
+                            onKeyDown={(e) => e.key === 'Enter' && navigate(`/messages/${c.id}`)}
                             style={{ position: 'relative', cursor: 'pointer', background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 12, overflow: 'hidden' }}
                         >
                             <div style={{ height: 150, background: '#111', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

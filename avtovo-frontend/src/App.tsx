@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ChatProvider } from './context/ChatContext';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import AuthCallback from './pages/AuthCallback';
@@ -49,7 +50,12 @@ function AppRoutes() {
                 <Route path="/moj-profil" element={
                     <ProtectedRoute><Profile /></ProtectedRoute>
                 } />
-                <Route path="/messages" element={<Messages />} />
+                <Route path="/messages" element={
+                    <ProtectedRoute><Messages /></ProtectedRoute>
+                } />
+                <Route path="/messages/:conversationId" element={
+                    <ProtectedRoute><Messages /></ProtectedRoute>
+                } />
                 {/* Not protected: the emailed link may be opened in a browser that isn't logged in */}
                 <Route path="/konto-dealera/potwierdz" element={<ConfirmDealerUpgrade />} />
                 <Route path="/platnosc/:id" element={
@@ -64,7 +70,9 @@ export default function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
-                <AppRoutes />
+                <ChatProvider>
+                    <AppRoutes />
+                </ChatProvider>
             </AuthProvider>
         </BrowserRouter>
     );

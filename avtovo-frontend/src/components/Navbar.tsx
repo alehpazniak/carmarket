@@ -1,24 +1,19 @@
-import { Link, useMatch, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Car, Plus, User, LogOut, ChevronDown, Gavel, MessageSquare } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useChat } from '../hooks/useChat';
+import { useChat } from '../context/ChatContext';
 import { getUnreadCount, UNREAD_CHANGED_EVENT } from '../api/chat';
 
 export default function Navbar() {
     const { user, isAuthenticated, loginWithGoogle, logout } = useAuth();
     const [menuOpen, setMenuOpen] = useState(false);
     const navigate = useNavigate();
-    const listingMatch = useMatch('/ogloszenia/:id');
-    const messagesPath = listingMatch?.params.id ? `/messages?car=${listingMatch.params.id}` : '/messages';
     const [unread, setUnread] = useState(0);
-    const { onMessage } = useChat();
+    const { subscribe } = useChat();
 
     useEffect(() => {
-        if (!isAuthenticated) {
-            setUnread(0);
-            return;
-        }
+        if (!isAuthenticated) return;
         const refresh = () => getUnreadCount().then(setUnread).catch(() => {});
         refresh();
         const timer = setInterval(refresh, 30000);
@@ -31,12 +26,12 @@ export default function Navbar() {
 
     // Realtime: bump the badge as soon as someone else's message arrives
     useEffect(() => {
-        onMessage((msg) => {
+        return subscribe((msg) => {
             if (msg.senderId !== user?.id) {
                 getUnreadCount().then(setUnread).catch(() => {});
             }
         });
-    }, [onMessage, user?.id]);
+    }, [subscribe, user?.id]);
 
     const handleLogout = async () => {
         await logout();
@@ -79,7 +74,7 @@ export default function Navbar() {
                                     <span className="hidden sm:inline">Dodaj ogłoszenie</span>
                                 </Link>
                                 <Link
-                                    to={messagesPath}
+                                    to="/messages"
                                     aria-label="Messages"
                                     className="relative flex items-center gap-2 text-avtovo-text-secondary hover:text-avtovo-text px-2 sm:px-3 py-2 rounded-lg text-sm font-medium transition-colors"
                                 >

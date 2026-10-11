@@ -60,7 +60,7 @@ public class ChatService {
         events.publishEvent(new MessageSentEvent(saved.getId(), convo.getId(), convo.getCarId(),
             senderId, recipientId, saved.getCreatedAt()));
 
-        return MessageResponse.from(saved);
+        return MessageResponse.from(saved, convo.getCarId());
     }
 
     /**
@@ -120,7 +120,7 @@ public class ChatService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not a participant");
         }
         return messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId, pageable)
-            .map(MessageResponse::from);
+            .map(m -> MessageResponse.from(m, convo.getCarId()));
     }
 
     /**

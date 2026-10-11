@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { getCar, deleteCar } from '../api/cars';
 import type {CarListing} from '../types';
 import { useAuth } from '../context/AuthContext';
 import { MapPin, Fuel, Gauge, Calendar, Cog, Palette, Tag, Trash2, ChevronLeft, ChevronRight, Check, Pencil, Zap, Car, Hash, Globe, ShieldCheck, Settings2, Sparkles } from 'lucide-react';
 import { ContactSellerButton } from '../components/ContactSellerButton';
+import { ListingChatSection, type ListingChatSectionHandle } from '../components/ListingChatSection';
 import { EQUIPMENT_CATEGORIES } from '../constants/equipment';
 import { CATEGORY_LABELS } from '../constants/cars';
 import { BODY_LABELS, CONDITION_LABELS, DRIVE_LABELS, FLAG_LABELS, type FlagField } from '../constants/technical';
@@ -24,6 +25,7 @@ export default function CarDetail() {
     const [loading, setLoading] = useState(true);
     const [imgIdx, setImgIdx] = useState(0);
     const [promoteOpen, setPromoteOpen] = useState(false);
+    const chatRef = useRef<ListingChatSectionHandle>(null);
 
     useEffect(() => {
         if (id) getCar(id).then(setCar).catch(console.error).finally(() => setLoading(false));
@@ -201,9 +203,9 @@ export default function CarDetail() {
                     </div>
 
                     {/* Right: price + actions. Card and contact buttons stick together, so the
-                        card never slides over the buttons; capped to the viewport for the open chat. */}
+                        card never slides over the buttons. */}
                     <div>
-                        <div className="space-y-4 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+                        <div className="space-y-4 lg:sticky lg:top-20">
                             <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6">
                                 <h1 className="text-2xl font-bold text-avtovo-text mb-1">
                                     {car.make} {car.model}
@@ -242,10 +244,12 @@ export default function CarDetail() {
                                     </div>
                                 ) : null}
                             </div>
-                            <div id="contact-seller"><ContactSellerButton carId={car.id} sellerId={car.sellerId} /></div>
+                            <ContactSellerButton sellerId={car.sellerId} onWrite={() => chatRef.current?.openAndFocus()} />
                         </div>
                     </div>
                 </div>
+
+                <ListingChatSection ref={chatRef} carId={car.id} sellerId={car.sellerId} />
             </div>
             {promoteOpen && isOwner && <PromoteListingDialog car={car} onClose={() => setPromoteOpen(false)} />}
         </div>
