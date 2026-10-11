@@ -2,8 +2,10 @@ package com.carmarket.car.service;
 
 import com.carmarket.car.dto.CarListingRequest;
 import com.carmarket.car.dto.CarListingResponse;
+import com.carmarket.car.dto.CarListingSummary;
 import com.carmarket.car.dto.TechnicalDataDto;
 import com.carmarket.car.entity.CarListing;
+import com.carmarket.car.entity.ListingStatus;
 import com.carmarket.car.entity.TechnicalData;
 import com.carmarket.car.exception.AccessDeniedException;
 import com.carmarket.car.kafka.CarEventProducer;
@@ -17,8 +19,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -120,5 +126,64 @@ class CarListingServiceTest {
         carListingService.removeVideo(carId, sellerId);
 
         assertThat(car.getVideoUrl()).isNull();
+    }
+
+    // ─── summaries ─────────────────────────────────────────────────────────────
+
+    private static CarListingRepository.SummaryView summaryView(UUID id, String status) {
+        return new CarListingRepository.SummaryView() {
+            public UUID getId() { return id; }
+            public String getMake() { return "Audi"; }
+            public String getModel() { return "Q5"; }
+            public Integer getYear() { return 2019; }
+            public BigDecimal getPrice() { return new BigDecimal("99000.00"); }
+            public String getPrimaryImageUrl() { return null; }
+            public String getStatus() { return status; }
+        };
+    }
+
+    @Test
+    @DisplayName("getSummaries returns REMOVED listings and leaves out unknown ids")
+    @SuppressWarnings("unchecked")
+    void summariesIncludeRemovedAndSkipUnknown() {
+        UUID removedId = UUID.randomUUID();
+        UUID unknownId = UUID.randomUUID();
+        when(repository.findSummariesByIdIn(any())).thenReturn(List.of(summaryView(removedId, "REMOVED")));
+
+        List<CarListingSummary> result = carListingService.getSummaries(List.of(removedId, unknownId, removedId));
+
+        assertThat(result).singleElement().satisfies(s -> {
+            assertThat(s.id()).isEqualTo(removedId);
+            assertThat(s.status()).isEqualTo(ListingStatus.REMOVED);
+            assertThat(s.make()).isEqualTo("Audi");
+        });
+        // duplicates are collapsed before querying
+        verify(repository).findSummariesByIdIn(argThat((Collection<UUID> ids) -> ids.size() == 2));
+    }
+
+    @Test
+    @DisplayName("getSummaries with no ids returns [] without querying")
+    void summariesEmpty() {
+        assertThat(carListingService.getSummaries(List.of())).isEmpty();
+        verify(repository, never()).findSummariesByIdIn(any());
+    }
+
+    @Test
+    @DisplayName("getSummaries rejects more than 100 ids")
+    void summariesTooMany() {
+        List<UUID> ids = IntStream.range(0, 101).mapToObj(i -> UUID.randomUUID()).toList();
+
+        assertThatThrownBy(() -> carListingService.getSummaries(ids))
+            .isInstanceOf(IllegalArgumentException.class);
+        verify(repository, never()).findSummariesByIdIn(any());
+    }
+
+    @Test
+    @DisplayName("getSummaries accepts exactly 100 ids")
+    void summariesAtLimit() {
+        List<UUID> ids = IntStream.range(0, 100).mapToObj(i -> UUID.randomUUID()).toList();
+        when(repository.findSummariesByIdIn(any())).thenReturn(List.of());
+
+        assertThat(carListingService.getSummaries(ids)).isEmpty();
     }
 }

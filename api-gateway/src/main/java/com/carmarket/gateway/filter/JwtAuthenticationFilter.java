@@ -103,7 +103,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
     private boolean isPublicRoute(String path, String method) {
         if (pathMatcher.match("/api/cars/favorites", path) || pathMatcher.match("/api/cars/*/favorite", path)
-            || pathMatcher.match("/api/cars/my", path)) {
+            || pathMatcher.match("/api/cars/my", path) || pathMatcher.match("/api/cars/summaries", path)) {
             return false;
         }
         if ("GET".equals(method) &&

@@ -2,6 +2,7 @@ package com.carmarket.car.service;
 
 import com.carmarket.car.dto.CarListingRequest;
 import com.carmarket.car.dto.CarListingResponse;
+import com.carmarket.car.dto.CarListingSummary;
 import com.carmarket.car.entity.CarListing;
 import com.carmarket.car.entity.ListingStatus;
 import com.carmarket.car.exception.AccessDeniedException;
@@ -17,7 +18,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -54,6 +58,29 @@ public class CarListingService {
         return repository.findById(id)
             .map(mapper::toResponse)
             .orElseThrow(() -> new CarNotFoundException(id.toString()));
+    }
+
+    /** Most ids one summaries request may ask for. */
+    public static final int MAX_SUMMARY_IDS = 100;
+
+    /**
+     * Summaries for the given ids, REMOVED listings included; unknown ids are left out.
+     *
+     * @throws IllegalArgumentException if more than {@value #MAX_SUMMARY_IDS} distinct ids are asked for
+     */
+    @Transactional(readOnly = true)
+    public List<CarListingSummary> getSummaries(Collection<UUID> ids) {
+        Set<UUID> distinct = new LinkedHashSet<>(ids);
+        if (distinct.size() > MAX_SUMMARY_IDS) {
+            throw new IllegalArgumentException("At most " + MAX_SUMMARY_IDS + " ids per request");
+        }
+        if (distinct.isEmpty()) {
+            return List.of();
+        }
+        return repository.findSummariesByIdIn(distinct).stream()
+            .map(v -> new CarListingSummary(v.getId(), v.getMake(), v.getModel(), v.getYear(), v.getPrice(),
+                v.getPrimaryImageUrl(), ListingStatus.valueOf(v.getStatus())))
+            .toList();
     }
 
     @Transactional(readOnly = true)

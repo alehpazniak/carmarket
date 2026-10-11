@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import axios from 'axios';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { getCar, deleteCar } from '../api/cars';
 import type {CarListing} from '../types';
@@ -23,13 +24,32 @@ export default function CarDetail() {
     const { user } = useAuth();
     const [car, setCar] = useState<CarListing | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState<'notFound' | 'failed' | null>(null);
     const [imgIdx, setImgIdx] = useState(0);
     const [promoteOpen, setPromoteOpen] = useState(false);
     const chatRef = useRef<ListingChatSectionHandle>(null);
 
-    useEffect(() => {
-        if (id) getCar(id).then(setCar).catch(console.error).finally(() => setLoading(false));
+    // `loading` starts true, so the first load doesn't set it; retry() does
+    const loadCar = useCallback(() => {
+        if (!id) return;
+        getCar(id)
+            .then(setCar)
+            .catch((err) => {
+                console.error(err);
+                setLoadError(axios.isAxiosError(err) && err.response?.status === 404 ? 'notFound' : 'failed');
+            })
+            .finally(() => setLoading(false));
     }, [id]);
+
+    useEffect(() => {
+        loadCar();
+    }, [loadCar]);
+
+    const retry = () => {
+        setLoading(true);
+        setLoadError(null);
+        loadCar();
+    };
 
     const handleDelete = async () => {
         if (!car || !confirm('Czy na pewno chcesz usunąć to ogłoszenie?')) return;
@@ -44,8 +64,21 @@ export default function CarDetail() {
     );
 
     if (!car) return (
-        <div className="min-h-screen bg-avtovo-bg flex items-center justify-center">
-            <p className="text-avtovo-text-secondary">Ogłoszenie nie zostało znalezione</p>
+        <div className="min-h-screen bg-avtovo-bg flex flex-col items-center justify-center gap-4 px-4 text-center">
+            {loadError === 'failed' ? (
+                <>
+                    <p className="text-avtovo-text-secondary">Nie udało się wczytać ogłoszenia</p>
+                    <button onClick={retry}
+                            className="bg-avtovo-accent hover:bg-avtovo-accent-hover text-white px-5 py-2 rounded-lg text-sm font-medium transition-colors">
+                        Spróbuj ponownie
+                    </button>
+                </>
+            ) : (
+                <>
+                    <p className="text-avtovo-text-secondary">To ogłoszenie zostało usunięte lub nie istnieje</p>
+                    <Link to="/" className="text-avtovo-accent hover:underline text-sm">Przejdź na stronę główną</Link>
+                </>
+            )}
         </div>
     );
 

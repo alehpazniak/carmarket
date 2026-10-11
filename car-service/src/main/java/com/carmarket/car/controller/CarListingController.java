@@ -2,6 +2,7 @@ package com.carmarket.car.controller;
 
 import com.carmarket.car.dto.CarListingRequest;
 import com.carmarket.car.dto.CarListingResponse;
+import com.carmarket.car.dto.CarListingSummary;
 import com.carmarket.car.dto.VideoRequest;
 import com.carmarket.car.service.CarListingService;
 import jakarta.validation.Valid;
@@ -24,6 +25,7 @@ import java.util.UUID;
  * GET    /cars               → public list of active listings
  * GET    /cars/{id}          → public single listing
  * GET    /cars/my            → authenticated seller's own listings
+ * GET    /cars/summaries?ids= → title/price/status for up to 100 ids, REMOVED included (authenticated)
  * POST   /cars               → create listing (authenticated)
  * PUT    /cars/{id}          → update own listing (authenticated)
  * PATCH  /cars/{id}/sold     → mark as sold  (authenticated, owner only)
@@ -47,6 +49,12 @@ public class CarListingController {
     @GetMapping("/{id}")
     public ResponseEntity<CarListingResponse> getOne(@PathVariable UUID id) {
         return ResponseEntity.ok(service.getById(id));
+    }
+
+    /** Literal path, so it wins over /{id} (like /my). */
+    @GetMapping("/summaries")
+    public ResponseEntity<List<CarListingSummary>> summaries(@RequestParam(defaultValue = "") List<UUID> ids) {
+        return ResponseEntity.ok(service.getSummaries(ids));
     }
 
     @GetMapping("/my")
