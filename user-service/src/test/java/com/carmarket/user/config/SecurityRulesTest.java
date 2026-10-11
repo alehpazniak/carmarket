@@ -1,6 +1,7 @@
 package com.carmarket.user.config;
 
 import com.carmarket.user.controller.UserController;
+import com.carmarket.user.service.SellerPhoneService;
 import com.carmarket.user.dto.UserProfileResponse;
 import com.carmarket.user.entity.UserProfile;
 import com.carmarket.user.mapper.UserProfileMapper;
@@ -26,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -49,6 +51,9 @@ class SecurityRulesTest {
 
     @MockBean
     private UserProfileMapper userProfileMapper;
+
+    @MockBean
+    private SellerPhoneService sellerPhoneService;
 
     private final UUID targetUserId = UUID.randomUUID();
 
@@ -87,6 +92,37 @@ class SecurityRulesTest {
         mockMvc.perform(signed(post("/users/{id}/increment-listings", targetUserId), "ADMIN"))
             .andExpect(status().isOk());
         verify(userProfileService).incrementListingsCount(targetUserId);
+    }
+
+    @Test
+    @DisplayName("phone: unsigned request (gateway bypassed) gets 403")
+    void phone_unsigned_forbidden() throws Exception {
+        mockMvc.perform(get("/users/{id}/phone", targetUserId)
+                .param("carId", UUID.randomUUID().toString())
+                .header("X-User-Id", UUID.randomUUID().toString()))
+            .andExpect(status().isForbidden());
+        verify(sellerPhoneService, never()).findPhoneForListing(any(), any());
+    }
+
+    @Test
+    @DisplayName("phone: a signed request reaches the endpoint")
+    void phone_signed_ok() throws Exception {
+        UUID carId = UUID.randomUUID();
+        when(sellerPhoneService.findPhoneForListing(targetUserId, carId)).thenReturn(Optional.of("123456789"));
+
+        mockMvc.perform(signed(get("/users/{id}/phone", targetUserId).param("carId", carId.toString()), "USER"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("public profile: unsigned request is allowed")
+    void publicProfile_unsigned_ok() throws Exception {
+        when(userProfileService.getUserProfile(targetUserId))
+            .thenReturn(Optional.of(UserProfile.builder().id(targetUserId).email("x@example.com")
+                .role(UserProfile.UserRole.USER).build()));
+
+        mockMvc.perform(get("/users/{id}", targetUserId))
+            .andExpect(status().isOk());
     }
 
     private static MockHttpServletRequestBuilder signed(MockHttpServletRequestBuilder request, String... roles) throws Exception {

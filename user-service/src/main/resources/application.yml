@@ -23,6 +23,10 @@ spring:
         spring.json.value.default.type: java.util.Map
       auto-offset-reset: earliest
 
+user:
+  # Load-balanced through Eureka (CarListingClient); used to check a listing before revealing a phone number
+  car-service-url: ${CAR_SERVICE_URL:http://car-service}
+
 gateway:
   internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
 

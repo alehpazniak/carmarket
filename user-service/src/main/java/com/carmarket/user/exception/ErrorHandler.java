@@ -24,6 +24,12 @@ public class ErrorHandler {
         return errors;
     }
 
+    @ResponseStatus(value = HttpStatus.SERVICE_UNAVAILABLE)
+    @ExceptionHandler(CarServiceUnavailableException.class)
+    public Map<String, String> handleCarServiceUnavailable(CarServiceUnavailableException ex) {
+        return Map.of("message", ex.getMessage());
+    }
+
     /** Field name → message, so the frontend can show the error next to the right input. */
     @ResponseStatus(value = HttpStatus.BAD_REQUEST)
     @ExceptionHandler(MethodArgumentNotValidException.class)
