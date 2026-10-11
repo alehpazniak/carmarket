@@ -23,8 +23,8 @@ export default function AuctionActions() {
     const [filters, setFilters] = useState<LotSearchParams>({});
     const navigate = useNavigate();
 
-    const fetchLots = (params: LotSearchParams, targetPage = 0) => {
-        setLoading(true);
+    // `loading` starts as true, so the initial load doesn't need to set it
+    const loadLots = (params: LotSearchParams, targetPage = 0) => {
         searchLots({ ...params, page: targetPage, size: 12 })
             .then(res => {
                 setLots(res.content);
@@ -35,7 +35,12 @@ export default function AuctionActions() {
             .finally(() => setLoading(false));
     };
 
-    useEffect(() => { fetchLots({}); }, []);
+    const fetchLots = (params: LotSearchParams, targetPage = 0) => {
+        setLoading(true);
+        loadLots(params, targetPage);
+    };
+
+    useEffect(() => { loadLots({}); }, []);
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();

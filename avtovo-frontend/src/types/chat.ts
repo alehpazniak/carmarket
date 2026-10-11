@@ -10,6 +10,8 @@ export interface Conversation {
 export interface Message {
     id: string;
     conversationId: string;
+    /** Listing of the message's conversation (set by chat-service from the conversation). */
+    carId: string;
     senderId: string;
     content: string;
     createdAt: string;

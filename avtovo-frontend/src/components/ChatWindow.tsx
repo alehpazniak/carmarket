@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from 'react';
 import {Send} from 'lucide-react';
 import {useAuth} from '../context/AuthContext';
-import {useChat} from '../hooks/useChat';
+import {useChat} from '../context/ChatContext';
 import {getConversations, getMessages, markConversationRead} from '../api/chat';
 import type {Message} from '../types/chat';
 
@@ -9,14 +9,17 @@ interface ChatWindowProps {
     carId: string;
     sellerId: string;
     conversationId?: string; // if opening an existing thread from the conversations list
+    /** Bump to focus the input (e.g. the listing's "Napisz" button); 0 = don't. */
+    focusSignal?: number;
 }
 
-export function ChatWindow({carId, sellerId, conversationId: initialConversationId}: ChatWindowProps) {
+export function ChatWindow({carId, sellerId, conversationId: initialConversationId, focusSignal = 0}: ChatWindowProps) {
     const {user} = useAuth();
-    const {connected, onMessage, sendMessage} = useChat();
+    const {connected, subscribe, sendMessage} = useChat();
     const [messages, setMessages] = useState<Message[]>([]);
     const [draft, setDraft] = useState('');
-    const bottomRef = useRef<HTMLDivElement>(null);
+    const listRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
     const [conversationId, setConversationId] = useState<string | undefined>(initialConversationId);
 
     // Opened from a listing page: find an existing thread for this car so history shows
@@ -45,9 +48,15 @@ export function ChatWindow({carId, sellerId, conversationId: initialConversation
 
     // Subscribe to incoming realtime messages
     useEffect(() => {
-        onMessage((msg) => {
+        return subscribe((msg) => {
             if (conversationId && msg.conversationId !== conversationId) return;
-            if (!conversationId) setConversationId(msg.conversationId); // thread just created
+            if (!conversationId) {
+                // No thread yet: only adopt this listing's thread with this seller — either the
+                // confirmation of my first message or the seller writing. Ignore other threads.
+                const fromThisThread = msg.senderId === user?.id || msg.senderId === sellerId;
+                if (msg.carId !== carId || !fromThisThread) return;
+                setConversationId(msg.conversationId); // thread just created
+            }
             if (conversationId && msg.senderId !== user?.id) {
                 markConversationRead(conversationId).catch(() => {});
             }
@@ -57,12 +66,19 @@ export function ChatWindow({carId, sellerId, conversationId: initialConversation
                 return [...prev, msg];
             });
         });
-    }, [onMessage, conversationId, user?.id]);
+    }, [subscribe, conversationId, carId, sellerId, user?.id]);
 
-    // Auto-scroll to newest
+    // Auto-scroll to newest — scroll the list itself, not the page, since the chat may sit inside a long page
     useEffect(() => {
-        bottomRef.current?.scrollIntoView({behavior: 'smooth'});
+        const list = listRef.current;
+        if (list) list.scrollTo({top: list.scrollHeight, behavior: 'smooth'});
     }, [messages]);
+
+    // The input is disabled until connected, so focus once both the request and the connection are there
+    useEffect(() => {
+        // preventScroll: let the section's smooth scrollIntoView finish instead of jumping
+        if (focusSignal > 0 && connected) inputRef.current?.focus({preventScroll: true});
+    }, [focusSignal, connected]);
 
     const handleSend = () => {
         const content = draft.trim();
@@ -81,7 +97,7 @@ export function ChatWindow({carId, sellerId, conversationId: initialConversation
                 )}
             </div>
 
-            <div className="chat-messages">
+            <div className="chat-messages" ref={listRef}>
                 {messages.length === 0 && (
                     <p className="chat-empty">No messages yet. Say hello!</p>
                 )}
@@ -103,11 +119,11 @@ export function ChatWindow({carId, sellerId, conversationId: initialConversation
                         </div>
                     </div>
                 ))}
-                <div ref={bottomRef}/>
             </div>
 
             <div className="chat-input">
                 <input
+                    ref={inputRef}
                     type="text"
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}

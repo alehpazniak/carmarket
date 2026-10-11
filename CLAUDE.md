@@ -108,6 +108,7 @@ React 19 + TypeScript + Vite + Tailwind, talking to the API Gateway and directly
 
 - `src/api/` — axios clients per domain (`cars.ts`, `chat.ts`, `auctions.ts`), `client.ts` is the shared axios instance (base URL from `VITE_API_URL`).
 - Chat uses STOMP over WebSocket (`@stomp/stompjs`) directly against `VITE_CHAT_WS_URL` (chat-service `:8085`), not through the gateway.
+- One STOMP connection per logged-in user, owned by `context/ChatContext.tsx` (`ChatProvider` in `App.tsx`); components use `useChat()` → `subscribe(handler)` / `sendMessage`. Realtime messages carry `carId` (from the conversation). The open conversation is in the URL (`/messages/:conversationId`); a listing's own chat is the collapsible `ListingChatSection` at the bottom of `CarDetail`.
 - Env vars are `VITE_*`, templated in `avtovo-frontend/.env.example`.
 
 ## auction-import-service specifics

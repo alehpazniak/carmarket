@@ -2,19 +2,18 @@ import {useState} from 'react';
 import {Loader2, MessageCircle, Phone} from 'lucide-react';
 import {useAuth} from '../context/AuthContext';
 import {getUserProfile} from '../api/users';
-import {ChatWindow} from './ChatWindow';
 
 interface ContactSellerButtonProps {
-    carId: string;
     sellerId: string;
+    /** "Napisz": opens the chat section at the bottom of the listing. */
+    onWrite: () => void;
 }
 
 /** undefined = not fetched yet, null = seller has no phone number. */
 type PhoneState = string | null | undefined;
 
-export function ContactSellerButton({carId, sellerId}: ContactSellerButtonProps) {
+export function ContactSellerButton({sellerId, onWrite}: ContactSellerButtonProps) {
     const {user, isAuthenticated, loginWithGoogle} = useAuth();
-    const [open, setOpen] = useState(false);
     const [phone, setPhone] = useState<PhoneState>(undefined);
     const [loadingPhone, setLoadingPhone] = useState(false);
 
@@ -51,36 +50,12 @@ export function ContactSellerButton({carId, sellerId}: ContactSellerButtonProps)
         </button>
     );
 
-    if (!isAuthenticated) {
-        return (
-            <div className="contact-actions">
-                <button className="contact-btn" onClick={loginWithGoogle}>
-                    <MessageCircle size={18}/> Napisz
-                </button>
-                {callButton}
-            </div>
-        );
-    }
-
     return (
-        <div className="contact-seller">
-            <div className="contact-actions">
-                {!open && (
-                    <button className="contact-btn" onClick={() => setOpen(true)}>
-                        <MessageCircle size={18}/> Napisz
-                    </button>
-                )}
-                {callButton}
-            </div>
-            {open && (
-                <div className="contact-modal">
-                    <div className="contact-modal-header">
-                        <span>Chat with seller</span>
-                        <button onClick={() => setOpen(false)}>✕</button>
-                    </div>
-                    <ChatWindow carId={carId} sellerId={sellerId}/>
-                </div>
-            )}
+        <div className="contact-actions">
+            <button className="contact-btn" onClick={isAuthenticated ? onWrite : loginWithGoogle}>
+                <MessageCircle size={18}/> Napisz
+            </button>
+            {callButton}
         </div>
     );
 }
