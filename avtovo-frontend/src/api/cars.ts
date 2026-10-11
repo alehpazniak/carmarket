@@ -1,5 +1,5 @@
 import api from './client';
-import type {CarDocument, CarListing, Page} from '../types';
+import type {CarDocument, CarListing, CarSummary, Page} from '../types';
 
 export const getCars = (page = 0, size = 20) =>
     api.get<Page<CarListing>>(`/api/cars?page=${page}&size=${size}`).then(r => r.data);
@@ -9,6 +9,15 @@ export const getMyCars = () =>
 
 export const getCar = (id: string) =>
     api.get<CarListing>(`/api/cars/${id}`).then(r => r.data);
+
+/** car-service's limit per summaries request. */
+export const MAX_SUMMARY_IDS = 100;
+
+/** Summaries for up to MAX_SUMMARY_IDS listings, REMOVED included; unknown ids are left out. Requires login. */
+export const getCarSummaries = (ids: string[]) =>
+    ids.length === 0
+        ? Promise.resolve<CarSummary[]>([])
+        : api.get<CarSummary[]>('/api/cars/summaries', {params: {ids: ids.join(',')}}).then(r => r.data);
 
 export const createCar = (data: Partial<CarListing>) =>
     api.post<CarListing>('/api/cars', data).then(r => r.data);

@@ -29,6 +29,17 @@ export interface CarListing {
     createdAt: string;
 }
 
+/** GET /api/cars/summaries: enough to label a listing anywhere, REMOVED ones included. */
+export interface CarSummary {
+    id: string;
+    make: string;
+    model: string;
+    year: number;
+    price: number;
+    primaryImageUrl?: string | null;
+    status: 'ACTIVE' | 'SOLD' | 'DRAFT' | 'REMOVED';
+}
+
 export type DriveType = 'FRONT' | 'REAR' | 'AWD_AUTO' | 'AWD_MANUAL' | 'AWD_PERMANENT';
 export type BodyType = 'MINI' | 'CITY' | 'COUPE' | 'CABRIO' | 'ESTATE' | 'COMPACT' | 'MINIVAN' | 'SEDAN' | 'SUV';
 export type VehicleCondition = 'NEW' | 'USED';
