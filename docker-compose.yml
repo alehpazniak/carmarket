@@ -28,6 +28,7 @@ volumes:
   postgres-notification-data:
   postgres-auction-data:
   postgres-payment-data:
+  postgres-import-order-data:
 
 services:
 
@@ -567,4 +568,57 @@ services:
       P24_URL_RETURN: ${P24_URL_RETURN:-http://localhost:5173/platnosc}
       P24_URL_STATUS: ${P24_URL_STATUS:-http://localhost:8080/api/payments/p24/notify}
       P24_VERIFY_NOTIFICATION_IP: ${P24_VERIFY_NOTIFICATION_IP:-false}
+    restart: on-failure
+
+  # ─── IMPORT ORDER DATABASE ──────────────────────────────────────────────────
+  postgres-import-order:
+    image: postgres:16-alpine
+    container_name: postgres-import-order
+    networks: [carmarket-net]
+    ports: ["5440:5432"]
+    environment:
+      POSTGRES_DB: import_order_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-import-order-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d import_order_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── IMPORT ORDER SERVICE (dealer import orders + client page) ──────────────
+  # Rebuild: docker compose build import-order-service
+  # Restart: docker compose up -d --build --no-deps import-order-service
+  # Starts without the IMPORT_ORDER_* storage variables; file endpoints answer 503 until they are set
+  # in .env. It deliberately does NOT get car-service's AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY.
+  import-order-service:
+    build:
+      context: ./import-order-service
+      dockerfile: Dockerfile
+    image: carmarket/import-order-service:local
+    container_name: import-order-service
+    networks: [carmarket-net]
+    ports: ["8089:8089"]
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      postgres-import-order:
+        condition: service_healthy
+    environment:
+      EUREKA_HOST: eureka-server
+      EUREKA_USER: ${EUREKA_USER:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      DB_HOST: postgres-import-order
+      DB_PORT: 5432
+      DB_NAME: import_order_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      IMPORT_ORDER_TOKEN_SECRET: ${IMPORT_ORDER_TOKEN_SECRET:-ZGV2LWltcG9ydC1vcmRlci10b2tlbi1zZWNyZXQtY2hhbmdlLW1l}
+      IMPORT_ORDER_S3_BUCKET: ${IMPORT_ORDER_S3_BUCKET:-}
+      IMPORT_ORDER_S3_REGION: ${IMPORT_ORDER_S3_REGION:-eu-central-1}
+      IMPORT_ORDER_AWS_ACCESS_KEY_ID: ${IMPORT_ORDER_AWS_ACCESS_KEY_ID:-}
+      IMPORT_ORDER_AWS_SECRET_ACCESS_KEY: ${IMPORT_ORDER_AWS_SECRET_ACCESS_KEY:-}
     restart: on-failure

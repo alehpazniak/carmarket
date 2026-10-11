@@ -54,6 +54,7 @@ Health/monitoring UIs when the stack is up: Eureka `:8761` (admin/admin), Kafka 
 | notification-service | 8087 | postgres-notification | Consumes `user.*`/`chat.*` events, sends email (via MailHog locally) |
 | auction-import-service | 8086 | postgres-auction | US auto-auction (Copart/Apibara) import-cost calculator, currency & shipping rates, analytics |
 | payment-service | 8088 | postgres-payment | Przelewy24 payments: register → P24 page → `urlStatus` webhook → verify; publishes `payment.*` events |
+| import-order-service | 8089 | postgres-import-order, S3 (private bucket) | Dealer import orders for US-auction cars: status timeline, documents/photos, password-protected client page `/zlecenie/<code>` |
 
 Every backend service module lives at `<service>/src/main/java/com/carmarket/<name>/...`.
 
@@ -61,7 +62,7 @@ Every backend service module lives at `<service>/src/main/java/com/carmarket/<na
 
 All client traffic enters through **api-gateway**. Two layers of trust are chained:
 
-1. **Client → Gateway (JWT)**: `JwtAuthenticationFilter` (gateway) validates the JWT (HMAC-SHA256, stateless, no DB call) on every non-public route (`/api/auth/**`, `/api/search/**`, `/actuator/**`, `/eureka/**` are public). It extracts `userId`/`roles` from the token and injects `X-User-Id` / `X-User-Roles` headers downstream.
+1. **Client → Gateway (JWT)**: `JwtAuthenticationFilter` (gateway) validates the JWT (HMAC-SHA256, stateless, no DB call) on every non-public route (`/api/auth/**`, `/api/search/**`, `/actuator/**`, `/eureka/**` are public, plus a few method-specific ones in `isPublicRoute`, e.g. GET/POST `/api/import-orders/public/**`, which import-order-service secures itself). It extracts `userId`/`roles` from the token and injects `X-User-Id` / `X-User-Roles` headers downstream.
 2. **Gateway → Service (HMAC gateway signature)**: the gateway additionally signs the request with `GatewaySignatureService`, producing an `X-Gateway-Signature: <timestamp>:<hmac>` header from `gateway.internal-secret`. Each downstream service (`car-service`, `user-service`, `auction-import-service`, ...) has its own `GatewaySignatureFilter` (`OncePerRequestFilter`) that recomputes the HMAC and rejects the request if it doesn't match or is older than 30s (replay protection). **This means a service's REST endpoints only trust `X-User-Id`/`X-User-Roles` if the request also carries a valid, fresh gateway signature — services must never trust those headers if called directly, bypassing the gateway.** When adding a new backend service that needs authenticated identity, copy this `GatewaySignatureFilter` pattern rather than trusting `X-User-Id` directly.
 
 Both secrets (`JWT_SECRET`, `gateway.internal-secret`) are shared across services via env vars — see `.env.example` / `docker-compose.yml`.
@@ -94,6 +95,20 @@ Topics are named `<domain>.<event>`, auto-created (`KAFKA_AUTO_CREATE_TOPICS_ENA
 - A seller's phone is only available via `GET /users/{id}/phone?carId=` (gateway signature required): `SellerPhoneService` asks car-service (`CarListingClient`, load-balanced like payment-service's) that the listing exists, is `ACTIVE` and belongs to `{id}`. Every failed check is the same bare 404; car-service down → 503. Requests are audit-logged without the number.
 - The gateway routes `/api/users/*/phone` separately (above the generic user routes) with `phoneRateLimiter` (10 burst, then 2/min per user) under its own `phone:<userId>` key: `RedisRateLimiter` keys buckets by the resolved key only, not per route, so sharing the user-id key would share the standard limiter's bucket. Limiters are injected by `@Qualifier` because `@Primary` beats parameter-name matching.
 
+## import-order-service specifics
+
+- A DEALER ("autokomis") creates an import order for a lot won at Copart/IAAI; it belongs to that dealer (`dealer_id` = `X-User-Id`). Every dealer query goes through `OrderLookup`: someone else's order is a 404; ADMIN may read all orders but only change their own. Plain USER → 403.
+- Create (and `POST /{id}/access/reset`) return the client link `<FRONTEND_URL>/zlecenie/<code>` and a password **once**: only the BCrypt hash (cost 12) is stored and the password is never logged. The dealer sends both to the client; the system never does.
+- Client endpoints `/import-orders/public/{code}/**` are public at the gateway. `POST …/access` with the password returns an HS256 `X-Order-Token` signed with `IMPORT_ORDER_TOKEN_SECRET` (claims `sub` = order id, `ver` = `access_version`, `jti`, 12 h). Wrong password, unknown code, disabled or archived order all give the same 401 (an unknown code still runs a dummy BCrypt check); 10 failures lock the order for 15 min (429 + `Retry-After`, also `retryAfterSeconds` in the body because cross-origin JS only sees exposed headers). A reset bumps `access_version`, which kills existing tokens.
+- `ClientOrderView` is a hand-built allow-list (like `PublicUserProfileResponse`): never internal notes, internal event notes, hidden files, dealer id, access fields, purchase price or the client's contact data. `GET /{id}/client-preview` returns the same view to the dealer.
+- `import_orders.status` is denormalized: the status of the event with the latest `occurred_at` (ties: latest `created_at`), recomputed whenever an event is added or deleted. Any status may be set (corrections).
+- PATCH takes a JSON object: absent = unchanged, `null` = clear, unknown or server-owned field = 400 (`OrderFields`). Container numbers are normalized and must pass ISO 6346; a VIN with a wrong North-American check digit is saved with a warning.
+- Storage: `import-order.s3.*` ← `IMPORT_ORDER_S3_BUCKET`, `IMPORT_ORDER_S3_REGION`, `IMPORT_ORDER_AWS_ACCESS_KEY_ID`, `IMPORT_ORDER_AWS_SECRET_ACCESS_KEY` (in the git-ignored `.env`, never in yml defaults). `S3Client`/`S3Presigner` use `StaticCredentialsProvider` only — never the default chain, which could pick up `~/.aws` or car-service's broader `AWS_*` keys. If any value is empty the beans aren't created and file endpoints answer 503 "Storage not configured"; everything else works. The bucket is private: downloads only via 5-minute presigned GET URLs (documents as attachment with the original name, photos inline), never public URLs.
+- IAM scope: the IAM user may only Put/Get/Delete objects under `import-orders/*` and `ListBucket` with prefix `import-orders/`. Keys are `import-orders/{orderId}/{documents|photos}/{uuid}.{ext}`; deleting an order deletes the stored keys plus anything listed under its prefix (S3 first, then rows).
+- Uploads are checked by magic bytes (PDF/JPEG/PNG/WEBP documents ≤ 20 MB, max 10 per upload; JPEG/PNG/WEBP photos ≤ 15 MB, max 30 per upload). The gateway routes `POST /api/import-orders/*/files` without a circuit breaker (its time limit would cut off large uploads) and `POST /api/import-orders/public/*/access` with `importOrderAccessRateLimiter` keyed `import-access:<ip>` (own bucket, see the phone limiter note above).
+- Access log: LOGIN_OK / LOGIN_FAILED / VIEW (at most once per token per hour), IP truncated to /24 (IPv4) or /48 (IPv6), user agent ≤ 200 chars.
+- Tests boot the service against Postgres via Testcontainers (Docker must be running; `testcontainers.version` is pinned to 1.21.4 because 1.19.x can't talk to current Docker Desktop) with S3 mocked.
+
 ## car-service listing promotion
 
 - `car_listings.promoted_until` / `highlighted_until` (V6, `CarListing.promotedUntil` / `highlightedUntil`) are set only by `ListingPromotionService` from `payment.completed`; `CarListingMapper` ignores them, so owners can't set them via `PUT /cars/{id}`. They're in `CarListingResponse` and `CarUpdatedEvent`.
@@ -104,9 +119,9 @@ When changing an event's payload shape, update the DTO in **both** the producing
 
 ## Database migrations
 
-Services use Flyway (`src/main/resources/db/migration/V<N>__<Name>.sql`). `car-service`, `auth-service`, and `user-service` run Flyway alongside Hibernate `ddl-auto: update` (dev convenience); `notification-service` and `auction-import-service` use `ddl-auto: validate`, meaning **schema changes must go through a new Flyway migration** or the app fails to start. When adding/changing a JPA entity in any service, add a new `V<N+1>__...sql` migration file rather than relying on Hibernate to auto-update — follow the existing numbering per service (each service's migrations are independently numbered, one Postgres DB per service).
+Services use Flyway (`src/main/resources/db/migration/V<N>__<Name>.sql`). `car-service`, `auth-service`, and `user-service` run Flyway alongside Hibernate `ddl-auto: update` (dev convenience); `notification-service`, `auction-import-service`, `payment-service` and `import-order-service` use `ddl-auto: validate`, meaning **schema changes must go through a new Flyway migration** or the app fails to start. When adding/changing a JPA entity in any service, add a new `V<N+1>__...sql` migration file rather than relying on Hibernate to auto-update — follow the existing numbering per service (each service's migrations are independently numbered, one Postgres DB per service).
 
-One Postgres instance per service (`postgres-auth`, `postgres-user`, `postgres-car`, `postgres-chat`, `postgres-notification`, `postgres-auction`) — there is no shared database or cross-service SQL join; cross-service data access always goes through REST (via gateway) or Kafka.
+One Postgres instance per service (`postgres-auth`, `postgres-user`, `postgres-car`, `postgres-chat`, `postgres-notification`, `postgres-auction`, `postgres-payment`, `postgres-import-order`) — there is no shared database or cross-service SQL join; cross-service data access always goes through REST (via gateway) or Kafka.
 
 ## Frontend (avtovo-frontend/)
 
