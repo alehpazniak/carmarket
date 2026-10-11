@@ -3,6 +3,7 @@ package com.carmarket.car.controller;
 import com.carmarket.car.config.SecurityConfigTest;
 import com.carmarket.car.dto.CarListingRequest;
 import com.carmarket.car.dto.CarListingResponse;
+import com.carmarket.car.dto.CarListingSummary;
 import com.carmarket.car.entity.FuelType;
 import com.carmarket.car.entity.ListingStatus;
 import com.carmarket.car.entity.Transmission;
@@ -640,5 +641,53 @@ class CarListingControllerTest {
             .andExpect(status().isNoContent());
 
         verify(carListingService, times(1)).delete(any(UUID.class), any(UUID.class));
+    }
+
+    // ─── GET /cars/summaries ───────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("GET /cars/summaries is routed to summaries, not to /cars/{id}, and returns REMOVED listings")
+    void summariesRoutedAndIncludeRemoved() throws Exception {
+        UUID removedId = UUID.randomUUID();
+        UUID unknownId = UUID.randomUUID();
+        when(carListingService.getSummaries(List.of(removedId, unknownId))).thenReturn(List.of(
+            new CarListingSummary(removedId, "Audi", "Q5", 2019, new BigDecimal("99000.00"), null, ListingStatus.REMOVED)));
+
+        mockMvc.perform(get("/cars/summaries").param("ids", removedId + "," + unknownId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].id").value(removedId.toString()))
+            .andExpect(jsonPath("$[0].make").value("Audi"))
+            .andExpect(jsonPath("$[0].status").value("REMOVED"));
+
+        verify(carListingService, never()).getById(any());
+    }
+
+    @Test
+    @DisplayName("GET /cars/summaries without ids returns []")
+    void summariesNoIds() throws Exception {
+        when(carListingService.getSummaries(List.of())).thenReturn(List.of());
+
+        mockMvc.perform(get("/cars/summaries"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("GET /cars/summaries answers 400 when the service rejects too many ids")
+    void summariesTooMany() throws Exception {
+        when(carListingService.getSummaries(anyList())).thenThrow(new IllegalArgumentException("At most 100 ids per request"));
+
+        mockMvc.perform(get("/cars/summaries").param("ids", UUID.randomUUID().toString()))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("GET /cars/summaries answers 400 for a malformed id")
+    void summariesMalformedId() throws Exception {
+        mockMvc.perform(get("/cars/summaries").param("ids", "not-a-uuid"))
+            .andExpect(status().isBadRequest());
+
+        verify(carListingService, never()).getSummaries(any());
     }
 }

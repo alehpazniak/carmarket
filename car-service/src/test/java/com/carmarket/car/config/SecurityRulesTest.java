@@ -1,8 +1,11 @@
 package com.carmarket.car.config;
 
+import com.carmarket.car.controller.CarListingController;
 import com.carmarket.car.controller.ReindexController;
 import com.carmarket.car.kafka.CarEventProducer;
 import com.carmarket.car.repository.CarListingRepository;
+import com.carmarket.car.service.CarListingService;
+import com.carmarket.car.service.S3Service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,6 +23,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -34,7 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Runs the real {@link SecurityConfig} + GatewaySignatureFilter (unlike {@link SecurityConfigTest},
  * which permits everything) with requests signed the way the gateway signs them.
  */
-@WebMvcTest(ReindexController.class)
+@WebMvcTest({ReindexController.class, CarListingController.class})
 @Import(SecurityConfig.class)
 @TestPropertySource(properties = "gateway.internal-secret=" + SecurityRulesTest.SECRET)
 @DisplayName("car-service security rules")
@@ -50,6 +54,12 @@ class SecurityRulesTest {
 
     @MockBean
     private CarEventProducer eventProducer;
+
+    @MockBean
+    private CarListingService carListingService;
+
+    @MockBean
+    private S3Service s3Service;
 
     @BeforeEach
     void setUp() {
@@ -107,5 +117,29 @@ class SecurityRulesTest {
             .header("X-User-Id", userId)
             .header("X-User-Roles", String.join(",", roles))
             .header("X-Gateway-Signature", ts + ":" + sig);
+    }
+
+    @Test
+    @DisplayName("summaries: unsigned request (gateway bypassed) gets 403, unlike the public GET /cars/**")
+    void summaries_unsigned_forbidden() throws Exception {
+        mockMvc.perform(get("/cars/summaries").param("ids", UUID.randomUUID().toString()))
+            .andExpect(status().isForbidden());
+        verify(carListingService, never()).getSummaries(any());
+    }
+
+    @Test
+    @DisplayName("summaries: a signed request is allowed")
+    void summaries_signed_ok() throws Exception {
+        when(carListingService.getSummaries(any())).thenReturn(List.of());
+
+        mockMvc.perform(signed(get("/cars/summaries").param("ids", UUID.randomUUID().toString()), "USER"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /cars/{id} stays public")
+    void listing_unsigned_public() throws Exception {
+        mockMvc.perform(get("/cars/{id}", UUID.randomUUID()))
+            .andExpect(status().isOk());
     }
 }

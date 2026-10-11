@@ -35,6 +35,7 @@ public class SecurityConfig {
                 .requestMatchers("/cars/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/cars/favorites").authenticated()
                 .requestMatchers(HttpMethod.GET, "/cars/*/favorite").authenticated()
+                .requestMatchers(HttpMethod.GET, "/cars/summaries").authenticated()
                 .requestMatchers(HttpMethod.GET, "/cars", "/cars/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated() // ← was permitAll(); now requires valid gateway signature
