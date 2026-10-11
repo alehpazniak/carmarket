@@ -3,7 +3,9 @@ package com.carmarket.payment.client;
 import com.carmarket.payment.exception.PaymentException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.loadbalancer.LoadBalancerClient;
 import org.springframework.cloud.client.loadbalancer.LoadBalancerInterceptor;
+import org.springframework.cloud.client.loadbalancer.LoadBalancerRequestFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
@@ -19,6 +21,10 @@ import java.util.UUID;
  * Built from its own {@link RestClient.Builder} with the load-balancer interceptor added, which is
  * what {@code @LoadBalanced} would do. A {@code @LoadBalanced RestClient.Builder} bean would replace
  * Boot's shared builder, and Przelewy24Client would then try to resolve przelewy24.pl via Eureka.
+ * <p>
+ * The interceptor is created here rather than injected: spring-retry is on the classpath (via
+ * spring-kafka), so Spring Cloud registers a RetryLoadBalancerInterceptor bean and no
+ * LoadBalancerInterceptor bean.
  */
 @Slf4j
 @Component
@@ -30,11 +36,12 @@ public class CarListingClient {
 
     private final RestClient restClient;
 
-    public CarListingClient(LoadBalancerInterceptor loadBalancerInterceptor,
+    public CarListingClient(LoadBalancerClient loadBalancerClient,
+                            LoadBalancerRequestFactory loadBalancerRequestFactory,
                             @Value("${payment.car-service-url:http://car-service}") String baseUrl) {
         this.restClient = RestClient.builder()
             .baseUrl(baseUrl)
-            .requestInterceptor(loadBalancerInterceptor)
+            .requestInterceptor(new LoadBalancerInterceptor(loadBalancerClient, loadBalancerRequestFactory))
             .build();
     }
 
