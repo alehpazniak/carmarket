@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import api from '../api/client';
 import type {User} from '../types';
+import {rolesFromToken} from '../utils/jwt';
 
 interface AuthContextType {
     user: User | null;
@@ -8,6 +9,11 @@ interface AuthContextType {
     isAuthenticated: boolean;
     loginWithGoogle: () => void;
     logout: () => Promise<void>;
+    /**
+     * Whether the current access token carries the role (decoded, not verified). Read at call time, so
+     * it follows silent token refreshes; DEALER appears after the refresh in ConfirmDealerUpgrade.
+     */
+    hasRole: (role: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -56,6 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
+    const hasRole = (role: string) => !!user && rolesFromToken(localStorage.getItem('access_token')).includes(role);
+
     return (
         <AuthContext.Provider value={{
             user,
@@ -63,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             isAuthenticated: !!user,
             loginWithGoogle,
             logout,
+            hasRole,
         }}>
             {children}
         </AuthContext.Provider>

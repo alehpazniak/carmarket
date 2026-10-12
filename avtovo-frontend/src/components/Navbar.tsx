@@ -1,12 +1,13 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Car, Plus, User, LogOut, ChevronDown, Gavel, MessageSquare } from 'lucide-react';
+import { Car, Plus, User, LogOut, ChevronDown, Gavel, MessageSquare, ClipboardList } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useChat } from '../context/ChatContext';
 import { getUnreadCount, UNREAD_CHANGED_EVENT } from '../api/chat';
 
 export default function Navbar() {
-    const { user, isAuthenticated, loginWithGoogle, logout } = useAuth();
+    const { user, isAuthenticated, loginWithGoogle, logout, hasRole } = useAuth();
+    const isDealer = hasRole('DEALER') || hasRole('ADMIN');
     const [menuOpen, setMenuOpen] = useState(false);
     const navigate = useNavigate();
     const [unread, setUnread] = useState(0);
@@ -114,6 +115,16 @@ export default function Navbar() {
                                                 <Car size={15} />
                                                 Moje ogłoszenia
                                             </Link>
+                                            {isDealer && (
+                                                <Link
+                                                    to="/panel-dealera/zlecenia"
+                                                    onClick={() => setMenuOpen(false)}
+                                                    className="flex items-center gap-2 px-4 py-3 text-sm text-avtovo-text hover:bg-white/5 transition-colors"
+                                                >
+                                                    <ClipboardList size={15} />
+                                                    Zlecenia importu
+                                                </Link>
+                                            )}
                                             <Link
                                                 to="/moj-profil"
                                                 onClick={() => setMenuOpen(false)}

@@ -4,7 +4,7 @@ import { getLot, calculateImport, calculateMaxBid, getComparables } from '../api
 import type { AuctionLot, ImportCalculationResult, MaxBidResult, FuelType } from '../types/auctions';
 import PhotoGallery from '../components/PhotoGallery';
 import { useAuth } from '../context/AuthContext';
-import { ChevronLeft, TrendingUp, Loader2, Gauge, MapPin, Gavel, Lock } from 'lucide-react';
+import { ChevronLeft, TrendingUp, Loader2, Gauge, MapPin, Gavel, Lock, ClipboardPlus } from 'lucide-react';
 
 const PLN = (v: number | undefined) => v == null ? '—' : `${v.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} zł`;
 const USD = (v: number | undefined) => v == null ? '—' : `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
@@ -20,7 +20,8 @@ const STATUS_LABELS: Record<string, { label: string; className: string }> = {
 export default function AuctionLotDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { isAuthenticated, loginWithGoogle } = useAuth();
+    const { isAuthenticated, loginWithGoogle, hasRole } = useAuth();
+    const isDealer = hasRole('DEALER') || hasRole('ADMIN');
     const [lot, setLot] = useState<AuctionLot | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -368,6 +369,14 @@ export default function AuctionLotDetail() {
                                 <Row label="Data sprzedaży" value={lot.saleDate ?? '—'} />
                                 <Row label="Lokalizacja" value={lot.auctionLocation ?? '—'} />
                             </div>
+                            {isDealer && (
+                                <button
+                                    onClick={() => navigate('/panel-dealera/zlecenia/nowe', { state: { prefill: { kind: 'lot', lot } } })}
+                                    className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-avtovo-accent hover:bg-avtovo-accent-hover text-white px-4 py-2.5 rounded-lg text-sm font-medium"
+                                >
+                                    <ClipboardPlus size={16} /> Utwórz zlecenie dla klienta
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

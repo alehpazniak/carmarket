@@ -101,15 +101,16 @@ export default function ClientOrderPage() {
         if (readToken(code)) load();
     }, [code, load]);
 
-    // Presigned URLs live 5 minutes: refetch the view shortly before they expire, and when the
-    // client comes back to the tab after they did (also how a password reset reaches an open tab)
+    // Presigned URLs live 5 minutes: refetch the view shortly before they expire, and whenever the
+    // client comes back to the tab
     useEffect(() => {
         if (phase.kind !== 'view') return;
         const expires = urlsExpireAt.current;
         const delay = expires ? Math.max(10_000, expires - Date.now() - 20_000) : 4 * 60_000;
         refreshTimer.current = setTimeout(load, delay);
         const onVisible = () => {
-            if (document.visibilityState === 'visible' && (!urlsExpireAt.current || Date.now() > urlsExpireAt.current - 20_000)) load();
+            // Every return to the tab: fresh URLs, and a password reset or disabled access shows up right away
+            if (document.visibilityState === 'visible') load();
         };
         document.addEventListener('visibilitychange', onVisible);
         return () => {

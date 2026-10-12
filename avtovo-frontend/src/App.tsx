@@ -15,6 +15,10 @@ import AuctionActions from './pages/AuctionActions';
 import AuctionLotDetail from './pages/AuctionLotDetail';
 import ApibaraVehiclePage from './pages/ApibaraVehiclePage';
 import PaymentReturn from './pages/PaymentReturn';
+import ImportOrderList from './pages/importOrders/ImportOrderList';
+import ImportOrderCreate from './pages/importOrders/ImportOrderCreate';
+import ImportOrderDetail from './pages/importOrders/ImportOrderDetail';
+import ClientOrderPage from './pages/ClientOrderPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, isLoading } = useAuth();
@@ -25,6 +29,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
     if (!isAuthenticated) return <Navigate to="/" replace />;
     return <>{children}</>;
+}
+
+/** Dealer cabinet: DEALER or ADMIN; anyone else goes to the profile, which offers the dealer upgrade. */
+function DealerRoute({ children }: { children: React.ReactNode }) {
+    const { hasRole } = useAuth();
+    return (
+        <ProtectedRoute>
+            {hasRole('DEALER') || hasRole('ADMIN') ? children : <Navigate to="/moj-profil" replace />}
+        </ProtectedRoute>
+    );
 }
 
 function AppRoutes() {
@@ -58,6 +72,17 @@ function AppRoutes() {
                 } />
                 {/* Not protected: the emailed link may be opened in a browser that isn't logged in */}
                 <Route path="/konto-dealera/potwierdz" element={<ConfirmDealerUpgrade />} />
+                <Route path="/panel-dealera/zlecenia" element={
+                    <DealerRoute><ImportOrderList /></DealerRoute>
+                } />
+                <Route path="/panel-dealera/zlecenia/nowe" element={
+                    <DealerRoute><ImportOrderCreate /></DealerRoute>
+                } />
+                <Route path="/panel-dealera/zlecenia/:id" element={
+                    <DealerRoute><ImportOrderDetail /></DealerRoute>
+                } />
+                {/* Public: the client opens the dealer's link with a password, no account needed */}
+                <Route path="/zlecenie/:code" element={<ClientOrderPage />} />
                 <Route path="/platnosc/:id" element={
                     <ProtectedRoute><PaymentReturn /></ProtectedRoute>
                 } />
