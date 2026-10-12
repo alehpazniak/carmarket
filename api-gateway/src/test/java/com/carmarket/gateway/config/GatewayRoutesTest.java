@@ -79,6 +79,8 @@ class GatewayRoutesTest {
 
         assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/admin/audit"))).isEqualTo("admin-service");
         assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/admin/system/health"))).isEqualTo("admin-service");
+        assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/notifications/admin/stats"))).isEqualTo("notification-service-admin");
+        assertThat(routes.stream().filter(r -> matches(r, "/api/notifications/abc")).findFirst()).isEmpty();
     }
 
     private static String firstMatch(List<Route> routes, MockServerHttpRequest.BaseBuilder<?> request) {

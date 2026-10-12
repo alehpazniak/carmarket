@@ -32,6 +32,8 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .addFilterBefore(gatewaySignatureFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
+                // Must stay above every broader rule: the first match wins
+                .requestMatchers("/api/auctions/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/auctions/lots", "/api/auctions/lots/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()

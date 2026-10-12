@@ -32,7 +32,7 @@ public class OrderViews {
     private final FileStorage storage;
 
     public OrderSummary summary(ImportOrder o) {
-        return new OrderSummary(o.getId(), o.getStatus(), o.getSource(), o.getLotNumber(), o.getVin(), o.getMake(),
+        return new OrderSummary(o.getId(), o.getDealerId(), o.getStatus(), o.getSource(), o.getLotNumber(), o.getVin(), o.getMake(),
             o.getModel(), o.getYear(), o.getClientName(), o.getEta(), o.getContainerNumber(), o.getCreatedAt(),
             o.getUpdatedAt(), o.getArchivedAt());
     }

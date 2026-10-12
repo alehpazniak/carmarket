@@ -98,6 +98,10 @@ class JwtAuthenticationFilterTest {
             MockServerHttpRequest.post("/api/payments/admin/p24/notify").build(),
             MockServerHttpRequest.get("/api/payments/admin/payments").build(),
             MockServerHttpRequest.get("/api/admin/audit").build(),
+            MockServerHttpRequest.get("/api/notifications/admin/notifications").build(),
+            MockServerHttpRequest.get("/api/chat/admin/stats").build(),
+            MockServerHttpRequest.get("/api/import-orders/admin/stats").build(),
+            MockServerHttpRequest.get("/api/users/admin/users/abc").build(),
             MockServerHttpRequest.get("/api/admin").build())) {
             String path = request.getPath().value();
             assertThat(filter.isPublicRoute(path, request.getMethod().name())).as(path).isFalse();

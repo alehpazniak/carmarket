@@ -2,7 +2,8 @@ import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Eye, LogOut, ShieldCheck, ShieldOff, UserCog } from 'lucide-react';
 import {
-    blockUser, changeUserRole, getAdminUser, getAdminUserProfile, getAuditLog, listAdminListings, logoutUserEverywhere, unblockUser,
+    blockUser, changeUserRole, getAdminUser, getAdminUserProfile, getAuditLog, listAdminListings, listAdminPayments,
+    logoutUserEverywhere, unblockUser,
     type AdminUserProfile, type Role,
 } from '../api';
 import { Badge, RoleBadge } from '../components/Badges';
@@ -12,7 +13,11 @@ import PageHeader from '../components/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../components/States';
 import { useToast } from '../components/Toasts';
 import { useLoader } from '../hooks';
-import { ROLE_LABELS, actionLabel, formatDateTime } from '../labels';
+import { PRODUCT_LABELS, ROLE_LABELS, actionLabel, formatDateTime, formatMoney } from '../labels';
+import { PaymentStatusBadge } from './PaymentsPage';
+import { listImportOrders } from '../../api/importOrders';
+import StatusBadge from '../../components/importOrders/StatusBadge';
+import { carTitle } from '../../constants/importOrders';
 import { userIdFromToken } from '../../utils/jwt';
 
 type Dialog = 'role' | 'block' | 'unblock' | 'logout' | null;
@@ -115,6 +120,54 @@ function ListingsCard({ userId }: { userId: string }) {
     );
 }
 
+function PaymentsCard({ userId }: { userId: string }) {
+    const loader = useCallback(() => listAdminPayments({ userId, size: 5 }), [userId]);
+    const { data, error, loading, reload } = useLoader(loader);
+    return (
+        <section className={card}>
+            <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold text-avtovo-text">Płatności{data ? ` (${data.totalElements})` : ''}</h2>
+                <Link to={`/admin/platnosci?userId=${userId}`} className="text-sm text-avtovo-accent hover:underline">Wszystkie</Link>
+            </div>
+            {loading ? <LoadingState /> : error ? <ErrorState label="Dane niedostępne" onRetry={reload} /> : !data?.content.length ? <EmptyState label="Brak płatności" /> : (
+                <ul className="space-y-2">
+                    {data.content.map(p => (
+                        <li key={p.id} className="flex items-center justify-between gap-3 text-sm">
+                            <Link to={`/admin/platnosci/${p.id}`} className="text-avtovo-text hover:text-avtovo-accent">
+                                {PRODUCT_LABELS[p.productCode] ?? p.productCode} · {formatMoney(p.amount, p.currency)}
+                            </Link>
+                            <PaymentStatusBadge status={p.status} />
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </section>
+    );
+}
+
+function ImportOrdersCard({ dealerId }: { dealerId: string }) {
+    const loader = useCallback(() => listImportOrders({ dealerId, size: 5 }), [dealerId]);
+    const { data, error, loading, reload } = useLoader(loader);
+    return (
+        <section className={card}>
+            <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold text-avtovo-text">Zlecenia importu{data ? ` (${data.totalElements})` : ''}</h2>
+                <Link to={`/admin/zlecenia?dealerId=${dealerId}`} className="text-sm text-avtovo-accent hover:underline">Wszystkie</Link>
+            </div>
+            {loading ? <LoadingState /> : error ? <ErrorState label="Dane niedostępne" onRetry={reload} /> : !data?.content.length ? <EmptyState label="Brak zleceń" /> : (
+                <ul className="space-y-2">
+                    {data.content.map(o => (
+                        <li key={o.id} className="flex items-center justify-between gap-3 text-sm">
+                            <Link to={`/panel-dealera/zlecenia/${o.id}`} className="text-avtovo-text hover:text-avtovo-accent">{carTitle(o)}</Link>
+                            <StatusBadge status={o.status} />
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </section>
+    );
+}
+
 /** /admin/uzytkownicy/:id */
 export default function UserDetailPage() {
     const { id = '' } = useParams();
@@ -181,6 +234,8 @@ export default function UserDetailPage() {
                 </section>
                 <ProfileCard userId={user.id} />
                 <ListingsCard userId={user.id} />
+                <PaymentsCard userId={user.id} />
+                {user.role !== 'USER' && <ImportOrdersCard dealerId={user.id} />}
                 <ActivityCard key={activityKey} userId={user.id} />
             </div>
 

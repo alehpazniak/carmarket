@@ -17,6 +17,8 @@
     <name>auction-import-service</name>
 
     <properties>
+        <!-- Boot 3.2.3 manages 1.19.x, which current Docker Desktop rejects (API version too old) -->
+        <testcontainers.version>1.21.4</testcontainers.version>
         <java.version>17</java.version>
         <spring-cloud.version>2023.0.0</spring-cloud.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
@@ -103,6 +105,17 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- SyncRunRepositoryTest runs the migrations against a throwaway Postgres, so Docker must be running -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface PaymentRepository extends JpaRepository<Payment, UUID> {
+public interface PaymentRepository extends JpaRepository<Payment, UUID>, org.springframework.data.jpa.repository.JpaSpecificationExecutor<Payment> {
 
     Optional<Payment> findByIdAndUserId(UUID id, UUID userId);
 

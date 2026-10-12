@@ -1,9 +1,15 @@
 import { Route, Routes } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import { ToastProvider } from './components/Toasts';
+import AuctionsPage from './pages/AuctionsPage';
 import AuditLogPage from './pages/AuditLogPage';
+import DashboardPage from './pages/DashboardPage';
+import ImportOrdersPage from './pages/ImportOrdersPage';
 import ListingDetailPage from './pages/ListingDetailPage';
 import ListingsPage from './pages/ListingsPage';
+import NotificationsPage from './pages/NotificationsPage';
+import PaymentDetailPage from './pages/PaymentDetailPage';
+import PaymentsPage from './pages/PaymentsPage';
 import PlaceholderPage from './pages/PlaceholderPage';
 import ReportsPage from './pages/ReportsPage';
 import SystemPage from './pages/SystemPage';
@@ -19,16 +25,17 @@ export default function AdminApp() {
         <ToastProvider>
             <Routes>
                 <Route element={<AdminLayout />}>
-                    <Route index element={<PlaceholderPage title="Pulpit" />} />
+                    <Route index element={<DashboardPage />} />
                     <Route path="uzytkownicy" element={<UsersPage />} />
                     <Route path="uzytkownicy/:id" element={<UserDetailPage />} />
                     <Route path="ogloszenia" element={<ListingsPage />} />
                     <Route path="ogloszenia/:id" element={<ListingDetailPage />} />
                     <Route path="zgloszenia" element={<ReportsPage />} />
-                    <Route path="platnosci/*" element={<PlaceholderPage title="Płatności" />} />
-                    <Route path="zlecenia" element={<PlaceholderPage title="Zlecenia importu" />} />
-                    <Route path="aukcje" element={<PlaceholderPage title="Aukcje" />} />
-                    <Route path="powiadomienia" element={<PlaceholderPage title="Powiadomienia" />} />
+                    <Route path="platnosci" element={<PaymentsPage />} />
+                    <Route path="platnosci/:id" element={<PaymentDetailPage />} />
+                    <Route path="zlecenia" element={<ImportOrdersPage />} />
+                    <Route path="aukcje" element={<AuctionsPage />} />
+                    <Route path="powiadomienia" element={<NotificationsPage />} />
                     <Route path="dziennik" element={<AuditLogPage />} />
                     <Route path="system" element={<SystemPage />} />
                     <Route path="*" element={<PlaceholderPage title="Nie znaleziono" />} />

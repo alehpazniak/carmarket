@@ -284,6 +284,17 @@ public class GatewayConfig {
                     .rewritePath("/api/admin/(?<segment>.*)", "/admin/${segment}"))
                 .uri("lb://admin-service"))
 
+            // ─── NOTIFICATION SERVICE — admin panel only; the service has no other HTTP API ───
+            .route("notification-service-admin", r -> r
+                .path("/api/notifications/admin/**")
+                .filters(f -> f
+                    .circuitBreaker(c -> c.setName("notification-cb").setFallbackUri("forward:/fallback/notification"))
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(standardRateLimiter)
+                        .setKeyResolver(keyResolver))
+                    .rewritePath("/api/notifications/admin/(?<segment>.*)", "/notifications/admin/${segment}"))
+                .uri("lb://notification-service"))
+
             .route("auction-analytics", r -> r
                 .path("/api/analytics/**")
                 .filters(f -> f

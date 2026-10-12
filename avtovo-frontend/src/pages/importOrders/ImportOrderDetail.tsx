@@ -13,6 +13,7 @@ import NotesTab from '../../components/importOrders/tabs/NotesTab';
 import { SOURCE_LABELS, carTitle } from '../../constants/importOrders';
 import { apiErrorMessage } from '../../utils/importOrderUi';
 import type { ImportOrderDetail as Order } from '../../types/importOrders';
+import { userIdFromToken } from '../../utils/jwt';
 
 const TABS = [
     { id: 'overview', label: 'Przegląd' },
@@ -87,6 +88,9 @@ export default function ImportOrderDetail() {
         }
     };
 
+    // Admins may read every order but only change their own (OrderLookup): someone else's is read-only
+    const readOnly = order.dealerId !== userIdFromToken(localStorage.getItem('access_token'));
+
     return (
         <div className="min-h-screen bg-avtovo-bg py-6 sm:py-8">
             <div className="max-w-5xl mx-auto px-4 space-y-4">
@@ -107,7 +111,7 @@ export default function ImportOrderDetail() {
                             {order.clientName ? ` · ${order.clientName}` : ''}
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    {!readOnly && <div className="flex items-center gap-2">
                         <button onClick={toggleArchive} disabled={busy}
                                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-avtovo-border text-sm text-avtovo-text-secondary hover:text-avtovo-text disabled:opacity-50">
                             {order.archivedAt ? <><ArchiveRestore size={15} /> Przywróć</> : <><Archive size={15} /> Archiwizuj</>}
@@ -126,8 +130,13 @@ export default function ImportOrderDetail() {
                                 <Trash2 size={15} /> Usuń
                             </button>
                         )}
-                    </div>
+                    </div>}
                 </div>
+                {readOnly && (
+                    <p className="text-sm text-amber-300 bg-amber-500/10 border border-amber-800 rounded-lg px-3 py-2">
+                        Podgląd zlecenia innego dealera — tylko do odczytu.
+                    </p>
+                )}
                 {confirmDelete && (
                     <p className="text-sm text-red-300">Usunięcie skasuje zlecenie, historię i wszystkie pliki (także w chmurze). Tego nie można cofnąć.</p>
                 )}
@@ -143,6 +152,7 @@ export default function ImportOrderDetail() {
                     ))}
                 </nav>
 
+                <fieldset disabled={readOnly} className="min-w-0 border-0 p-0 m-0">
                 {tab === 'overview' && <OverviewTab order={order} onChange={setOrder} />}
                 {tab === 'status' && <StatusTab order={order} onChange={setOrder} />}
                 {tab === 'transport' && <TransportTab order={order} onChange={setOrder} />}
@@ -150,6 +160,7 @@ export default function ImportOrderDetail() {
                 {tab === 'photos' && <PhotosTab order={order} onReload={load} />}
                 {tab === 'access' && <ClientAccessTab order={order} onChange={setOrder} />}
                 {tab === 'notes' && <NotesTab order={order} onChange={setOrder} />}
+                </fieldset>
             </div>
         </div>
     );

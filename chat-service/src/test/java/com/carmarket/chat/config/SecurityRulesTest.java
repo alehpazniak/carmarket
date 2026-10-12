@@ -26,7 +26,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Real SecurityConfig + GatewaySignatureFilter: port 8085 is published, so X-User-Id alone must not work. */
-@WebMvcTest(ChatRestController.class)
+@WebMvcTest({ChatRestController.class, com.carmarket.chat.controller.ChatAdminController.class})
 @Import({SecurityConfig.class, GatewaySignatureFilter.class})
 @TestPropertySource(properties = "gateway.internal-secret=" + SecurityRulesTest.SECRET)
 class SecurityRulesTest {
@@ -39,6 +39,21 @@ class SecurityRulesTest {
 
     @MockBean
     private ChatService chatService;
+
+    @MockBean
+    private com.carmarket.chat.service.ChatStatsService statsService;
+
+    @Test
+    void statsAreAdminOnly() throws Exception {
+        mvc.perform(get("/chat/admin/stats").header("X-User-Id", USER.toString()).header("X-User-Roles", "USER")
+                .header("X-Gateway-Signature", sign(USER.toString(), System.currentTimeMillis())))
+            .andExpect(status().isForbidden());
+        mvc.perform(get("/chat/admin/stats").header("X-User-Id", USER.toString()).header("X-User-Roles", "ADMIN"))
+            .andExpect(status().isForbidden());
+        mvc.perform(get("/chat/admin/stats").header("X-User-Id", USER.toString()).header("X-User-Roles", "ADMIN")
+                .header("X-Gateway-Signature", sign(USER.toString(), System.currentTimeMillis())))
+            .andExpect(status().isOk());
+    }
 
     @Test
     void forgedUserIdWithoutSignatureIsRejected() throws Exception {

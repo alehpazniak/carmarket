@@ -28,6 +28,8 @@ public class SecurityConfig {
                 // Client page: link + password → X-Order-Token, checked by ClientAccessService
                 .requestMatchers(HttpMethod.POST, "/import-orders/public/*/access").permitAll()
                 .requestMatchers(HttpMethod.GET, "/import-orders/public/**").permitAll()
+                // Must stay above the DEALER/ADMIN rule: the first match wins
+                .requestMatchers("/import-orders/admin/**").hasRole("ADMIN")
                 .requestMatchers("/import-orders", "/import-orders/**").hasAnyRole("DEALER", "ADMIN")
                 .requestMatchers("/actuator/**").permitAll()
                 // Error dispatches (e.g. a 400 for a bad parameter) must not turn into 403

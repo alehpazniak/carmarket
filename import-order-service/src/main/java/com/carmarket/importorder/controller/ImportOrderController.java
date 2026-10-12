@@ -75,9 +75,10 @@ public class ImportOrderController {
                                    @RequestParam(required = false) ImportOrderStatus status,
                                    @RequestParam(required = false) String q,
                                    @RequestParam(defaultValue = "false") boolean archived,
+                                   @RequestParam(required = false) UUID dealerId,
                                    @RequestParam(defaultValue = "0") int page,
                                    @RequestParam(defaultValue = "20") int size) {
-        return service.list(Actor.from(auth), status, q, archived, page, size);
+        return service.list(Actor.from(auth), status, q, archived, dealerId, page, size);
     }
 
     @GetMapping("/{id}")

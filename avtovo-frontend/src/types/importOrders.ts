@@ -58,6 +58,8 @@ export interface CreateImportOrderRequest extends ImportOrderFields {
 
 export interface ImportOrderSummary {
     id: string;
+    /** Owner of the order (admins see every dealer's orders). */
+    dealerId: string;
     status: ImportOrderStatus | null;
     source: LotSource;
     lotNumber: string | null;

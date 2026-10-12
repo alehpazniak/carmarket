@@ -46,6 +46,8 @@ public final class ImportOrderDtos {
 
     public record OrderSummary(
         UUID id,
+        /** Lets the admin panel show and filter by dealer; a dealer only ever sees their own. */
+        UUID dealerId,
         ImportOrderStatus status,
         LotSource source,
         String lotNumber,
