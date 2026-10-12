@@ -47,7 +47,7 @@ class NotificationDispatcherTest {
 
     @BeforeEach
     void setUp() {
-        var props = new NotificationProperties("no-reply@test", Duration.ofMinutes(3), 50, 3);
+        var props = new NotificationProperties("no-reply@test", Duration.ofMinutes(3), 50, 3, Duration.ofMinutes(10));
         dispatcher = new NotificationDispatcher(notifications, recipients, new EmailContentFactory(), emailSender, props);
         notification = Notification.builder()
             .type(NotificationType.NEW_CHAT_MESSAGE)
