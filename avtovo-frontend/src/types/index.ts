@@ -23,8 +23,10 @@ export interface CarListing {
     /** Canonical YouTube, TikTok or Instagram link (car-service normalizes whatever the seller pasted). */
     videoUrl?: string | null;
     technicalData?: TechnicalData | null;
-    /** SUSPENDED: the owner's account is blocked (only the owner and admins see it). */
-    status: 'ACTIVE' | 'SOLD' | 'DRAFT' | 'REMOVED' | 'SUSPENDED';
+    /** SUSPENDED: the owner's account is blocked; BLOCKED: hidden by a moderator (only the owner and admins see them). */
+    status: 'ACTIVE' | 'SOLD' | 'DRAFT' | 'REMOVED' | 'SUSPENDED' | 'BLOCKED';
+    /** Why a moderator blocked the listing; only in /api/cars/my/{id} and admin views. */
+    moderationReason?: string | null;
     /** End of a paid promotion / highlight (car-service LocalDateTime, no zone); null when none. */
     promotedUntil?: string | null;
     highlightedUntil?: string | null;
@@ -39,7 +41,7 @@ export interface CarSummary {
     year: number;
     price: number;
     primaryImageUrl?: string | null;
-    status: 'ACTIVE' | 'SOLD' | 'DRAFT' | 'REMOVED' | 'SUSPENDED';
+    status: 'ACTIVE' | 'SOLD' | 'DRAFT' | 'REMOVED' | 'SUSPENDED' | 'BLOCKED';
 }
 
 export type DriveType = 'FRONT' | 'REAR' | 'AWD_AUTO' | 'AWD_MANUAL' | 'AWD_PERMANENT';

@@ -7,6 +7,14 @@ export const getCars = (page = 0, size = 20) =>
 export const getMyCars = () =>
     api.get<Page<CarListing>>('/api/cars/my').then(r => r.data);
 
+/** The owner's own listing in any status (BLOCKED / SUSPENDED too), with the moderation reason. */
+export const getMyCar = (id: string) =>
+    api.get<CarListing>(`/api/cars/my/${id}`).then(r => r.data);
+
+/** "Zgłoś ogłoszenie": 409 when already reported, 429 after 10 reports a day. */
+export const reportCar = (id: string, reason: string, comment?: string) =>
+    api.post(`/api/cars/${id}/reports`, { reason, comment: comment || undefined }).then(r => r.data);
+
 export const getCar = (id: string) =>
     api.get<CarListing>(`/api/cars/${id}`).then(r => r.data);
 

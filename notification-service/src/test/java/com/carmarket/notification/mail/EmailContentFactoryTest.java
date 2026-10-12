@@ -13,6 +13,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 class EmailContentFactoryTest {
 
     @Test
+    void listingEmailsArePolishWithReasonAndLink() {
+        Recipient seller = Recipient.builder().email("jan@example.com").displayName("Jan").build();
+        Map<String, String> payload = Map.of("title", "Audi A4 (2019)", "reason", "Zdjęcia nie przedstawiają auta",
+            "link", "http://localhost:5173/ogloszenia/abc");
+
+        EmailContent blocked = new EmailContentFactory().build(Notification.builder()
+            .type(NotificationType.LISTING_BLOCKED).recipientId(UUID.randomUUID()).payload(payload).build(), seller);
+        EmailContent restored = new EmailContentFactory().build(Notification.builder()
+            .type(NotificationType.LISTING_RESTORED).recipientId(UUID.randomUUID()).payload(payload).build(), seller);
+
+        assertThat(blocked.subject()).isEqualTo("Twoje ogłoszenie zostało zablokowane — Audi A4 (2019)");
+        assertThat(blocked.body()).contains("Dzień dobry Jan", "Powód: Zdjęcia nie przedstawiają auta",
+            "http://localhost:5173/ogloszenia/abc");
+        assertThat(restored.subject()).startsWith("Twoje ogłoszenie jest znowu widoczne");
+        assertThat(restored.body()).contains("http://localhost:5173/ogloszenia/abc");
+    }
+
+    @Test
     void dealerUpgradeEmailContainsConfirmLink() {
         Notification n = Notification.builder()
             .type(NotificationType.DEALER_UPGRADE_CONFIRMATION)

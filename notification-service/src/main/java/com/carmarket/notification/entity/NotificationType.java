@@ -5,5 +5,9 @@ public enum NotificationType {
     NEW_CHAT_MESSAGE,
     DEALER_UPGRADE_CONFIRMATION,
     /** A client of a dealer's import order: something new on their /zlecenie page (never the password). */
-    IMPORT_ORDER_UPDATE
+    IMPORT_ORDER_UPDATE,
+    /** listing.moderated BLOCKED: a moderator hid the seller's listing, with the reason. */
+    LISTING_BLOCKED,
+    /** listing.moderated UNBLOCKED: the listing is visible again. */
+    LISTING_RESTORED
 }

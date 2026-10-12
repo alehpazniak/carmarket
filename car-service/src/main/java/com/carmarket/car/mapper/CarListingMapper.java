@@ -20,6 +20,9 @@ public interface CarListingMapper {
     @Mapping(target = "videoUrl", ignore = true)
     @Mapping(target = "promotedUntil", ignore = true)
     @Mapping(target = "highlightedUntil", ignore = true)
+    @Mapping(target = "moderationReason", ignore = true)
+    @Mapping(target = "moderatedBy", ignore = true)
+    @Mapping(target = "moderatedAt", ignore = true)
     CarListing toEntity(CarListingRequest request);
 
     CarListingResponse toResponse(CarListing entity);
@@ -39,6 +42,9 @@ public interface CarListingMapper {
     @Mapping(target = "technicalData", ignore = true)
     @Mapping(target = "promotedUntil", ignore = true)
     @Mapping(target = "highlightedUntil", ignore = true)
+    @Mapping(target = "moderationReason", ignore = true)
+    @Mapping(target = "moderatedBy", ignore = true)
+    @Mapping(target = "moderatedAt", ignore = true)
     void updateEntity(CarListingRequest request, @MappingTarget CarListing entity);
 
     TechnicalData toTechnicalData(TechnicalDataDto dto);

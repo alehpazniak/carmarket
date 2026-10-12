@@ -87,6 +87,7 @@ Topics are named `<domain>.<event>`, auto-created (`KAFKA_AUTO_CREATE_TOPICS_ENA
 | `chat.conversation.read` | chat-service | notification-service (cancels/suppresses pending email) |
 | `payment.completed` / `payment.refunded` | payment-service | car-service (applies/reverts `LISTING_PROMOTION` / `LISTING_HIGHLIGHT`, see below) |
 | `import-order.client-update` | import-order-service | notification-service (batched "new information on your order" email to the order's client, see below) |
+| `listing.moderated` | car-service (admin block/unblock) | notification-service (`LISTING_BLOCKED` / `LISTING_RESTORED` email to the seller; skipped with a WARN when the seller has no `Recipient` row) |
 | `admin.audit` | every service with admin writes (`AdminAuditPublisher`) | admin-service (`admin_audit_log`, idempotent by `eventId`) |
 
 ## Admin panel
@@ -136,6 +137,12 @@ Topics are named `<domain>.<event>`, auto-created (`KAFKA_AUTO_CREATE_TOPICS_ENA
 - `car_listings.promoted_until` / `highlighted_until` (V6, `CarListing.promotedUntil` / `highlightedUntil`) are set only by `ListingPromotionService` from `payment.completed`; `CarListingMapper` ignores them, so owners can't set them via `PUT /cars/{id}`. They're in `CarListingResponse` and `CarUpdatedEvent`.
 - Purchases stack (`max(now, current) + durationDays`). Every processed payment is a row in `listing_promotion_payments` (idempotent redelivery; refunds subtract exactly `days_applied`). A payment for a missing / non-ACTIVE / someone else's listing is recorded with `days_applied = 0` and not applied — refund it manually.
 - `PromotionExpiryJob` (`promotion.expiry.fixed-delay-ms`, 10 min) clears expired dates and re-publishes `car.updated`; search-service stores `promoted`/`highlighted` booleans computed at indexing time and ranks `promoted` first only for the default sort (none or `createdAt,desc`).
+
+## car-service moderation
+
+- Statuses: `SUSPENDED` (owner's account blocked, follows `user.blocked`/`user.unblocked`) and `BLOCKED` (moderator, with `moderation_reason`, `moderated_by`, `moderated_at`). `ListingStatus.isPubliclyVisible()` hides both (and REMOVED) from the public `GET /cars/{id}`; the owner reads any non-REMOVED listing via `GET /cars/my/{id}` (with the reason), which the frontend falls back to on a 404. Search only shows ACTIVE, so `car.updated` with either status removes the listing from results. A BLOCKED/SUSPENDED listing can't be marked SOLD (SOLD is public). Unblocking a listing restores ACTIVE; blocking/unblocking an account only moves ACTIVE ↔ SUSPENDED, never BLOCKED.
+- Reports (`listing_reports`): `POST /cars/{id}/reports` (logged in, not the owner, publicly visible listing only), one OPEN report per user and listing (partial unique index), at most 10 per user per 24 h (429). Blocking a listing resolves its open reports; `POST /cars/admin/reports/listing/{carId}/dismiss` dismisses them.
+- `/cars/admin/listings|reports|stats` use native SQL (`NamedParameterJdbcTemplate`) because `@SQLRestriction` would hide REMOVED listings. Photos removed by an admin are deleted from S3 after commit.
 
 When changing an event's payload shape, update the DTO in **both** the producing and consuming service — there's no shared event-schema module; each service has its own copy of the event DTO (e.g. `car-service/.../dto/CarUpdatedEvent.java` and `search-service/.../dto/CarUpdatedEvent.java`).
 

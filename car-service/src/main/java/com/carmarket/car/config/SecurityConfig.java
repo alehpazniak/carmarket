@@ -36,6 +36,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/cars/favorites").authenticated()
                 .requestMatchers(HttpMethod.GET, "/cars/*/favorite").authenticated()
                 .requestMatchers(HttpMethod.GET, "/cars/summaries").authenticated()
+                // The owner's own listings (any status): never covered by the public GET rule below
+                .requestMatchers(HttpMethod.GET, "/cars/my", "/cars/my/**").authenticated()
                 .requestMatchers(HttpMethod.GET, "/cars", "/cars/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated() // ← was permitAll(); now requires valid gateway signature

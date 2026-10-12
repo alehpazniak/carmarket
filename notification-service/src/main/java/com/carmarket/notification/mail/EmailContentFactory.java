@@ -24,6 +24,8 @@ public class EmailContentFactory {
                     + "The link is valid for 24 hours. If you didn't ask for this, ignore this email "
                     + "and your account stays unchanged.\n");
             case IMPORT_ORDER_UPDATE -> importOrderUpdate(notification);
+            case LISTING_BLOCKED -> listingBlocked(notification, recipient);
+            case LISTING_RESTORED -> listingRestored(notification, recipient);
         };
     }
 
@@ -41,6 +43,37 @@ public class EmailContentFactory {
                 + p.get("link") + "\n\n"
                 + "Do wejścia potrzebne jest hasło, które otrzymałeś od dealera. "
                 + "Ze względów bezpieczeństwa nie wysyłamy go e-mailem.\n");
+    }
+
+    /** Polish, like the rest of the seller-facing site. */
+    private EmailContent listingBlocked(Notification notification, Recipient recipient) {
+        Map<String, String> p = notification.getPayload();
+        String title = p.getOrDefault("title", "Twoje ogłoszenie");
+        return new EmailContent(
+            "Twoje ogłoszenie zostało zablokowane — " + title,
+            polishGreeting(recipient)
+                + "Twoje ogłoszenie " + title + " zostało zablokowane przez moderatora i nie jest widoczne "
+                + "dla innych użytkowników.\n\n"
+                + "Powód: " + p.getOrDefault("reason", "—") + "\n\n"
+                + "Szczegóły zobaczysz po zalogowaniu:\n"
+                + p.get("link") + "\n\n"
+                + "Jeśli uważasz, że to pomyłka, odpowiedz na tę wiadomość.\n");
+    }
+
+    private EmailContent listingRestored(Notification notification, Recipient recipient) {
+        Map<String, String> p = notification.getPayload();
+        String title = p.getOrDefault("title", "Twoje ogłoszenie");
+        return new EmailContent(
+            "Twoje ogłoszenie jest znowu widoczne — " + title,
+            polishGreeting(recipient)
+                + "Twoje ogłoszenie " + title + " zostało odblokowane i jest znowu widoczne w serwisie.\n\n"
+                + (p.get("reason") != null ? "Komentarz moderatora: " + p.get("reason") + "\n\n" : "")
+                + p.get("link") + "\n");
+    }
+
+    private String polishGreeting(Recipient recipient) {
+        String name = recipient.getDisplayName();
+        return (name == null || name.isBlank()) ? "Dzień dobry,\n\n" : "Dzień dobry " + name + ",\n\n";
     }
 
     private String greeting(Recipient recipient) {

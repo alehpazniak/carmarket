@@ -40,6 +40,8 @@ public class CarListingResponse {
     private ListingStatus status;
     private LocalDateTime promotedUntil;
     private LocalDateTime highlightedUntil;
+    /** Only set while the listing is BLOCKED (owner view /cars/my/{id} and admin views). */
+    private String moderationReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -1,5 +1,5 @@
 import api from '../api/client';
-import type { Page } from '../types';
+import type { CarListing, Page } from '../types';
 
 // admin-service (gateway /api/admin/**) — ADMIN only
 
@@ -146,6 +146,102 @@ export const getUserStats = () =>
 
 export const getAdminUserProfile = (id: string) =>
     api.get<AdminUserProfile>(`/api/users/admin/users/${id}`).then(r => r.data);
+
+// car-service /api/cars/admin/** (AdminListingDtos, ReportDtos)
+
+export interface AdminListingRow {
+    id: string;
+    sellerId: string;
+    make: string;
+    model: string;
+    year: number;
+    price: number;
+    city: string | null;
+    status: string;
+    primaryImageUrl: string | null;
+    createdAt: string;
+    promotedUntil: string | null;
+    highlightedUntil: string | null;
+    moderationReason: string | null;
+    openReports: number;
+}
+
+export interface ReportView {
+    id: string;
+    carId: string;
+    reporterId: string;
+    reason: string;
+    comment: string | null;
+    status: 'OPEN' | 'RESOLVED' | 'DISMISSED';
+    createdAt: string;
+    resolvedBy: string | null;
+    resolvedAt: string | null;
+    resolutionNote: string | null;
+}
+
+export interface AdminListingDetail {
+    listing: CarListing;
+    moderatedBy: string | null;
+    moderatedAt: string | null;
+    reports: ReportView[];
+}
+
+export interface ReportGroup {
+    carId: string;
+    title: string | null;
+    listingStatus: string | null;
+    sellerId: string | null;
+    primaryImageUrl: string | null;
+    count: number;
+    reasons: string[];
+    latestAt: string;
+}
+
+export interface ListingStats {
+    byStatus: Record<string, number>;
+    newLast7Days: number;
+    newLast30Days: number;
+    daily: DailyCount[];
+    openReports: number;
+    listingsWithOpenReports: number;
+    activePromotions: number;
+}
+
+export interface ListingFilters {
+    status?: string;
+    sellerId?: string;
+    q?: string;
+    from?: string;
+    to?: string;
+    promoted?: string;
+    page?: number;
+    size?: number;
+    sort?: string;
+}
+
+export const listAdminListings = (filters: ListingFilters) =>
+    api.get<Page<AdminListingRow>>('/api/cars/admin/listings', { params: cleanParams(filters) }).then(r => r.data);
+
+export const getAdminListing = (id: string) =>
+    api.get<AdminListingDetail>(`/api/cars/admin/listings/${id}`).then(r => r.data);
+
+export const blockListing = (id: string, reason: string) =>
+    api.post<AdminListingDetail>(`/api/cars/admin/listings/${id}/block`, { reason }).then(r => r.data);
+
+export const unblockListing = (id: string, reason: string) =>
+    api.post<AdminListingDetail>(`/api/cars/admin/listings/${id}/unblock`, { reason }).then(r => r.data);
+
+export const removeListingImage = (id: string, url: string, reason: string) =>
+    api.delete<AdminListingDetail>(`/api/cars/admin/listings/${id}/images`, { params: { url }, data: { reason } }).then(r => r.data);
+
+export const listReportGroups = (status: string, page = 0) =>
+    api.get<Page<ReportGroup>>('/api/cars/admin/reports', { params: { status, page, size: 20 } }).then(r => r.data);
+
+export const dismissReports = (carId: string, note: string) =>
+    api.post<{ dismissed: number }>(`/api/cars/admin/reports/listing/${carId}/dismiss`, { note }).then(r => r.data);
+
+export const getListingStats = () =>
+    api.get<ListingStats>('/api/cars/admin/stats').then(r => r.data);
 
 export const getAuditLog = (filters: AuditFilters) =>
     api.get<Page<AuditEntry>>('/api/admin/audit', { params: cleanParams(filters) }).then(r => r.data);
