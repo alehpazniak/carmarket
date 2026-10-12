@@ -10,7 +10,9 @@ public record ImportOrderProperties(
     Password password,
     Access access,
     Token token,
-    S3 s3
+    S3 s3,
+    /** Reverse proxies in front of the gateway, see {@link com.carmarket.importorder.security.ClientRequestInfo}. */
+    int trustedProxies
 ) {
 
     public record Password(int bcryptCost) {

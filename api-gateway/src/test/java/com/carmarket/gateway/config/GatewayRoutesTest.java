@@ -69,7 +69,7 @@ class GatewayRoutesTest {
         ServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.post("/api/import-orders/public/abc/access")
             .remoteAddress(new InetSocketAddress("203.0.113.9", 4000)));
 
-        assertThat(GatewayConfig.IMPORT_ACCESS_KEY_RESOLVER.resolve(exchange).block()).isEqualTo("import-access:203.0.113.9");
+        assertThat(GatewayConfig.importAccessKeyResolver(new ClientIpResolver(0)).resolve(exchange).block()).isEqualTo("import-access:203.0.113.9");
     }
 
     private static String firstMatch(List<Route> routes, MockServerHttpRequest.BaseBuilder<?> request) {

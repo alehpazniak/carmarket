@@ -15,7 +15,7 @@ class ClientTokenServiceTest {
 
     private static ClientTokenService service(String secret, Duration ttl) {
         return new ClientTokenService(new ImportOrderProperties("http://localhost:5173", null, null,
-            new ImportOrderProperties.Token(secret, ttl), null));
+            new ImportOrderProperties.Token(secret, ttl), null, 0));
     }
 
     @Test

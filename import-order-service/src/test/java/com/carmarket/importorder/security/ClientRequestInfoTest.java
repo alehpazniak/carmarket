@@ -27,10 +27,29 @@ class ClientRequestInfoTest {
         request.addHeader("X-Forwarded-For", "1.2.3.4, 198.51.100.23");
         request.addHeader("User-Agent", "x".repeat(500));
 
-        ClientRequestInfo info = ClientRequestInfo.from(request);
+        ClientRequestInfo info = ClientRequestInfo.from(request, 0);
 
         assertThat(info.ipPrefix()).isEqualTo("198.51.100.0/24");
         assertThat(info.userAgent()).hasSize(200);
+    }
+
+    @Test
+    void withTrustedProxiesSkipsTheEntriesTheyAppended() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("10.0.0.5");
+        // client-sent fake, real client (appended by the load balancer), load balancer (appended by the gateway)
+        request.addHeader("X-Forwarded-For", "1.2.3.4, 198.51.100.23, 10.0.0.2");
+
+        assertThat(ClientRequestInfo.from(request, 1).ipPrefix()).isEqualTo("198.51.100.0/24");
+        assertThat(ClientRequestInfo.from(request, 0).ipPrefix()).isEqualTo("10.0.0.0/24");
+    }
+
+    @Test
+    void outOfRangeTrustedProxiesFallBackToTheLastEntry() {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("X-Forwarded-For", "198.51.100.23");
+
+        assertThat(ClientRequestInfo.from(request, 3).ipPrefix()).isEqualTo("198.51.100.0/24");
     }
 
     @Test
@@ -38,6 +57,6 @@ class ClientRequestInfoTest {
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRemoteAddr("192.168.1.77");
 
-        assertThat(ClientRequestInfo.from(request).ipPrefix()).isEqualTo("192.168.1.0/24");
+        assertThat(ClientRequestInfo.from(request, 0).ipPrefix()).isEqualTo("192.168.1.0/24");
     }
 }

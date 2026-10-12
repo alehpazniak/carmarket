@@ -23,19 +23,15 @@ import reactor.core.publisher.Mono;
 public class GatewayConfig {
 
     /**
-     * Key resolver: use X-User-Id if present (authenticated), else remote IP.
+     * Key resolver: use X-User-Id if present (authenticated), else the client IP (see {@link ClientIpResolver}).
      */
     @Bean
     @Primary
-    public KeyResolver keyResolver() {
+    public KeyResolver keyResolver(ClientIpResolver clientIp) {
         return exchange -> {
             String userId = exchange.getRequest().getHeaders().getFirst("X-User-Id");
             if (userId != null) return Mono.just(userId);
-            return Mono.just(
-                exchange.getRequest().getRemoteAddress() != null
-                    ? exchange.getRequest().getRemoteAddress().getAddress().getHostAddress()
-                    : "unknown"
-            );
+            return Mono.just(clientIp.resolve(exchange));
         };
     }
 
@@ -93,10 +89,9 @@ public class GatewayConfig {
      * plain IP it would share the Redis bucket of every other anonymous request from that address, and
      * the standard limiter's refill would undo the strict one.
      */
-    static final KeyResolver IMPORT_ACCESS_KEY_RESOLVER = exchange -> Mono.just("import-access:" + (
-        exchange.getRequest().getRemoteAddress() != null
-            ? exchange.getRequest().getRemoteAddress().getAddress().getHostAddress()
-            : "unknown"));
+    static KeyResolver importAccessKeyResolver(ClientIpResolver clientIp) {
+        return exchange -> Mono.just("import-access:" + clientIp.resolve(exchange));
+    }
 
     /*
      * Limiters are picked by @Qualifier: @Primary wins over a matching parameter name, so without it
@@ -105,6 +100,7 @@ public class GatewayConfig {
     @Bean
     public RouteLocator routes(RouteLocatorBuilder builder,
                                KeyResolver keyResolver,
+                               ClientIpResolver clientIp,
                                @Qualifier("authRateLimiter") RedisRateLimiter authRateLimiter,
                                @Qualifier("standardRateLimiter") RedisRateLimiter standardRateLimiter,
                                @Qualifier("phoneRateLimiter") RedisRateLimiter phoneRateLimiter,
@@ -242,7 +238,7 @@ public class GatewayConfig {
                     .circuitBreaker(c -> c.setName("import-order-cb").setFallbackUri("forward:/fallback/import-order"))
                     .requestRateLimiter(rl -> rl
                         .setRateLimiter(importOrderAccessRateLimiter)
-                        .setKeyResolver(IMPORT_ACCESS_KEY_RESOLVER))
+                        .setKeyResolver(importAccessKeyResolver(clientIp)))
                     .rewritePath("/api/import-orders/(?<segment>.*)", "/import-orders/${segment}"))
                 .uri("lb://import-order-service"))
 

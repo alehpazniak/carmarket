@@ -67,6 +67,8 @@ All client traffic enters through **api-gateway**. Two layers of trust are chain
 
 Both secrets (`JWT_SECRET`, `gateway.internal-secret`) are shared across services via env vars — see `.env.example` / `docker-compose.yml`.
 
+Client IP behind proxies: `GATEWAY_TRUSTED_PROXIES` (gateway's IP-keyed rate limits, via `ClientIpResolver`) and `IMPORT_ORDER_TRUSTED_PROXIES` (import-order access log, `ClientRequestInfo`) are the number of reverse proxies in front of the gateway: 0 locally (direct remote address, client-sent `X-Forwarded-For` ignored), and in a deployed environment the actual proxy count, otherwise every client shares the load balancer's IP and rate-limit bucket.
+
 ## Async event flow (Kafka)
 
 Topics are named `<domain>.<event>`, auto-created (`KAFKA_AUTO_CREATE_TOPICS_ENABLE=true` in dev).

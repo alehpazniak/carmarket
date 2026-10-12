@@ -52,6 +52,9 @@ import-order:
     access-key-id: ${IMPORT_ORDER_AWS_ACCESS_KEY_ID:}
     secret-access-key: ${IMPORT_ORDER_AWS_SECRET_ACCESS_KEY:}
     presign-ttl: 5m
+  # Reverse proxies in front of the gateway (0 locally). The gateway appends the address it saw to
+  # X-Forwarded-For, so the client is the entry this many places left of the last one.
+  trusted-proxies: ${IMPORT_ORDER_TRUSTED_PROXIES:0}
 
 gateway:
   internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
