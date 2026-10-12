@@ -53,7 +53,7 @@ export default function AuctionLotCard({ lot, onSelect, selected }: Props) {
                 <div className="grid grid-cols-2 gap-1.5">
                     <div className="flex items-center gap-1.5 text-avtovo-text-secondary text-xs">
                         <Calendar size={12} />
-                        <span>Lot #{lot.lot_number}</span>
+                        <span>Lot #{lot.lotNumber}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-avtovo-text-secondary text-xs">
                         <Gauge size={12} />

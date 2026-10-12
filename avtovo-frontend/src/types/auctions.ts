@@ -2,6 +2,8 @@ export type AuctionSource = 'COPART' | 'IAAI';
 export type LotStatus = 'LIVE' | 'SOLD' | 'UNSOLD' | 'EXPIRED' | 'REMOVED';
 export type FuelType = 'PETROL' | 'DIESEL' | 'ELECTRIC' | 'HYBRID' | 'PLUGIN_HYBRID';
 
+// GET /api/auctions/lots, /lots/{id}, /lots/vin/{vin}, /lots/{id}/comparables — auction-import-service's
+// AuctionLot entity, serialized as-is (camelCase, no @JsonProperty).
 export interface AuctionLot {
     id: string;
     vin: string;
@@ -9,7 +11,7 @@ export interface AuctionLot {
     model: string;
     year: number;
     source: AuctionSource;
-    lot_number: string;
+    lotNumber: string;
     auctionPrice?: number;
     buyNowPrice?: number;
     currency: string;
@@ -30,10 +32,11 @@ export interface AuctionLot {
     updatedAt?: string;
 }
 
+// POST /api/auctions/lots/{id}/calculate — auction-import-service's ImportCalculationResponse (camelCase).
 export interface ImportCalculationResult {
     auctionPrice: number;
     auctionFee: number;
-    us_delivery: number;
+    usDelivery: number;
     oceanFreight: number;
     euPortFee: number;
     excise: number;
@@ -50,7 +53,8 @@ export interface ImportCalculationResult {
     profitRating: string;
 }
 
-// POST /api/auctions/lots/{id}/max-bid — reverse calculator: given a total budget, how much
+// POST /api/auctions/lots/{id}/max-bid and /apibara/vehicles/{slugVin}/max-bid — auction-import-service's
+// MaxBidRequest / MaxBidResponse (camelCase). Reverse calculator: given a total budget, how much
 // can the buyer afford to bid on the car itself once shipping, duty, excise, VAT and repair
 // are all accounted for.
 export interface MaxBidRequest {
@@ -80,23 +84,25 @@ export interface MaxBidResult {
     budgetSufficient: boolean;
 }
 
-// Apibara live-search result — one entry from GET /api/auctions/apibara/vehicles
+// GET /api/auctions/apibara/vehicles (one entry) — auction-import-service's ApibaraResponse.Vehicle,
+// serialized with its @JsonProperty (snake_case) names.
 export interface ApibaraVehicle {
     platform: string;
-    lotNumber: string;
+    lot_number: string;
     vin: string;
     title: string;
     year: number;
     make: string;
     model: string;
-    auction?: { state: string; auctionAt?: string };
-    pricing?: { currentBidUsd?: number; buyNowUsd?: number };
-    location?: { display?: string; sendFrom?: string };
-    condition?: { primaryDamage?: string; hasKey?: boolean };
+    auction?: { state: string; auction_at?: string };
+    pricing?: { current_bid_usd?: number; buy_now_usd?: number };
+    location?: { display?: string; send_from?: string };
+    condition?: { primary_damage?: string; has_key?: boolean };
     odometer?: { mi?: number };
-    media?: { thumbsCount?: number; hasVideo?: boolean };
+    media?: { thumbs_count?: number; has_video?: boolean; thumbs?: string[] };
 }
 
+// GET /api/auctions/apibara/vehicles — auction-import-service's ApibaraResponse.
 export interface ApibaraSearchResult {
     data: ApibaraVehicle[];
 }
@@ -150,19 +156,20 @@ export interface ApibaraVehicleDetail {
     } | null;
 }
 
-// GET /api/auctions/apibara/shipping/auction-to-port and .../vehicles/{slugVin}/shipping
+// GET /api/auctions/apibara/shipping/auction-to-port and .../vehicles/{slugVin}/shipping — auction-import-service's
+// ApibaraShippingResponse, snake_case @JsonProperty names; @JsonInclude(NON_NULL), so any field may be absent.
 export interface ApibaraShippingResult {
     ok: boolean;
-    data: {
-        vehicle: { platform: string; lotNumber: string; vin: string; title: string; type?: string };
-        auctionLocation: { display?: string; facility_id?: string; matched_location_id?: string; match_score?: number };
-        shipping: {
+    data?: {
+        vehicle?: { platform?: string; lot_number?: string; vin?: string; title?: string; type?: string };
+        auction_location?: { display?: string; facility_id?: string; matched_location_id?: string; match_score?: number };
+        shipping?: {
             recommended_port?: string;
             recommended_price_usd?: number;
-            has_shipping_price: boolean;
-            available_ports: { port: string; price: number }[];
+            has_shipping_price?: boolean;
+            available_ports?: { port: string; price: number }[];
         };
-    } | null;
+    };
 }
 
 // GET /api/auctions/apibara/vehicles/{slugVin}/history — raw Apibara passthrough (snake_case, unmapped).

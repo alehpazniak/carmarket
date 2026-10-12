@@ -18,6 +18,10 @@ const FUEL_LABELS: Record<string, string> = {
     PETROL: 'Benzyna', DIESEL: 'Diesel', ELECTRIC: 'Elektryczny', HYBRID: 'Hybryda', LPG: 'LPG',
 };
 
+const TRANSMISSION_LABELS: Record<CarListing['transmission'], string> = {
+    MANUAL: 'Manualna', AUTOMATIC: 'Automatyczna', SEMI_AUTOMATIC: 'Półautomatyczna',
+};
+
 export default function CarDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -99,7 +103,7 @@ export default function CarDetail() {
         { icon: <Fuel size={16} />, label: 'Paliwo', value: FUEL_LABELS[car.fuelType] || car.fuelType },
         { icon: <Settings2 size={16} />, label: 'Pojemność skokowa', value: tech.engineCapacity != null && `${tech.engineCapacity.toLocaleString('pl-PL')} cm³` },
         { icon: <Zap size={16} />, label: 'Moc', value: tech.powerHp != null && `${tech.powerHp} KM` },
-        { icon: <Cog size={16} />, label: 'Skrzynia', value: car.transmission === 'MANUAL' ? 'Manualna' : 'Automatyczna' },
+        { icon: <Cog size={16} />, label: 'Skrzynia', value: TRANSMISSION_LABELS[car.transmission] ?? car.transmission },
         { icon: <Cog size={16} />, label: 'Napęd', value: tech.driveType && DRIVE_LABELS[tech.driveType] },
         { icon: <Car size={16} />, label: 'Typ nadwozia', value: tech.bodyType && BODY_LABELS[tech.bodyType] },
         { icon: <Car size={16} />, label: 'Liczba drzwi', value: tech.doors },

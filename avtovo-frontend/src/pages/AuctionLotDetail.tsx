@@ -198,7 +198,7 @@ export default function AuctionLotDetail() {
                                 <div className="mt-4 bg-avtovo-bg border border-avtovo-border rounded-lg p-4 space-y-1.5 text-sm">
                                     <Row label="Cena aukcji" value={USD(calcResult.auctionPrice)} />
                                     <Row label="Opłata aukcyjna" value={USD(calcResult.auctionFee)} />
-                                    <Row label="Transport w USA" value={USD(calcResult.us_delivery)} />
+                                    <Row label="Transport w USA" value={USD(calcResult.usDelivery)} />
                                     <Row label="Fracht morski" value={USD(calcResult.oceanFreight)} />
                                     <Row label="Opłata portowa (EU)" value={USD(calcResult.euPortFee)} />
                                     <Row label="Akcyza" value={PLN(calcResult.excise)} />
@@ -359,7 +359,7 @@ export default function AuctionLotDetail() {
                                 </span>
                             </div>
                             <h1 className="text-2xl font-bold text-avtovo-text mb-1">{lot.year} {lot.make} {lot.model}</h1>
-                            <p className="text-avtovo-text-secondary text-sm mb-4">Lot #{lot.lot_number} · VIN {lot.vin}</p>
+                            <p className="text-avtovo-text-secondary text-sm mb-4">Lot #{lot.lotNumber} · VIN {lot.vin}</p>
                             <p className="text-3xl font-bold text-avtovo-accent mb-1">{USD(lot.auctionPrice)}</p>
                             {lot.buyNowPrice != null && (
                                 <p className="text-avtovo-text-secondary text-sm mb-4">Buy now: {USD(lot.buyNowPrice)}</p>

@@ -285,10 +285,10 @@ function ApibaraQuickTools() {
                 {shippingError && <p className="text-red-400 text-sm mt-3">{shippingError}</p>}
                 {shipping?.data && (
                     <div className="mt-4 bg-avtovo-bg border border-avtovo-border rounded-lg p-4 text-sm space-y-1.5 max-w-md">
-                        <Row label="Pojazd" value={shipping.data.vehicle.title} />
-                        <Row label="Lokalizacja aukcji" value={shipping.data.auctionLocation.display ?? '—'} />
-                        <Row label="Rekomendowany port" value={shipping.data.shipping.recommended_port ?? '—'} />
-                        <Row label="Cena transportu" value={USD(shipping.data.shipping.recommended_price_usd)} bold />
+                        <Row label="Pojazd" value={shipping.data.vehicle?.title ?? '—'} />
+                        <Row label="Lokalizacja aukcji" value={shipping.data.auction_location?.display ?? '—'} />
+                        <Row label="Rekomendowany port" value={shipping.data.shipping?.recommended_port ?? '—'} />
+                        <Row label="Cena transportu" value={USD(shipping.data.shipping?.recommended_price_usd)} bold />
                     </div>
                 )}
             </div>
@@ -345,7 +345,7 @@ function ApibaraQuickTools() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                         {results.map(v => (
                             <ApibaraVehicleBriefCard
-                                key={`${v.platform}-${v.lotNumber}`}
+                                key={`${v.platform}-${v.lot_number}`}
                                 vehicle={v}
                                 onSelect={vehicle => navigate(`/aukcje/pojazd/${encodeURIComponent(vehicle.vin)}`)}
                             />

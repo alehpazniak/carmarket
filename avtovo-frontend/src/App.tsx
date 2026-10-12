@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ChatProvider } from './context/ChatContext';
 import Navbar from './components/Navbar';
+import RouteErrorBoundary from './components/RouteErrorBoundary';
 import Home from './pages/Home';
 import AuthCallback from './pages/AuthCallback';
 import AddListing from './pages/AddListing';
@@ -45,48 +46,50 @@ function AppRoutes() {
     return (
         <div className="min-h-screen bg-avtovo-bg">
             <Navbar />
-            <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/auth/callback" element={<AuthCallback />} />
-                <Route path="/ogloszenia/:id" element={<CarDetail />} />
-                <Route path="/aukcje" element={<AuctionActions />} />
-                <Route path="/aukcje/lot/:id" element={<AuctionLotDetail />} />
-                <Route path="/aukcje/pojazd/:identifier" element={<ApibaraVehiclePage />} />
-                <Route path="/dodaj-ogloszenie" element={
-                    <ProtectedRoute><AddListing /></ProtectedRoute>
-                } />
-                <Route path="/ogloszenia/:id/edytuj" element={
-                    <ProtectedRoute><EditListing /></ProtectedRoute>
-                } />
-                <Route path="/moje-ogloszenia" element={
-                    <ProtectedRoute><MyListings /></ProtectedRoute>
-                } />
-                <Route path="/moj-profil" element={
-                    <ProtectedRoute><Profile /></ProtectedRoute>
-                } />
-                <Route path="/messages" element={
-                    <ProtectedRoute><Messages /></ProtectedRoute>
-                } />
-                <Route path="/messages/:conversationId" element={
-                    <ProtectedRoute><Messages /></ProtectedRoute>
-                } />
-                {/* Not protected: the emailed link may be opened in a browser that isn't logged in */}
-                <Route path="/konto-dealera/potwierdz" element={<ConfirmDealerUpgrade />} />
-                <Route path="/panel-dealera/zlecenia" element={
-                    <DealerRoute><ImportOrderList /></DealerRoute>
-                } />
-                <Route path="/panel-dealera/zlecenia/nowe" element={
-                    <DealerRoute><ImportOrderCreate /></DealerRoute>
-                } />
-                <Route path="/panel-dealera/zlecenia/:id" element={
-                    <DealerRoute><ImportOrderDetail /></DealerRoute>
-                } />
-                {/* Public: the client opens the dealer's link with a password, no account needed */}
-                <Route path="/zlecenie/:code" element={<ClientOrderPage />} />
-                <Route path="/platnosc/:id" element={
-                    <ProtectedRoute><PaymentReturn /></ProtectedRoute>
-                } />
-            </Routes>
+            <RouteErrorBoundary>
+                <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/auth/callback" element={<AuthCallback />} />
+                    <Route path="/ogloszenia/:id" element={<CarDetail />} />
+                    <Route path="/aukcje" element={<AuctionActions />} />
+                    <Route path="/aukcje/lot/:id" element={<AuctionLotDetail />} />
+                    <Route path="/aukcje/pojazd/:identifier" element={<ApibaraVehiclePage />} />
+                    <Route path="/dodaj-ogloszenie" element={
+                        <ProtectedRoute><AddListing /></ProtectedRoute>
+                    } />
+                    <Route path="/ogloszenia/:id/edytuj" element={
+                        <ProtectedRoute><EditListing /></ProtectedRoute>
+                    } />
+                    <Route path="/moje-ogloszenia" element={
+                        <ProtectedRoute><MyListings /></ProtectedRoute>
+                    } />
+                    <Route path="/moj-profil" element={
+                        <ProtectedRoute><Profile /></ProtectedRoute>
+                    } />
+                    <Route path="/messages" element={
+                        <ProtectedRoute><Messages /></ProtectedRoute>
+                    } />
+                    <Route path="/messages/:conversationId" element={
+                        <ProtectedRoute><Messages /></ProtectedRoute>
+                    } />
+                    {/* Not protected: the emailed link may be opened in a browser that isn't logged in */}
+                    <Route path="/konto-dealera/potwierdz" element={<ConfirmDealerUpgrade />} />
+                    <Route path="/panel-dealera/zlecenia" element={
+                        <DealerRoute><ImportOrderList /></DealerRoute>
+                    } />
+                    <Route path="/panel-dealera/zlecenia/nowe" element={
+                        <DealerRoute><ImportOrderCreate /></DealerRoute>
+                    } />
+                    <Route path="/panel-dealera/zlecenia/:id" element={
+                        <DealerRoute><ImportOrderDetail /></DealerRoute>
+                    } />
+                    {/* Public: the client opens the dealer's link with a password, no account needed */}
+                    <Route path="/zlecenie/:code" element={<ClientOrderPage />} />
+                    <Route path="/platnosc/:id" element={
+                        <ProtectedRoute><PaymentReturn /></ProtectedRoute>
+                    } />
+                </Routes>
+            </RouteErrorBoundary>
         </div>
     );
 }
