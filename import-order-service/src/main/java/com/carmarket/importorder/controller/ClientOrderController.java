@@ -1,5 +1,6 @@
 package com.carmarket.importorder.controller;
 
+import com.carmarket.importorder.config.ImportOrderProperties;
 import com.carmarket.importorder.dto.ClientOrderView;
 import com.carmarket.importorder.dto.ImportOrderDtos.ClientAccessGranted;
 import com.carmarket.importorder.dto.ImportOrderDtos.ClientAccessRequest;
@@ -35,17 +36,18 @@ public class ClientOrderController {
     static final String TOKEN_HEADER = "X-Order-Token";
 
     private final ClientAccessService service;
+    private final ImportOrderProperties properties;
 
     @PostMapping("/access")
     public ClientAccessGranted access(@PathVariable String code, @Valid @RequestBody ClientAccessRequest request,
                                       HttpServletRequest http) {
-        return service.login(code, request.password(), ClientRequestInfo.from(http));
+        return service.login(code, request.password(), ClientRequestInfo.from(http, properties.trustedProxies()));
     }
 
     @GetMapping
     public ClientOrderView view(@PathVariable String code, @RequestHeader(TOKEN_HEADER) String token,
                                 HttpServletRequest http) {
-        return service.view(code, token, ClientRequestInfo.from(http));
+        return service.view(code, token, ClientRequestInfo.from(http, properties.trustedProxies()));
     }
 
     @GetMapping("/files/{fileId}/url")

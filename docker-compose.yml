@@ -226,6 +226,7 @@ services:
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       JWT_SECRET: ${JWT_SECRET:-bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}  #  -bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+      GATEWAY_TRUSTED_PROXIES: ${GATEWAY_TRUSTED_PROXIES:-0}
     restart: on-failure
 
   # ─── AUTH SERVICE ────────────────────────────────────────────────────────────
@@ -624,4 +625,5 @@ services:
       IMPORT_ORDER_S3_REGION: ${IMPORT_ORDER_S3_REGION:-eu-central-1}
       IMPORT_ORDER_AWS_ACCESS_KEY_ID: ${IMPORT_ORDER_AWS_ACCESS_KEY_ID:-}
       IMPORT_ORDER_AWS_SECRET_ACCESS_KEY: ${IMPORT_ORDER_AWS_SECRET_ACCESS_KEY:-}
+      IMPORT_ORDER_TRUSTED_PROXIES: ${IMPORT_ORDER_TRUSTED_PROXIES:-0}
     restart: on-failure

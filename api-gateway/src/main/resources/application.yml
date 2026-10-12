@@ -37,6 +37,9 @@ jwt:
 # Must match the value used by car-service / user-service
 gateway:
   internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+  # Reverse proxies in front of the gateway: 0 = use the direct remote address and ignore
+  # X-Forwarded-For (local runs); N = take the N-th X-Forwarded-For entry from the right.
+  trusted-proxies: ${GATEWAY_TRUSTED_PROXIES:0}
 
 # Resilience4j circuit breaker defaults
 resilience4j:
