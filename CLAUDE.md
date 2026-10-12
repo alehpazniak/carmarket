@@ -50,11 +50,12 @@ Health/monitoring UIs when the stack is up: Eureka `:8761` (admin/admin), Kafka 
 | user-service | 8082 | postgres-user | User profiles, auto-created from `user.registered` |
 | car-service | 8083 | postgres-car, S3 | Car listings CRUD, favorites, paid promotions; publishes `car.*`, consumes `payment.*` |
 | search-service | 8084 | Elasticsearch | Full-text/filter search, indexed from Kafka |
-| chat-service | 8085 | postgres-chat | Buyer↔seller WebSocket/STOMP chat, publishes `chat.*` events |
+| chat-service | 8085 | postgres-chat | Buyer↔seller WebSocket/STOMP chat, publishes `chat.*` events; REST needs the gateway signature, `/ws` checks the JWT itself |
 | notification-service | 8087 | postgres-notification | Consumes `user.*`/`chat.*` events, sends email (via MailHog locally) |
 | auction-import-service | 8086 | postgres-auction | US auto-auction (Copart/Apibara) import-cost calculator, currency & shipping rates, analytics |
 | payment-service | 8088 | postgres-payment | Przelewy24 payments: register → P24 page → `urlStatus` webhook → verify; publishes `payment.*` events |
 | import-order-service | 8089 | postgres-import-order, S3 (private bucket) | Dealer import orders for US-auction cars: status timeline, documents/photos, password-protected client page `/zlecenie/<code>` |
+| admin-service | 8090 | postgres-admin (5441) | Admin panel backend: audit log (consumes `admin.audit`), system health of every Eureka instance; everything ADMIN only |
 
 Every backend service module lives at `<service>/src/main/java/com/carmarket/<name>/...`.
 
@@ -62,8 +63,10 @@ Every backend service module lives at `<service>/src/main/java/com/carmarket/<na
 
 All client traffic enters through **api-gateway**. Two layers of trust are chained:
 
-1. **Client → Gateway (JWT)**: `JwtAuthenticationFilter` (gateway) validates the JWT (HMAC-SHA256, stateless, no DB call) on every non-public route (`/api/auth/**`, `/api/search/**`, `/actuator/**`, `/eureka/**` are public, plus a few method-specific ones in `isPublicRoute`, e.g. GET/POST `/api/import-orders/public/**`, which import-order-service secures itself). It extracts `userId`/`roles` from the token and injects `X-User-Id` / `X-User-Roles` headers downstream.
+1. **Client → Gateway (JWT)**: `JwtAuthenticationFilter` (gateway) validates the JWT (HMAC-SHA256, stateless, no DB call) on every non-public route (`/api/auth/**`, `/api/search/**`, `/actuator/**`, `/eureka/**` are public, plus a few method-specific ones in `isPublicRoute`, e.g. GET/POST `/api/import-orders/public/**`, which import-order-service secures itself). **The first rule in `isPublicRoute` makes `/api/admin/**` and `/api/*/admin/**` non-public whatever the method**, before `GET /api/cars/**` and `/api/auth/**`; `/api/auth/logout-all`, `/api/auth/me` and `/api/cars/my/**` are non-public too. It extracts `userId`/`roles` from the token and injects `X-User-Id` / `X-User-Roles` headers downstream.
 2. **Gateway → Service (HMAC gateway signature)**: the gateway additionally signs the request with `GatewaySignatureService`, producing an `X-Gateway-Signature: <timestamp>:<hmac>` header from `gateway.internal-secret`. Each downstream service (`car-service`, `user-service`, `auction-import-service`, ...) has its own `GatewaySignatureFilter` (`OncePerRequestFilter`) that recomputes the HMAC and rejects the request if it doesn't match or is older than 30s (replay protection). **This means a service's REST endpoints only trust `X-User-Id`/`X-User-Roles` if the request also carries a valid, fresh gateway signature — services must never trust those headers if called directly, bypassing the gateway.** When adding a new backend service that needs authenticated identity, copy this `GatewaySignatureFilter` pattern rather than trusting `X-User-Id` directly.
+
+auth-service has a `GatewaySignatureFilter` as well: OAuth2, refresh, logout and dealer-upgrade (which checks the bearer token itself) stay public, while `/auth/logout-all`, `/auth/me` and `/auth/admin/**` need a signed caller. Note the signature covers only `userId:timestamp`, not the roles header.
 
 Both secrets (`JWT_SECRET`, `gateway.internal-secret`) are shared across services via env vars — see `.env.example` / `docker-compose.yml`.
 
@@ -83,6 +86,17 @@ Topics are named `<domain>.<event>`, auto-created (`KAFKA_AUTO_CREATE_TOPICS_ENA
 | `chat.conversation.read` | chat-service | notification-service (cancels/suppresses pending email) |
 | `payment.completed` / `payment.refunded` | payment-service | car-service (applies/reverts `LISTING_PROMOTION` / `LISTING_HIGHLIGHT`, see below) |
 | `import-order.client-update` | import-order-service | notification-service (batched "new information on your order" email to the order's client, see below) |
+| `admin.audit` | every service with admin writes (`AdminAuditPublisher`) | admin-service (`admin_audit_log`, idempotent by `eventId`) |
+
+## Admin panel
+
+- Admin endpoints live in the service that owns the data, under `/<prefix>/admin/**` (`/auth/admin/**`, `/cars/admin/**`, `/payments/admin/**`, `/api/auctions/admin/**`, ...), each `hasRole('ADMIN')` in that service's `SecurityConfig` (above any broader public rule). admin-service itself only holds the audit log and system health (`/api/admin/**` at the gateway → `/admin/**`).
+- Every admin write publishes `admin.audit` after commit via the service's own `AdminAuditPublisher` copy (`eventId`, `occurredAt`, `actorId`, `actorEmail` from `X-User-Email`, `service`, `action`, `targetType`, `targetId`, `reason`, `details`). `details` is a small map: never secrets, tokens or whole documents. Automatic actions use actor `system`.
+- Destructive actions need a reason of at least 5 characters, in the API and in the UI's `ConfirmDialog`.
+- First admins: `ADMIN_EMAILS` (auth-service `app.admin.bootstrap-emails`, comma-separated) are promoted to ADMIN on login (`AdminBootstrapService`, publishes `user.role-changed`, audited as `system`). Never demotes.
+- admin-service's `GET /admin/system/health` asks every Eureka instance for `/actuator/health` (2 s timeout, in parallel); services in `admin.system.expected-services` without an instance are reported DOWN. Every service therefore needs `spring-boot-starter-actuator` and `/actuator/**` permitted.
+- No impersonation and no reading of private chats.
+- Frontend: `/admin/*` is `React.lazy` (`src/admin/AdminApp.tsx`) behind `AdminRoute`, so admin code and charts stay out of the main bundle. Shared pieces: `DataTable` (server-side paging/sort), `useQueryState` (filters in the URL), `SearchInput` (debounced), `ConfirmDialog` (required reason), toasts.
 
 ## payment-service (Przelewy24) specifics
 

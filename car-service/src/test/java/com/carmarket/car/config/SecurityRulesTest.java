@@ -1,5 +1,6 @@
 package com.carmarket.car.config;
 
+import com.carmarket.car.audit.AdminAuditPublisher;
 import com.carmarket.car.controller.CarListingController;
 import com.carmarket.car.controller.ReindexController;
 import com.carmarket.car.kafka.CarEventProducer;
@@ -27,6 +28,9 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -60,6 +64,9 @@ class SecurityRulesTest {
 
     @MockBean
     private S3Service s3Service;
+
+    @MockBean
+    private AdminAuditPublisher auditPublisher;
 
     @BeforeEach
     void setUp() {
@@ -99,11 +106,13 @@ class SecurityRulesTest {
     }
 
     @Test
-    @DisplayName("reindex: an admin is allowed")
+    @DisplayName("reindex: an admin is allowed and the action is audited")
     void reindex_admin_ok() throws Exception {
-        mockMvc.perform(signed(post("/cars/admin/reindex"), "ADMIN"))
+        mockMvc.perform(signed(post("/cars/admin/reindex"), "ADMIN").header("X-User-Email", "boss@example.com"))
             .andExpect(status().isOk());
         verify(carListingRepository).findAll(any(Pageable.class));
+        verify(auditPublisher).publish(argThat(a -> "boss@example.com".equals(a.email())), eq("SEARCH_REINDEXED"),
+            eq("SEARCH_INDEX"), eq("car_listings"), isNull(), eq(java.util.Map.of("published", 0L)));
     }
 
     private static MockHttpServletRequestBuilder signed(MockHttpServletRequestBuilder request, String... roles) throws Exception {

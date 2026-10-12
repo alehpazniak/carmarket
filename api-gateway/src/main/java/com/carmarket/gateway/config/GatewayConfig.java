@@ -273,6 +273,17 @@ public class GatewayConfig {
                     .rewritePath("/api/import-orders/(?<segment>.*)", "/import-orders/${segment}"))
                 .uri("lb://import-order-service"))
 
+            // ─── ADMIN SERVICE (audit log, system health) — never public, see JwtAuthenticationFilter ───
+            .route("admin-service", r -> r
+                .path("/api/admin/**")
+                .filters(f -> f
+                    .circuitBreaker(c -> c.setName("admin-cb").setFallbackUri("forward:/fallback/admin"))
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(standardRateLimiter)
+                        .setKeyResolver(keyResolver))
+                    .rewritePath("/api/admin/(?<segment>.*)", "/admin/${segment}"))
+                .uri("lb://admin-service"))
+
             .route("auction-analytics", r -> r
                 .path("/api/analytics/**")
                 .filters(f -> f

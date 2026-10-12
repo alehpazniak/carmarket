@@ -1,10 +1,12 @@
 package com.carmarket.auth.config;
 
+import com.carmarket.auth.security.GatewaySignatureFilter;
 import com.carmarket.auth.security.OAuth2FailureHandler;
 import com.carmarket.auth.security.OAuth2SuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -12,12 +14,18 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
  * Auth service security configuration.
  *
  * The auth-service itself is the OAuth2 client — it handles callbacks from
  * Google/Facebook and issues JWTs. No JWT filter here (that's in the gateway).
+ * <p>
+ * OAuth2, refresh, logout and dealer-upgrade stay public (dealer-upgrade checks the bearer token
+ * itself). Calls that act on the caller's identity need a gateway-signed X-User-Id
+ * ({@link GatewaySignatureFilter}), since port 8081 is published.
  */
 @Configuration
 @EnableWebSecurity
@@ -28,6 +36,7 @@ public class SecurityConfig {
 
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
+    private final GatewaySignatureFilter gatewaySignatureFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
@@ -36,8 +45,13 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .addFilterBefore(gatewaySignatureFilter, UsernamePasswordAuthenticationFilter.class)
+            // 401 instead of oauth2Login's redirect to the provider's login page
+            .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .authorizeHttpRequests(auth -> auth
-                // All auth endpoints are public — gateway handles auth for other services
+                // Must stay above the /auth/** permitAll rule: the first match wins
+                .requestMatchers("/auth/admin/**").hasRole("ADMIN")
+                .requestMatchers("/auth/logout-all", "/auth/me").authenticated()
                 .requestMatchers("/auth/**", "/actuator/**").permitAll()
                 .anyRequest().authenticated()
             )

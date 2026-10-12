@@ -37,6 +37,7 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenService refreshTokenService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final AdminBootstrapService adminBootstrap;
 
     private static final String TOPIC_USER_REGISTERED = "user.registered";
 
@@ -72,6 +73,11 @@ public class AuthService {
                 isNewUser = true;
                 log.info("New user registered via {}: {}", provider, email);
             }
+        }
+
+        // New users are saved above, so the id is known for the audit entry
+        if (adminBootstrap.promoteIfListed(user, !isNewUser)) {
+            user = userRepository.save(user);
         }
 
         if (isNewUser) {
