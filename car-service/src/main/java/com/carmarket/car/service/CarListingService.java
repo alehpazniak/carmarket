@@ -56,6 +56,7 @@ public class CarListingService {
     public CarListingResponse getById(UUID id) {
         log.info("Getting car listing: {}", id);
         return repository.findById(id)
+            .filter(car -> car.getStatus().isPubliclyVisible())
             .map(mapper::toResponse)
             .orElseThrow(() -> new CarNotFoundException(id.toString()));
     }

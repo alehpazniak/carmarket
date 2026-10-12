@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { AlertTriangle, Loader2, X } from 'lucide-react';
 import { errorMessage } from '../hooks';
 
@@ -13,6 +13,10 @@ interface Props {
     /** Ask for a reason (at least 5 characters); every destructive admin action needs one. */
     requireReason?: boolean;
     reasonLabel?: string;
+    /** Extra inputs shown above the reason (their state lives in the caller). */
+    children?: ReactNode;
+    /** Disables the confirm button, e.g. while an extra input is invalid. */
+    confirmDisabled?: boolean;
     onConfirm: (reason: string) => Promise<void>;
     onClose: () => void;
 }
@@ -22,14 +26,15 @@ interface Props {
  * so the admin doesn't lose the typed reason.
  */
 export default function ConfirmDialog({ title, message, confirmLabel, destructive, requireReason = true,
-                                          reasonLabel = 'Powód (widoczny w dzienniku zdarzeń)', onConfirm, onClose }: Props) {
+                                          reasonLabel = 'Powód (widoczny w dzienniku zdarzeń)', children, confirmDisabled,
+                                          onConfirm, onClose }: Props) {
     const [reason, setReason] = useState('');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const tooShort = requireReason && reason.trim().length < MIN_REASON_LENGTH;
 
     const submit = async () => {
-        if (tooShort || busy) return;
+        if (tooShort || busy || confirmDisabled) return;
         setBusy(true);
         setError(null);
         try {
@@ -55,6 +60,7 @@ export default function ConfirmDialog({ title, message, confirmLabel, destructiv
                     </button>
                 </div>
                 {message && <p className="text-sm text-avtovo-text-secondary">{message}</p>}
+                {children}
                 {requireReason && (
                     <label className="block space-y-1.5">
                         <span className="text-sm text-avtovo-text">{reasonLabel}</span>
@@ -77,7 +83,7 @@ export default function ConfirmDialog({ title, message, confirmLabel, destructiv
                             className="px-4 py-2 rounded-lg text-sm border border-avtovo-border text-avtovo-text-secondary hover:text-avtovo-text">
                         Anuluj
                     </button>
-                    <button onClick={submit} disabled={tooShort || busy}
+                    <button onClick={submit} disabled={tooShort || busy || confirmDisabled}
                             className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 ${destructive
                                 ? 'bg-red-600 hover:bg-red-700' : 'bg-avtovo-accent hover:bg-avtovo-accent-hover'}`}>
                         {busy && <Loader2 size={14} className="animate-spin" />} {confirmLabel}

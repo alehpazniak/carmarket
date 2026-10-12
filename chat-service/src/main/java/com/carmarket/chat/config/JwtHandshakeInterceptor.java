@@ -1,6 +1,7 @@
 package com.carmarket.chat.config;
 
 import com.carmarket.chat.security.JwtUtil;
+import com.carmarket.chat.service.BlockedUserService;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
     private final JwtUtil jwtUtil;
+    private final BlockedUserService blockedUsers;
 
     @Override
     public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
@@ -32,6 +34,10 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
             return false; // → 403, connection refused
         }
         Claims claims = jwtUtil.validateAndGetClaims(token);
+        if (blockedUsers.isBlocked(claims.getSubject())) {
+            log.info("WebSocket handshake rejected — account {} is blocked", claims.getSubject());
+            return false;
+        }
         attributes.put("userId", claims.getSubject()); // picked up by ChannelInterceptor below
         return true;
     }

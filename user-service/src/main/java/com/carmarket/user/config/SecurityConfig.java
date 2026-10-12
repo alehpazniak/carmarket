@@ -29,6 +29,8 @@ public class SecurityConfig {
                 // Error dispatches (e.g. 400 for a bad query param) carry no identity; without this
                 // they'd be turned into 403 by anyRequest().authenticated()
                 .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                // Admin panel: full profiles (PII), ADMIN only; must stay above every broader rule
+                .requestMatchers("/users/admin/**").hasRole("ADMIN")
                 // The gateway routes all of /api/users/**, so these are reachable by any logged-in user
                 .requestMatchers(HttpMethod.POST, "/users/*/increment-listings", "/users/*/decrement-listings").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/users/me").authenticated()

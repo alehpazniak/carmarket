@@ -27,6 +27,7 @@ import java.util.UUID;
 @Component
 public class JwtTokenProvider {
 
+    @Getter
     @Value("${jwt.access-token-expiry-ms:900000}")       // 15 min
     private long accessTokenExpiryMs;
 

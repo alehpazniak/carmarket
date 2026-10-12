@@ -4,6 +4,8 @@ import { ToastProvider } from './components/Toasts';
 import AuditLogPage from './pages/AuditLogPage';
 import PlaceholderPage from './pages/PlaceholderPage';
 import SystemPage from './pages/SystemPage';
+import UserDetailPage from './pages/UserDetailPage';
+import UsersPage from './pages/UsersPage';
 
 /**
  * Everything under /admin/*. Loaded with React.lazy from App.tsx, so the admin code (and any chart
@@ -15,7 +17,8 @@ export default function AdminApp() {
             <Routes>
                 <Route element={<AdminLayout />}>
                     <Route index element={<PlaceholderPage title="Pulpit" />} />
-                    <Route path="uzytkownicy/*" element={<PlaceholderPage title="Użytkownicy" />} />
+                    <Route path="uzytkownicy" element={<UsersPage />} />
+                    <Route path="uzytkownicy/:id" element={<UserDetailPage />} />
                     <Route path="ogloszenia/*" element={<PlaceholderPage title="Ogłoszenia" />} />
                     <Route path="zgloszenia" element={<PlaceholderPage title="Zgłoszenia" />} />
                     <Route path="platnosci/*" element={<PlaceholderPage title="Płatności" />} />

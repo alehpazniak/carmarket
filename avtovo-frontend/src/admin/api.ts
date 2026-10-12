@@ -51,6 +51,102 @@ export function cleanParams(params: object): Record<string, string | number | bo
         .filter(([, v]) => v !== undefined && v !== null && v !== '')) as Record<string, string | number | boolean>;
 }
 
+// auth-service /api/auth/admin/** (AdminUserDtos)
+
+export type Role = 'USER' | 'DEALER' | 'ADMIN';
+
+export interface AdminUser {
+    id: string;
+    email: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    role: Role;
+    active: boolean;
+    providers: string[];
+    createdAt: string;
+    lastLoginAt: string | null;
+}
+
+export interface DealerRequest {
+    id: string;
+    userId: string;
+    email: string | null;
+    displayName: string | null;
+    state: 'pending' | 'confirmed' | 'expired';
+    createdAt: string;
+    expiresAt: string;
+    confirmedAt: string | null;
+}
+
+export interface DailyCount {
+    date: string;
+    count: number;
+}
+
+export interface UserStats {
+    total: number;
+    byRole: Record<Role, number>;
+    blocked: number;
+    newLast7Days: number;
+    newLast30Days: number;
+    daily: DailyCount[];
+    pendingDealerRequests: number;
+}
+
+/** user-service /api/users/admin/users/{id} (full UserProfileResponse; every read is audited). */
+export interface AdminUserProfile {
+    id: string;
+    email: string;
+    displayName?: string;
+    phoneNumber?: string;
+    city?: string;
+    street?: string;
+    houseNumber?: string;
+    country?: string;
+    bio?: string;
+    avatarUrl?: string;
+    role?: Role;
+    active?: boolean;
+    listingsCount?: number;
+    createdAt?: string;
+}
+
+export interface UserFilters {
+    q?: string;
+    role?: string;
+    active?: string;
+    page?: number;
+    size?: number;
+    sort?: string;
+}
+
+export const listUsers = (filters: UserFilters) =>
+    api.get<Page<AdminUser>>('/api/auth/admin/users', { params: cleanParams(filters) }).then(r => r.data);
+
+export const getAdminUser = (id: string) =>
+    api.get<AdminUser>(`/api/auth/admin/users/${id}`).then(r => r.data);
+
+export const changeUserRole = (id: string, role: Role, reason: string) =>
+    api.patch<AdminUser>(`/api/auth/admin/users/${id}/role`, { role, reason }).then(r => r.data);
+
+export const blockUser = (id: string, reason: string) =>
+    api.post<AdminUser>(`/api/auth/admin/users/${id}/block`, { reason }).then(r => r.data);
+
+export const unblockUser = (id: string, reason: string) =>
+    api.post<AdminUser>(`/api/auth/admin/users/${id}/unblock`, { reason }).then(r => r.data);
+
+export const logoutUserEverywhere = (id: string, reason: string) =>
+    api.post<void>(`/api/auth/admin/users/${id}/logout-all`, { reason }).then(() => undefined);
+
+export const listDealerRequests = (state: string, page = 0) =>
+    api.get<Page<DealerRequest>>('/api/auth/admin/dealer-requests', { params: { state, page, size: 20 } }).then(r => r.data);
+
+export const getUserStats = () =>
+    api.get<UserStats>('/api/auth/admin/stats').then(r => r.data);
+
+export const getAdminUserProfile = (id: string) =>
+    api.get<AdminUserProfile>(`/api/users/admin/users/${id}`).then(r => r.data);
+
 export const getAuditLog = (filters: AuditFilters) =>
     api.get<Page<AuditEntry>>('/api/admin/audit', { params: cleanParams(filters) }).then(r => r.data);
 

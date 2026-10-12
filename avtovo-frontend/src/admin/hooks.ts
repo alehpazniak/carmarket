@@ -64,8 +64,18 @@ export function useDebounced<T>(value: T, delay = 300): T {
     return debounced;
 }
 
+/** Backend messages (English) the admin panel shows in Polish. */
+const KNOWN_ERRORS: Record<string, string> = {
+    "You can't change your own role": 'Nie możesz zmienić własnej roli.',
+    "You can't block yourself": 'Nie możesz zablokować własnego konta.',
+    "The last active admin can't be demoted or blocked": 'Nie można odebrać uprawnień ani zablokować ostatniego aktywnego administratora.',
+    'Validation failed': 'Uzupełnij poprawnie wszystkie pola (powód: co najmniej 5 znaków).',
+};
+
 /** Message from an axios error body (ProblemDetail detail / {error} / {message}), else the fallback. */
 export function errorMessage(error: unknown, fallback = 'Coś poszło nie tak'): string {
-    const data = (error as { response?: { data?: { detail?: string; error?: string; message?: string } } })?.response?.data;
-    return data?.detail || data?.message || data?.error || fallback;
+    const response = (error as { response?: { status?: number; data?: { detail?: string; error?: string; message?: string } } })?.response;
+    if (response?.status === 403) return 'Brak uprawnień do tej operacji.';
+    const text = response?.data?.detail || response?.data?.message || response?.data?.error;
+    return (text && KNOWN_ERRORS[text]) || text || fallback;
 }

@@ -1,5 +1,6 @@
 package com.carmarket.gateway.filter;
 
+import com.carmarket.gateway.security.AccessRevocationChecker;
 import com.carmarket.gateway.security.GatewaySignatureService;
 import com.carmarket.gateway.util.JwtUtil;
 import io.jsonwebtoken.Claims;
@@ -17,6 +18,7 @@ import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,7 +29,8 @@ import java.util.UUID;
  * 1. Check if route is public  → pass through
  * 2. Extract Bearer token from Authorization header
  * 3. Validate JWT signature + expiry (stateless, no auth-service call)
- * 4. Inject X-User-Id and X-User-Roles headers for downstream services
+ * 4. Reject blocked accounts and tokens issued before an admin change (AccessRevocationChecker)
+ * 5. Inject X-User-Id and X-User-Roles headers for downstream services
  */
 @Slf4j
 @Component
@@ -37,6 +40,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     private static final String BEARER_PREFIX = "Bearer ";
     private final JwtUtil jwtUtil;
     private final GatewaySignatureService signatureService;
+    private final AccessRevocationChecker revocationChecker;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
     private static final List<String> PUBLIC_ROUTES = List.of(
         "/api/auth/**",
@@ -97,8 +101,18 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
             .build();
 
-        log.debug("JWT validated for user: {} path: {}", userId, path);
-        return chain.filter(exchange.mutate().request(mutatedRequest).build());
+        Instant issuedAt = claims.getIssuedAt() != null ? claims.getIssuedAt().toInstant() : null;
+        return revocationChecker.check(userId, issuedAt).flatMap(verdict -> switch (verdict) {
+            case BLOCKED -> {
+                log.info("Blocked account {} refused on {}", userId, path);
+                yield onUnauthorized(exchange.getResponse(), "Account blocked");
+            }
+            case REVOKED -> onUnauthorized(exchange.getResponse(), "Token revoked");
+            case OK -> {
+                log.debug("JWT validated for user: {} path: {}", userId, path);
+                yield chain.filter(exchange.mutate().request(mutatedRequest).build());
+            }
+        });
     }
 
     boolean isPublicRoute(String path, String method) {

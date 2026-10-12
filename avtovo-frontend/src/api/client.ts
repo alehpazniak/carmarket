@@ -34,9 +34,11 @@ api.interceptors.response.use(
                     localStorage.setItem('refresh_token', refresh_token);
                     original.headers.Authorization = `Bearer ${access_token}`;
                     return api(original);
-                } catch {
+                } catch (refreshError) {
                     localStorage.clear();
-                    window.location.href = '/';
+                    // 403 from /auth/refresh: the account was blocked by an admin
+                    const blocked = axios.isAxiosError(refreshError) && refreshError.response?.status === 403;
+                    window.location.href = blocked ? '/auth/callback?error=blocked' : '/';
                 }
             } else {
                 localStorage.clear();

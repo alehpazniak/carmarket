@@ -25,6 +25,8 @@ public interface CarListingRepository extends JpaRepository<CarListing, UUID> {
 
     Page<CarListing> findByStatus(ListingStatus status, Pageable pageable);
 
+    List<CarListing> findBySellerIdAndStatus(UUID sellerId, ListingStatus status);
+
     /** Row lock, so a promotion purchase, a refund and the expiry job never overwrite each other. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from CarListing c where c.id = :id")

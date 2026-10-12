@@ -1,27 +1,32 @@
 package com.carmarket.gateway.filter;
 
+import com.carmarket.gateway.security.AccessRevocationChecker;
 import com.carmarket.gateway.security.GatewaySignatureService;
 import com.carmarket.gateway.util.JwtUtil;
+import io.jsonwebtoken.Jwts;
 import org.junit.jupiter.api.Test;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
 import org.springframework.mock.web.server.MockServerWebExchange;
+import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import org.springframework.web.server.ServerWebExchange;
-
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class JwtAuthenticationFilterTest {
 
     private final JwtAuthenticationFilter filter =
-        new JwtAuthenticationFilter(mock(JwtUtil.class), mock(GatewaySignatureService.class));
+        new JwtAuthenticationFilter(mock(JwtUtil.class), mock(GatewaySignatureService.class), mock(AccessRevocationChecker.class));
 
     @Test
     void carSummariesRequireAToken() {
@@ -123,6 +128,43 @@ class JwtAuthenticationFilterTest {
         assertThat(filter.isPublicRoute("/api/cars/my", "GET")).isFalse();
         assertThat(filter.isPublicRoute("/api/cars/my/123", "GET")).isFalse();
         assertThat(filter.isPublicRoute("/api/cars/123", "GET")).isTrue();
+    }
+
+    @Test
+    void blockedAndRevokedTokensAreRejectedOthersForwardedWithIdentity() {
+        JwtUtil jwt = mock(JwtUtil.class);
+        GatewaySignatureService signer = mock(GatewaySignatureService.class);
+        AccessRevocationChecker checker = mock(AccessRevocationChecker.class);
+        JwtAuthenticationFilter withRedis = new JwtAuthenticationFilter(jwt, signer, checker);
+        String userId = UUID.randomUUID().toString();
+        Instant iat = Instant.ofEpochSecond(1_700_000_000L);
+        when(jwt.isValid("tok")).thenReturn(true);
+        when(jwt.validateAndGetClaims("tok")).thenReturn(Jwts.claims().subject(userId).issuedAt(Date.from(iat))
+            .add("email", "jan@example.com").build());
+        when(jwt.extractRoles("tok")).thenReturn(List.of("USER"));
+        when(signer.sign(userId)).thenReturn("123:sig");
+
+        for (var verdict : AccessRevocationChecker.Verdict.values()) {
+            when(checker.check(userId, iat)).thenReturn(Mono.just(verdict));
+            MockServerWebExchange exchange = MockServerWebExchange.from(
+                MockServerHttpRequest.get("/api/cars/my").header("Authorization", "Bearer tok"));
+            AtomicReference<ServerWebExchange> forwarded = new AtomicReference<>();
+
+            withRedis.filter(exchange, ex -> {
+                forwarded.set(ex);
+                return Mono.empty();
+            }).block();
+
+            if (verdict == AccessRevocationChecker.Verdict.OK) {
+                assertThat(forwarded.get()).isNotNull();
+                assertThat(forwarded.get().getRequest().getHeaders().getFirst("X-User-Id")).isEqualTo(userId);
+            } else {
+                assertThat(forwarded.get()).as(verdict.name()).isNull();
+                assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                assertThat(exchange.getResponse().getBodyAsString().block())
+                    .contains(verdict == AccessRevocationChecker.Verdict.BLOCKED ? "Account blocked" : "Token revoked");
+            }
+        }
     }
 
     private static GatewayFilterChain chain(AtomicBoolean forwarded) {

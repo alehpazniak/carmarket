@@ -17,6 +17,8 @@
     <name>auth-service</name>
 
     <properties>
+        <!-- Boot 3.2.3 manages 1.19.x, which current Docker Desktop rejects (API version too old) -->
+        <testcontainers.version>1.21.4</testcontainers.version>
         <java.version>17</java.version>
         <spring-cloud.version>2023.0.0</spring-cloud.version>
         <jjwt.version>0.12.5</jjwt.version>
@@ -56,6 +58,11 @@
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
+        </dependency>
+        <!-- Schema changes go through db/migration; existing databases (created by ddl-auto) are baselined at V2 -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -108,6 +115,17 @@
         <dependency>
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- FlywayMigrationTest runs the migrations against a throwaway Postgres, so Docker must be running -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
