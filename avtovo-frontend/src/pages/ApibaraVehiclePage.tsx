@@ -6,7 +6,7 @@ import PhotoGallery, { type GalleryPhoto } from '../components/PhotoGallery';
 import { useAuth } from '../context/AuthContext';
 import {
     ChevronLeft, MapPin, Key, ShieldCheck, Fuel, Cog, Palette, FileCheck2,
-    Lock, Clock, Gavel, Copy, Check, Gauge, Timer, TrendingUp, Loader2,
+    Lock, Clock, Gavel, Copy, Check, Gauge, Timer, TrendingUp, Loader2, ClipboardPlus,
 } from 'lucide-react';
 
 type Vehicle = NonNullable<ApibaraVehicleDetail['data']>;
@@ -59,7 +59,8 @@ function timeRemaining(auctionAt?: string): string | null {
 export default function ApibaraVehiclePage() {
     const { identifier } = useParams<{ identifier: string }>();
     const navigate = useNavigate();
-    const { isAuthenticated, isLoading: authLoading, loginWithGoogle } = useAuth();
+    const { isAuthenticated, isLoading: authLoading, loginWithGoogle, hasRole } = useAuth();
+    const isDealer = hasRole('DEALER') || hasRole('ADMIN');
     const [vehicle, setVehicle] = useState<Vehicle | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -187,7 +188,7 @@ export default function ApibaraVehiclePage() {
         : (vehicle.media?.thumbs ?? []).map(t => ({ thumb: t, large: t }));
 
     const isEnded = vehicle.auction?.state === 'finished';
-    const countdown = !isEnded ? timeRemaining(vehicle.auction?.auctionAt) : null;
+    const countdown = !isEnded ? timeRemaining(vehicle.auction?.auction_at) : null;
     const auctionStateLabel = vehicle.auction?.state ? (AUCTION_STATE_LABELS[vehicle.auction.state] ?? vehicle.auction.state) : '—';
 
     const copyVin = () => {
@@ -220,7 +221,7 @@ export default function ApibaraVehiclePage() {
                     </div>
                     <h1 className="text-2xl font-bold text-avtovo-text mb-1">{vehicle.title}</h1>
                     <div className="flex items-center gap-3 text-avtovo-text-secondary text-sm">
-                        <span>Lot #{vehicle.lotNumber}</span>
+                        <span>Lot #{vehicle.lot_number}</span>
                         <span className="flex items-center gap-1.5">
                             VIN {vehicle.vin}
                             <button
@@ -235,6 +236,14 @@ export default function ApibaraVehiclePage() {
                             <span className="flex items-center gap-1"><MapPin size={13} /> {vehicle.location.display}</span>
                         )}
                     </div>
+                    {isDealer && (
+                        <button
+                            onClick={() => navigate('/panel-dealera/zlecenia/nowe', { state: { prefill: { kind: 'apibara', vehicle } } })}
+                            className="mt-3 inline-flex items-center gap-2 bg-avtovo-accent hover:bg-avtovo-accent-hover text-white px-4 py-2 rounded-lg text-sm font-medium"
+                        >
+                            <ClipboardPlus size={16} /> Utwórz zlecenie dla klienta
+                        </button>
+                    )}
                 </div>
 
                 {/* Gallery + key info */}

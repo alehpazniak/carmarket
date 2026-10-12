@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
     searchLots,
     getShippingEstimate,
@@ -11,7 +11,7 @@ import type { AuctionLot, ApibaraShippingResult, ApibaraVehicle } from '../types
 import AuctionLotCard from '../components/AuctionLotCard';
 import ApibaraVehicleBriefCard from '../components/ApibaraVehicleBriefCard';
 import { useAuth } from '../context/AuthContext';
-import { Search, Ship, ScanSearch, Loader2, Lock } from 'lucide-react';
+import { Search, Ship, ScanSearch, Loader2, Lock, ClipboardList } from 'lucide-react';
 
 const USD = (v: number | undefined) => v == null ? '—' : `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 
@@ -22,6 +22,8 @@ export default function AuctionActions() {
     const [totalPages, setTotalPages] = useState(0);
     const [filters, setFilters] = useState<LotSearchParams>({});
     const navigate = useNavigate();
+    const { hasRole } = useAuth();
+    const isDealer = hasRole('DEALER') || hasRole('ADMIN');
 
     // `loading` starts as true, so the initial load doesn't need to set it
     const loadLots = (params: LotSearchParams, targetPage = 0) => {
@@ -50,11 +52,19 @@ export default function AuctionActions() {
     return (
         <div className="min-h-screen bg-avtovo-bg py-8">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-                <div>
-                    <h1 className="text-3xl font-bold text-avtovo-text mb-2">Aukcje importowe (USA)</h1>
-                    <p className="text-avtovo-text-secondary">
-                        Przeglądaj auta z aukcji Copart / IAAI zsynchronizowane przez Apibara, licz koszt importu i sprawdzaj transport.
-                    </p>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold text-avtovo-text mb-2">Aukcje importowe (USA)</h1>
+                        <p className="text-avtovo-text-secondary">
+                            Przeglądaj auta z aukcji Copart / IAAI zsynchronizowane przez Apibara, licz koszt importu i sprawdzaj transport.
+                        </p>
+                    </div>
+                    {isDealer && (
+                        <Link to="/panel-dealera/zlecenia"
+                              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-avtovo-border text-sm text-avtovo-text hover:border-avtovo-accent">
+                            <ClipboardList size={16} /> Zlecenia importu
+                        </Link>
+                    )}
                 </div>
 
                 {/* Filters */}

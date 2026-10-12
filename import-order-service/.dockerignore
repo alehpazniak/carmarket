@@ -1,0 +1,3 @@
+# Local IDE overrides can hold credentials: never bake them into the image
+src/main/resources/application-local.yml
+target/

@@ -101,20 +101,21 @@ export interface ApibaraSearchResult {
     data: ApibaraVehicle[];
 }
 
-// GET /api/auctions/apibara/vehicles/{slugVin}
+// GET /api/auctions/apibara/vehicles/{slugVin} — auction-import-service's ApibaraVehicleDetailResponse,
+// serialized with its @JsonProperty (snake_case) names.
 export interface ApibaraVehicleDetail {
     ok: boolean;
     data: {
-        slugVin: string;
+        slug_vin: string;
         vin: string;
         platform: string;
-        lotNumber: string;
+        lot_number: string;
         title: string;
         year: number;
         make: string;
         model: string;
         type?: string;
-        auction?: { state: string; formatted?: string; auctionAt?: string; isTimed?: boolean; isBuyNow?: boolean };
+        auction?: { state: string; formatted?: string; auction_at?: string; is_timed?: boolean; is_buy_now?: boolean; timed_end_at?: string };
         pricing?: {
             current_bid_usd?: number;
             buy_now_usd?: number;

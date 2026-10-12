@@ -1,0 +1,70 @@
+server:
+  port: 8089
+
+spring:
+  application:
+    name: import-order-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5440}/${DB_NAME:import_order_db}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+      acks: all
+      retries: 3
+  servlet:
+    multipart:
+      # Per file: documents up to 20 MB (photos 15 MB, checked in code).
+      # Per request: up to 30 photos × 15 MB plus multipart overhead.
+      max-file-size: 20MB
+      max-request-size: 460MB
+
+import-order:
+  # Base of the client link: <frontend-url>/zlecenie/<code>
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}
+  password:
+    bcrypt-cost: 12
+  access:
+    max-failed-attempts: 10
+    lock-duration: 15m
+  # Client order tokens (X-Order-Token). Own secret, at least 32 bytes; override in production.
+  token:
+    secret: ${IMPORT_ORDER_TOKEN_SECRET:ZGV2LWltcG9ydC1vcmRlci10b2tlbi1zZWNyZXQtY2hhbmdlLW1l}
+    ttl: 12h
+  # Private bucket for invoices / photos. While any of the four values is empty, storage is
+  # disabled: file endpoints answer 503 "Storage not configured", everything else works.
+  # The IAM user may only touch import-orders/* — keep it separate from car-service's AWS_* keys.
+  s3:
+    bucket: ${IMPORT_ORDER_S3_BUCKET:}
+    region: ${IMPORT_ORDER_S3_REGION:eu-central-1}
+    access-key-id: ${IMPORT_ORDER_AWS_ACCESS_KEY_ID:}
+    secret-access-key: ${IMPORT_ORDER_AWS_SECRET_ACCESS_KEY:}
+    presign-ttl: 5m
+
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD:admin}@${EUREKA_HOST:localhost}:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

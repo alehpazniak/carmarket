@@ -21,6 +21,7 @@
         <module>notification-service</module>
         <module>auction-import-service</module>
         <module>payment-service</module>
+        <module>import-order-service</module>
     </modules>
 
     <properties>

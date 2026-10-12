@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -132,10 +133,21 @@ public class ApibaraClient {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         }
         try {
-            return restClient.get()
+            ResponseEntity<byte[]> upstream = restClient.get()
                 .uri(uriBuilder -> uriBuilder.path(IMAGE_PROXY_PATH).queryParam("url", imageUrl).build())
                 .retrieve()
                 .toEntity(byte[].class);
+            // Only the content headers: passing Apibara's on (e.g. "Access-Control-Allow-Origin: *",
+            // Cloudflare headers) would give browsers a second, conflicting CORS header next to the gateway's.
+            HttpHeaders headers = new HttpHeaders();
+            if (upstream.getHeaders().getContentType() != null) {
+                headers.setContentType(upstream.getHeaders().getContentType());
+            }
+            String cacheControl = upstream.getHeaders().getCacheControl();
+            if (cacheControl != null) {
+                headers.setCacheControl(cacheControl);
+            }
+            return new ResponseEntity<>(upstream.getBody(), headers, upstream.getStatusCode());
         } catch (Exception e) {
             log.error("Apibara image proxy failed for {}: {}", imageUrl, e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();

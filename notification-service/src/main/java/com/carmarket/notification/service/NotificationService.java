@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -40,6 +41,36 @@ public class NotificationService {
                             Duration delay, Map<String, String> payload) {
         if (repository.existsByTypeAndRecipientIdAndDedupKeyAndStatusIn(type, recipientId, dedupKey, OPEN)) {
             log.debug("Skipping {} for {}: already open for key {}", type, recipientId, dedupKey);
+            return false;
+        }
+        repository.save(Notification.builder()
+            .type(type)
+            .recipientId(recipientId)
+            .dedupKey(dedupKey)
+            .sendAt(Instant.now().plus(delay))
+            .payload(payload)
+            .build());
+        log.info("Queued {} for {} (key {}), due in {}", type, recipientId, dedupKey, delay);
+        return true;
+    }
+
+    /**
+     * For updates that keep coming with nothing to "read" them (import orders): updates within
+     * {@code delay} of the first one become one email carrying the latest payload, and every later
+     * burst gets its own email. Unlike {@link #schedule}, an already sent email doesn't block the
+     * next one: it is acknowledged here, since no event ever resolves it.
+     *
+     * @return true if a new notification was queued, false if a pending one absorbed this update
+     */
+    @Transactional
+    public boolean scheduleBatched(NotificationType type, UUID recipientId, String dedupKey,
+                                   Duration delay, Map<String, String> payload) {
+        repository.transition(type, recipientId, dedupKey, NotificationStatus.SENT, NotificationStatus.ACKNOWLEDGED);
+        var pending = repository.findFirstByTypeAndRecipientIdAndDedupKeyAndStatus(
+            type, recipientId, dedupKey, NotificationStatus.PENDING);
+        if (pending.isPresent()) {
+            pending.get().setPayload(new HashMap<>(payload)); // keep its send time, show the latest data
+            log.debug("Folded {} for {} into the pending email (key {})", type, recipientId, dedupKey);
             return false;
         }
         repository.save(Notification.builder()

@@ -36,6 +36,8 @@ notification:
   mail-from: ${MAIL_FROM:avtovoby@gmail.com}
   # How long a message may stay unread before the recipient is emailed.
   chat-message-delay: ${CHAT_MESSAGE_EMAIL_DELAY:2m}
+  # Several import-order updates within this window are batched into one email to the client.
+  import-order-update-delay: ${IMPORT_ORDER_UPDATE_EMAIL_DELAY:10m}
   batch-size: 50
   max-attempts: 5
 
