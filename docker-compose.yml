@@ -606,6 +606,8 @@ services:
         condition: service_healthy
       postgres-import-order:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
     environment:
       EUREKA_HOST: eureka-server
       EUREKA_USER: ${EUREKA_USER:-admin}
@@ -615,6 +617,7 @@ services:
       DB_NAME: import_order_db
       DB_USER: postgres
       DB_PASSWORD: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       IMPORT_ORDER_TOKEN_SECRET: ${IMPORT_ORDER_TOKEN_SECRET:-ZGV2LWltcG9ydC1vcmRlci10b2tlbi1zZWNyZXQtY2hhbmdlLW1l}
       IMPORT_ORDER_S3_BUCKET: ${IMPORT_ORDER_S3_BUCKET:-}

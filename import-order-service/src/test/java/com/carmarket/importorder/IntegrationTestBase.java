@@ -6,8 +6,10 @@ import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -65,6 +67,10 @@ public abstract class IntegrationTestBase {
 
     @Autowired
     protected ObjectMapper json;
+
+    /** No broker in tests; PR-3 tests verify what would be sent. */
+    @MockBean
+    protected KafkaTemplate<String, Object> kafkaTemplate;
 
     @AfterEach
     void cleanDatabase() {

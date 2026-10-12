@@ -13,6 +13,7 @@ import com.carmarket.importorder.entity.ImportOrderEvent;
 import com.carmarket.importorder.entity.ImportOrderFile;
 import com.carmarket.importorder.entity.ImportOrderStatus;
 import com.carmarket.importorder.exception.ApiException;
+import com.carmarket.importorder.kafka.ImportOrderEventProducer;
 import com.carmarket.importorder.repository.AccessLogRepository;
 import com.carmarket.importorder.repository.ImportOrderEventRepository;
 import com.carmarket.importorder.repository.ImportOrderFileRepository;
@@ -61,12 +62,14 @@ public class ImportOrderService {
     private final FileStorage storage;
     private final ImportOrderProperties properties;
     private final OrderFields fields;
+    private final ImportOrderEventProducer eventProducer;
 
     public ImportOrderService(ImportOrderRepository orders, ImportOrderEventRepository events,
                               ImportOrderFileRepository files, AccessLogRepository accessLog, OrderLookup lookup,
                               OrderViews views, ClientViewFactory clientViews, ClientCredentialsGenerator credentials,
                               BCryptPasswordEncoder passwordEncoder, FileStorage storage,
-                              ImportOrderProperties properties, ObjectMapper objectMapper) {
+                              ImportOrderProperties properties, ObjectMapper objectMapper,
+                              ImportOrderEventProducer eventProducer) {
         this.orders = orders;
         this.events = events;
         this.files = files;
@@ -79,6 +82,7 @@ public class ImportOrderService {
         this.storage = storage;
         this.properties = properties;
         this.fields = new OrderFields(objectMapper);
+        this.eventProducer = eventProducer;
     }
 
     // ── orders ──
@@ -174,6 +178,7 @@ public class ImportOrderService {
     @Transactional
     public OrderDetail addEvent(Actor actor, UUID orderId, AddEventRequest request) {
         ImportOrder order = lookup.forWrite(actor, orderId);
+        ImportOrderStatus before = order.getStatus();
         if (request.occurredAt().isAfter(Instant.now().plus(MAX_FUTURE_EVENT))) {
             throw ApiException.badRequest("occurredAt can't be in the future");
         }
@@ -186,6 +191,10 @@ public class ImportOrderService {
             .createdBy(actor.userId())
             .build());
         refreshStatus(order);
+        // The client hears about a note meant for them, or any change of the current status
+        if (blankToNull(request.clientNote()) != null || order.getStatus() != before) {
+            eventProducer.publishClientUpdate(order, ImportOrderEventProducer.Reason.STATUS);
+        }
         return views.detail(order);
     }
 
@@ -193,8 +202,12 @@ public class ImportOrderService {
     public OrderDetail deleteEvent(Actor actor, UUID orderId, UUID eventId) {
         ImportOrder order = lookup.forWrite(actor, orderId);
         ImportOrderEvent event = events.findByIdAndOrderId(eventId, orderId).orElseThrow(ApiException::notFound);
+        ImportOrderStatus before = order.getStatus();
         events.delete(event);
         refreshStatus(order);
+        if (order.getStatus() != before) {
+            eventProducer.publishClientUpdate(order, ImportOrderEventProducer.Reason.STATUS);
+        }
         return views.detail(order);
     }
 

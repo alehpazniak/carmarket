@@ -72,6 +72,11 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
+        <!-- import-order.client-update events for notification-service -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
         <!-- S3Client + S3Presigner (private bucket, presigned GET URLs only) -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>

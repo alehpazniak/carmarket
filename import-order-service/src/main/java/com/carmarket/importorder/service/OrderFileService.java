@@ -7,6 +7,7 @@ import com.carmarket.importorder.entity.FileKind;
 import com.carmarket.importorder.entity.ImportOrder;
 import com.carmarket.importorder.entity.ImportOrderFile;
 import com.carmarket.importorder.exception.ApiException;
+import com.carmarket.importorder.kafka.ImportOrderEventProducer;
 import com.carmarket.importorder.repository.ImportOrderFileRepository;
 import com.carmarket.importorder.security.Actor;
 import com.carmarket.importorder.storage.FileStorage;
@@ -45,12 +46,14 @@ public class OrderFileService {
     private final OrderLookup lookup;
     private final FileStorage storage;
     private final TransactionTemplate transaction;
+    private final ImportOrderEventProducer eventProducer;
 
     public OrderFileService(ImportOrderFileRepository files, OrderLookup lookup, FileStorage storage,
-                            PlatformTransactionManager transactionManager) {
+                            PlatformTransactionManager transactionManager, ImportOrderEventProducer eventProducer) {
         this.files = files;
         this.lookup = lookup;
         this.storage = storage;
+        this.eventProducer = eventProducer;
         this.transaction = new TransactionTemplate(transactionManager);
     }
 
@@ -90,8 +93,12 @@ public class OrderFileService {
                     .build());
             }
             List<ImportOrderFile> saved = transaction.execute(status -> {
-                lookup.forWrite(actor, orderId); // still there and still ours
-                return files.saveAll(rows);
+                ImportOrder current = lookup.forWrite(actor, orderId); // still there and still ours
+                List<ImportOrderFile> stored = files.saveAll(rows);
+                if (kind == FileKind.DOCUMENT && clientVisible) {
+                    eventProducer.publishClientUpdate(current, ImportOrderEventProducer.Reason.DOCUMENT);
+                }
+                return stored;
             });
             log.info("{} {} file(s) uploaded to import order {} by {}", saved.size(), kind, orderId, actor.userId());
             return saved.stream().map(OrderViews::file).toList();
@@ -106,8 +113,9 @@ public class OrderFileService {
 
     @Transactional
     public FileView patch(Actor actor, UUID orderId, UUID fileId, FilePatchRequest request) {
-        lookup.forWrite(actor, orderId);
+        ImportOrder order = lookup.forWrite(actor, orderId);
         ImportOrderFile file = files.findByIdAndOrderId(fileId, orderId).orElseThrow(ApiException::notFound);
+        boolean wasVisible = file.isClientVisible();
         if (request.category() != null) {
             if (!file.getKind().isValidCategory(request.category())) {
                 throw ApiException.badRequest("Invalid category for " + file.getKind());
@@ -115,6 +123,10 @@ public class OrderFileService {
             file.setCategory(request.category());
         }
         if (request.clientVisible() != null) file.setClientVisible(request.clientVisible());
+        // A document the dealer just shared is news for the client, like a fresh upload
+        if (file.getKind() == FileKind.DOCUMENT && file.isClientVisible() && !wasVisible) {
+            eventProducer.publishClientUpdate(order, ImportOrderEventProducer.Reason.DOCUMENT);
+        }
         return OrderViews.file(file);
     }
 
