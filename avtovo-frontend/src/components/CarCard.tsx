@@ -28,7 +28,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function CarCard({ car, editHref, onMarkSold, onDelete, onPromote }: Props) {
     const navigate = useNavigate();
-    const mainImage = car.primaryImageUrl || car.imageUrls?.[0];
+    const mainImage = car.primaryImageUrl || ('imageUrls' in car ? car.imageUrls?.[0] : undefined);
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const statusLabel = STATUS_LABELS[car.status];

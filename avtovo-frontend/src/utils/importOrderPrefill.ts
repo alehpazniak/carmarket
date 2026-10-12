@@ -47,7 +47,7 @@ export function fromAuctionLot(lot: AuctionLot): PrefillResult {
     return {
         fields: {
             source: lot.source === 'COPART' || lot.source === 'IAAI' ? lot.source : 'OTHER',
-            lotNumber: lot.lot_number ?? null,
+            lotNumber: lot.lotNumber ?? null,
             vin: lot.vin ?? null,
             make: lot.make ?? null,
             model: lot.model ?? null,

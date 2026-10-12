@@ -19,9 +19,9 @@ export default function ApibaraVehicleBriefCard({ vehicle, onSelect }: Props) {
                 <span className="absolute top-2 right-2 text-xs font-medium px-2 py-1 rounded-md bg-black/60 text-white uppercase">
                     {vehicle.platform}
                 </span>
-                {vehicle.media?.thumbsCount ? (
+                {vehicle.media?.thumbs_count ? (
                     <span className="absolute bottom-2 right-2 flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-black/60 text-white">
-                        <Camera size={12} /> {vehicle.media.thumbsCount}
+                        <Camera size={12} /> {vehicle.media.thumbs_count}
                     </span>
                 ) : null}
             </div>
@@ -31,13 +31,13 @@ export default function ApibaraVehicleBriefCard({ vehicle, onSelect }: Props) {
                         {vehicle.year} {vehicle.make} {vehicle.model}
                     </h3>
                     <span className="text-avtovo-accent font-bold text-base whitespace-nowrap">
-                        {USD(vehicle.pricing?.currentBidUsd)}
+                        {USD(vehicle.pricing?.current_bid_usd)}
                     </span>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                     <div className="flex items-center gap-1.5 text-avtovo-text-secondary text-xs">
                         <Calendar size={12} />
-                        <span>Lot #{vehicle.lotNumber}</span>
+                        <span>Lot #{vehicle.lot_number}</span>
                     </div>
                     <div className="flex items-center gap-1.5 text-avtovo-text-secondary text-xs">
                         <Gauge size={12} />
@@ -45,7 +45,7 @@ export default function ApibaraVehicleBriefCard({ vehicle, onSelect }: Props) {
                     </div>
                     <div className="flex items-center gap-1.5 text-avtovo-text-secondary text-xs col-span-2">
                         <MapPin size={12} />
-                        <span>{vehicle.location?.display ?? '—'}{vehicle.condition?.primaryDamage ? ` · ${vehicle.condition.primaryDamage}` : ''}</span>
+                        <span>{vehicle.location?.display ?? '—'}{vehicle.condition?.primary_damage ? ` · ${vehicle.condition.primary_damage}` : ''}</span>
                     </div>
                 </div>
             </div>
