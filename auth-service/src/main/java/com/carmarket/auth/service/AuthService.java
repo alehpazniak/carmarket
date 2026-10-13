@@ -10,10 +10,12 @@ import com.carmarket.auth.security.JwtTokenProvider;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -75,10 +77,15 @@ public class AuthService {
             }
         }
 
-        // New users are saved above, so the id is known for the audit entry
-        if (adminBootstrap.promoteIfListed(user, !isNewUser)) {
-            user = userRepository.save(user);
+        if (!user.isActive()) {
+            log.warn("Login refused: account {} is blocked", user.getId());
+            throw new AccountBlockedException(user.getId().toString());
         }
+
+        // New users are saved above, so the id is known for the audit entry
+        adminBootstrap.promoteIfListed(user, !isNewUser);
+        user.setLastLoginAt(LocalDateTime.now());
+        user = userRepository.save(user);
 
         if (isNewUser) {
             publishUserRegisteredEvent(user);
@@ -111,11 +118,16 @@ public class AuthService {
             throw new IllegalArgumentException("Refresh token has been revoked");
         }
 
-        // Rotate: revoke old token, issue new pair
-        refreshTokenService.revoke(userId, jti);
-
         User user = userRepository.findById(UUID.fromString(userId))
             .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        if (!user.isActive()) {
+            // Blocking revokes the refresh tokens too; this covers a token stored before that
+            refreshTokenService.revoke(userId, jti);
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Account blocked");
+        }
+
+        // Rotate: revoke old token, issue new pair
+        refreshTokenService.revoke(userId, jti);
 
         return issueTokens(user);
     }

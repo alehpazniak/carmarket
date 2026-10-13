@@ -2,12 +2,11 @@ package com.carmarket.auth.service;
 
 import com.carmarket.auth.audit.AdminAuditPublisher;
 import com.carmarket.auth.entity.User;
+import com.carmarket.auth.support.AfterCommit;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Arrays;
 import java.util.Locale;
@@ -59,24 +58,11 @@ public class AdminBootstrapService {
 
         String userId = user.getId() != null ? user.getId().toString() : null;
         if (publishRoleChanged) {
-            afterCommit(() -> kafkaTemplate.send(TOPIC_ROLE_CHANGED, userId,
+            AfterCommit.run(() -> kafkaTemplate.send(TOPIC_ROLE_CHANGED, userId,
                 Map.of("userId", userId, "role", User.UserRole.ADMIN.name())));
         }
         auditPublisher.publish(AdminAuditPublisher.SYSTEM, "USER_ROLE_CHANGED", "USER", userId,
             "ADMIN_EMAILS bootstrap", Map.of("from", previous.name(), "to", User.UserRole.ADMIN.name()));
         return true;
-    }
-
-    private static void afterCommit(Runnable action) {
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            action.run();
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                action.run();
-            }
-        });
     }
 }

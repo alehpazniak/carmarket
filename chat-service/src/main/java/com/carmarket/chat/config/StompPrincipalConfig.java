@@ -1,5 +1,7 @@
 package com.carmarket.chat.config;
 
+import com.carmarket.chat.service.BlockedUserService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -15,13 +17,19 @@ import java.util.Map;
 /**
  * On STOMP CONNECT, promote the userId (stored at handshake) to the session Principal,
  * so @MessageMapping methods receive it and /user/{id}/... destinations resolve.
+ * <p>
+ * A user blocked after connecting can't send: SEND (and a later CONNECT) is refused, which makes
+ * Spring answer with a STOMP ERROR frame and close the socket.
  */
 @Configuration
+@RequiredArgsConstructor
 public class StompPrincipalConfig implements WebSocketMessageBrokerConfigurer {
+
+    private final BlockedUserService blockedUsers;
 
     @Override
     public void configureClientInboundChannel(org.springframework.messaging.simp.config.ChannelRegistration registration) {
-        registration.interceptors(new ChannelInterceptor() {
+        registration.interceptors(new BlockedUserInterceptor(blockedUsers), new ChannelInterceptor() {
             @Override
             public Message<?> preSend(Message<?> message, MessageChannel channel) {
                 StompHeaderAccessor accessor =

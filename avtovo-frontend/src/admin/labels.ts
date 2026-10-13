@@ -1,3 +1,7 @@
+import type { Role } from './api';
+
+export const ROLE_LABELS: Record<Role, string> = { ADMIN: 'Administrator', DEALER: 'Dealer', USER: 'Użytkownik' };
+
 /** Polish names of admin.audit actions; unknown ones are shown as sent. */
 export const ACTION_LABELS: Record<string, string> = {
     USER_ROLE_CHANGED: 'Zmiana roli',

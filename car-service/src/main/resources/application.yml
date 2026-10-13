@@ -30,6 +30,16 @@ spring:
       maximum-pool-size: 10
       minimum-idle: 2
 
+  # Databases created before Flyway was added (by ddl-auto) have no history table: they are
+  # baselined at V6, so only V7+ runs there. A fresh database runs V1..Vn.
+  # Own history table: auction-import-service run from the IDE defaults to car_db too, and its
+  # flyway_schema_history (auction V1..V3) would otherwise fail car-service's validation.
+  flyway:
+    enabled: true
+    table: flyway_schema_history_car
+    baseline-on-migrate: true
+    baseline-version: 6
+
   jpa:
     hibernate:
       ddl-auto: update

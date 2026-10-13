@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** Real SecurityConfig + GatewaySignatureFilter: port 8081 is published, so X-User-Id alone must not work. */
-@WebMvcTest(AuthController.class)
+@WebMvcTest({AuthController.class, com.carmarket.auth.controller.AdminUserController.class})
 @Import({SecurityConfig.class, GatewaySignatureFilter.class})
 @TestPropertySource(properties = "gateway.internal-secret=" + SecurityRulesTest.SECRET)
 class SecurityRulesTest {
@@ -46,6 +46,8 @@ class SecurityRulesTest {
     private OAuth2SuccessHandler successHandler;
     @MockBean
     private OAuth2FailureHandler failureHandler;
+    @MockBean
+    private com.carmarket.auth.service.AdminUserService adminUserService;
 
     @Test
     void logoutAllWithAForgedUserIdIsRejected() throws Exception {
@@ -68,6 +70,43 @@ class SecurityRulesTest {
         mvc.perform(get("/auth/admin/users").header("X-User-Id", USER.toString()).header("X-User-Roles", "ADMIN"))
             .andExpect(status().isUnauthorized());
         mvc.perform(get("/auth/admin/users").with(as(USER, "USER"))).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void everyAdminEndpointIsForbiddenToUsersAndOpenToAdmins() throws Exception {
+        org.mockito.Mockito.when(adminUserService.search(any(), any(), any(), any()))
+            .thenReturn(org.springframework.data.domain.Page.empty());
+        org.mockito.Mockito.when(adminUserService.dealerRequests(any(), any()))
+            .thenReturn(org.springframework.data.domain.Page.empty());
+        String id = UUID.randomUUID().toString();
+        String reason = "{\"reason\":\"spam account\"}";
+        String role = "{\"role\":\"DEALER\",\"reason\":\"verified dealer\"}";
+        // Builders are mutable (with() adds headers), so each call gets a fresh one
+        java.util.List<java.util.function.Supplier<org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder>> requests = java.util.List.of(
+            () -> get("/auth/admin/users"), () -> get("/auth/admin/users/" + id), () -> get("/auth/admin/dealer-requests"),
+            () -> get("/auth/admin/stats"),
+            () -> org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/auth/admin/users/" + id + "/role")
+                .contentType(MediaType.APPLICATION_JSON).content(role),
+            () -> post("/auth/admin/users/" + id + "/block").contentType(MediaType.APPLICATION_JSON).content(reason),
+            () -> post("/auth/admin/users/" + id + "/unblock").contentType(MediaType.APPLICATION_JSON).content(reason));
+        for (var request : requests) {
+            mvc.perform(request.get().with(as(USER, "USER"))).andExpect(status().isForbidden());
+            mvc.perform(request.get().with(as(USER, "ADMIN"))).andExpect(status().is2xxSuccessful());
+        }
+        mvc.perform(post("/auth/admin/users/" + id + "/logout-all").contentType(MediaType.APPLICATION_JSON).content(reason)
+            .with(as(USER, "USER"))).andExpect(status().isForbidden());
+        mvc.perform(post("/auth/admin/users/" + id + "/logout-all").contentType(MediaType.APPLICATION_JSON).content(reason)
+            .with(as(USER, "ADMIN"))).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void destructiveAdminActionsNeedAReason() throws Exception {
+        String id = UUID.randomUUID().toString();
+        mvc.perform(post("/auth/admin/users/" + id + "/block").contentType(MediaType.APPLICATION_JSON).content("{}")
+            .with(as(USER, "ADMIN"))).andExpect(status().isBadRequest());
+        mvc.perform(post("/auth/admin/users/" + id + "/block").contentType(MediaType.APPLICATION_JSON).content("{\"reason\":\"spam\"}")
+            .with(as(USER, "ADMIN"))).andExpect(status().isBadRequest());
+        org.mockito.Mockito.verifyNoInteractions(adminUserService);
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.carmarket.auth.security;
 
 import com.carmarket.auth.dto.AuthResponse;
 import com.carmarket.auth.entity.ProviderType;
+import com.carmarket.auth.service.AccountBlockedException;
 import com.carmarket.auth.service.AuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
@@ -51,9 +52,22 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         String registrationId = oauthToken.getAuthorizedClientRegistrationId(); // "google" or "facebook"
 
         ProviderType provider = ProviderType.valueOf(registrationId.toUpperCase());
-        AuthResponse authResponse = authService.handleOAuth2Login(oAuth2User, provider);
-
         String redirectUri = getRedirectUri(request);
+        AuthResponse authResponse;
+        try {
+            authResponse = authService.handleOAuth2Login(oAuth2User, provider);
+        } catch (AccountBlockedException e) {
+            // The frontend's /auth/callback shows "Twoje konto zostało zablokowane"
+            if (isAllowedRedirectUri(redirectUri)) {
+                getRedirectStrategy().sendRedirect(request, response,
+                    UriComponentsBuilder.fromUriString(redirectUri).queryParam("error", "blocked").build().toUriString());
+            } else {
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                objectMapper.writeValue(response.getWriter(), java.util.Map.of("error", "Account blocked"));
+            }
+            return;
+        }
 
         if (isAllowedRedirectUri(redirectUri)) {
             // Redirect mode (web app with frontend)
