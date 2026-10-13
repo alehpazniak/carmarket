@@ -105,6 +105,17 @@ public class CarListing {
     @Column(name = "highlighted_until")
     private LocalDateTime highlightedUntil;
 
+    /** Why a moderator blocked the listing (shown to the owner); cleared on unblock. Never from the request. */
+    @Column(name = "moderation_reason", columnDefinition = "TEXT")
+    private String moderationReason;
+
+    /** Admin who last blocked or unblocked the listing. */
+    @Column(name = "moderated_by")
+    private UUID moderatedBy;
+
+    @Column(name = "moderated_at")
+    private java.time.Instant moderatedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

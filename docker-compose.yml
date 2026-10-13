@@ -461,6 +461,7 @@ services:
       NOTIFICATION_DB_USER: postgres
       NOTIFICATION_DB_PASSWORD: postgres
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       MAIL_HOST: ${MAIL_HOST:-mailhog}
       MAIL_PORT: ${MAIL_PORT:-1025}
       MAIL_USERNAME: ${MAIL_USERNAME:-}

@@ -2,10 +2,11 @@ import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, Eye, LogOut, ShieldCheck, ShieldOff, UserCog } from 'lucide-react';
 import {
-    blockUser, changeUserRole, getAdminUser, getAdminUserProfile, getAuditLog, logoutUserEverywhere, unblockUser,
+    blockUser, changeUserRole, getAdminUser, getAdminUserProfile, getAuditLog, listAdminListings, logoutUserEverywhere, unblockUser,
     type AdminUserProfile, type Role,
 } from '../api';
 import { Badge, RoleBadge } from '../components/Badges';
+import ListingStatusBadge from '../components/ListingStatusBadge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import PageHeader from '../components/PageHeader';
 import { EmptyState, ErrorState, LoadingState } from '../components/States';
@@ -91,6 +92,29 @@ function ActivityCard({ userId }: { userId: string }) {
     );
 }
 
+function ListingsCard({ userId }: { userId: string }) {
+    const loader = useCallback(() => listAdminListings({ sellerId: userId, size: 5 }), [userId]);
+    const { data, error, loading, reload } = useLoader(loader);
+    return (
+        <section className={card}>
+            <div className="flex items-center justify-between mb-3">
+                <h2 className="font-semibold text-avtovo-text">Ogłoszenia{data ? ` (${data.totalElements})` : ''}</h2>
+                <Link to={`/admin/ogloszenia?sellerId=${userId}`} className="text-sm text-avtovo-accent hover:underline">Wszystkie</Link>
+            </div>
+            {loading ? <LoadingState /> : error ? <ErrorState onRetry={reload} /> : !data?.content.length ? <EmptyState label="Brak ogłoszeń" /> : (
+                <ul className="space-y-2">
+                    {data.content.map(l => (
+                        <li key={l.id} className="flex items-center justify-between gap-3 text-sm">
+                            <Link to={`/admin/ogloszenia/${l.id}`} className="text-avtovo-text hover:text-avtovo-accent">{l.make} {l.model} {l.year}</Link>
+                            <ListingStatusBadge status={l.status} />
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </section>
+    );
+}
+
 /** /admin/uzytkownicy/:id */
 export default function UserDetailPage() {
     const { id = '' } = useParams();
@@ -156,6 +180,7 @@ export default function UserDetailPage() {
                     <Field label="ID">{user.id}</Field>
                 </section>
                 <ProfileCard userId={user.id} />
+                <ListingsCard userId={user.id} />
                 <ActivityCard key={activityKey} userId={user.id} />
             </div>
 

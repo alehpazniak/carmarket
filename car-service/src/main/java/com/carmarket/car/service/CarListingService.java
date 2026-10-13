@@ -90,6 +90,15 @@ public class CarListingService {
             .map(mapper::toResponse);
     }
 
+    /** The owner's listing in any status except REMOVED, with the moderation reason; someone else's is 404. */
+    @Transactional(readOnly = true)
+    public CarListingResponse getMine(UUID id, UUID requesterId) {
+        return repository.findById(id)
+            .filter(car -> car.getSellerId().equals(requesterId))
+            .map(mapper::toResponse)
+            .orElseThrow(() -> new CarNotFoundException(id.toString()));
+    }
+
     @Transactional(readOnly = true)
     public Page<CarListingResponse> getMyListings(UUID sellerId, Pageable pageable) {
         return repository.findBySellerId(sellerId, pageable)
@@ -118,6 +127,11 @@ public class CarListingService {
     @Transactional
     public CarListingResponse markAsSold(UUID id, UUID requesterId) {
         CarListing car = findAndVerifyOwner(id, requesterId);
+        // SOLD is public again: a blocked or suspended listing must not get out that way
+        if (car.getStatus() == ListingStatus.BLOCKED || car.getStatus() == ListingStatus.SUSPENDED) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                "A blocked or suspended listing can't be marked as sold");
+        }
         car.setStatus(ListingStatus.SOLD);
         CarListing updated = repository.save(car);
         eventProducer.publishUpdated(updated);

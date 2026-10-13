@@ -48,6 +48,9 @@ class CarListingControllerTest {
     private CarListingService carListingService;
 
     @MockBean
+    private com.carmarket.car.service.ListingReportService listingReportService;
+
+    @MockBean
     private S3Service s3Service;
 
     @Autowired

@@ -26,12 +26,17 @@ function carTitle(car: CarSummary) {
     return `${car.make} ${car.model} ${car.year}`;
 }
 
+/** Listings other users can't open any more (removed, blocked by a moderator, owner's account blocked). */
+function isUnavailable(car: CarSummary) {
+    return car.status === 'REMOVED' || car.status === 'BLOCKED' || car.status === 'SUSPENDED';
+}
+
 function StatusBadge({ car }: { car: CarSummary }) {
-    if (car.status !== 'SOLD' && car.status !== 'REMOVED') return null;
+    if (car.status !== 'SOLD' && !isUnavailable(car)) return null;
     const sold = car.status === 'SOLD';
     return (
         <span style={{ marginLeft: 8, padding: '1px 8px', borderRadius: 10, fontSize: 12, fontWeight: 600, verticalAlign: 'middle', background: sold ? '#1e3a8a' : '#3f3f46', color: sold ? '#bfdbfe' : '#e4e4e7' }}>
-            {sold ? 'Sprzedane' : 'Usunięte'}
+            {sold ? 'Sprzedane' : car.status === 'REMOVED' ? 'Usunięte' : 'Niedostępne'}
         </span>
     );
 }
@@ -134,7 +139,7 @@ export default function Messages() {
 
     if (active) {
         const entry = cars[active.carId];
-        const removed = entry?.state === 'missing' || (entry?.state === 'loaded' && entry.car.status === 'REMOVED');
+        const removed = entry?.state === 'missing' || (entry?.state === 'loaded' && isUnavailable(entry.car));
         return (
             <div className="messages-page" style={{ flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
@@ -186,7 +191,7 @@ export default function Messages() {
                 {conversations.map((c) => {
                     const entry = cars[c.carId];
                     const car = entry?.state === 'loaded' ? entry.car : null;
-                    const photo = car && car.status !== 'REMOVED' ? car.primaryImageUrl : null;
+                    const photo = car && !isUnavailable(car) ? car.primaryImageUrl : null;
                     const role = c.buyerId === user?.id ? 'Sprzedający' : 'Kupujący';
                     return (
                         <div

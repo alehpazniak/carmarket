@@ -42,7 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Runs the real {@link SecurityConfig} + GatewaySignatureFilter (unlike {@link SecurityConfigTest},
  * which permits everything) with requests signed the way the gateway signs them.
  */
-@WebMvcTest({ReindexController.class, CarListingController.class})
+@WebMvcTest({ReindexController.class, CarListingController.class, com.carmarket.car.controller.AdminListingController.class})
 @Import(SecurityConfig.class)
 @TestPropertySource(properties = "gateway.internal-secret=" + SecurityRulesTest.SECRET)
 @DisplayName("car-service security rules")
@@ -67,6 +67,12 @@ class SecurityRulesTest {
 
     @MockBean
     private AdminAuditPublisher auditPublisher;
+
+    @MockBean
+    private com.carmarket.car.service.ListingReportService listingReportService;
+
+    @MockBean
+    private com.carmarket.car.service.AdminListingService adminListingService;
 
     @BeforeEach
     void setUp() {
@@ -126,6 +132,47 @@ class SecurityRulesTest {
             .header("X-User-Id", userId)
             .header("X-User-Roles", String.join(",", roles))
             .header("X-Gateway-Signature", ts + ":" + sig);
+    }
+
+    @Test
+    @DisplayName("admin listing endpoints: USER 403, ADMIN 200")
+    void adminListingEndpoints() throws Exception {
+        String id = UUID.randomUUID().toString();
+        String reason = "{\"reason\":\"fake listing\"}";
+        java.util.List<java.util.function.Supplier<MockHttpServletRequestBuilder>> requests = java.util.List.of(
+            () -> get("/cars/admin/listings"), () -> get("/cars/admin/listings/" + id), () -> get("/cars/admin/reports"),
+            () -> get("/cars/admin/stats"),
+            () -> post("/cars/admin/listings/" + id + "/block").contentType("application/json").content(reason),
+            () -> post("/cars/admin/listings/" + id + "/unblock").contentType("application/json").content(reason),
+            () -> org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/cars/admin/listings/" + id + "/images")
+                .param("url", "https://s3/a.jpg").contentType("application/json").content(reason),
+            () -> post("/cars/admin/reports/listing/" + id + "/dismiss").contentType("application/json").content("{\"note\":\"looks fine\"}"));
+        for (var request : requests) {
+            mockMvc.perform(signed(request.get(), "USER")).andExpect(status().isForbidden());
+            mockMvc.perform(request.get()).andExpect(status().isForbidden());
+            mockMvc.perform(signed(request.get(), "ADMIN")).andExpect(status().is2xxSuccessful());
+        }
+    }
+
+    @Test
+    @DisplayName("/cars/my/{id}: unsigned request gets 403 despite the public GET /cars/** rule")
+    void myListing_unsigned_forbidden() throws Exception {
+        mockMvc.perform(get("/cars/my/" + UUID.randomUUID()).header("X-User-Id", UUID.randomUUID().toString()))
+            .andExpect(status().isForbidden());
+        mockMvc.perform(get("/cars/my").header("X-User-Id", UUID.randomUUID().toString()))
+            .andExpect(status().isForbidden());
+        verify(carListingService, never()).getMine(any(), any());
+    }
+
+    @Test
+    @DisplayName("reporting needs a signed caller")
+    void report_unsigned_forbidden() throws Exception {
+        mockMvc.perform(post("/cars/" + UUID.randomUUID() + "/reports").contentType("application/json")
+                .content("{\"reason\":\"SCAM\"}").header("X-User-Id", UUID.randomUUID().toString()))
+            .andExpect(status().isForbidden());
+        mockMvc.perform(signed(post("/cars/" + UUID.randomUUID() + "/reports").contentType("application/json")
+                .content("{\"reason\":\"SCAM\"}"), "USER"))
+            .andExpect(status().isCreated());
     }
 
     @Test

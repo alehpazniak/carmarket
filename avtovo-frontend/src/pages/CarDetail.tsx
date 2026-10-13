@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { Link, useParams, useNavigate } from 'react-router-dom';
-import { getCar, deleteCar } from '../api/cars';
+import { getCar, getMyCar, deleteCar } from '../api/cars';
 import type {CarListing} from '../types';
 import { useAuth } from '../context/AuthContext';
-import { MapPin, Fuel, Gauge, Calendar, Cog, Palette, Tag, Trash2, ChevronLeft, ChevronRight, Check, Pencil, Zap, Car, Hash, Globe, ShieldCheck, Settings2, Sparkles } from 'lucide-react';
+import { MapPin, Fuel, Gauge, Calendar, Cog, Palette, Tag, Trash2, ChevronLeft, ChevronRight, Check, Pencil, Zap, Car, Hash, Globe, ShieldCheck, Settings2, Sparkles, Flag, ShieldOff } from 'lucide-react';
 import { ContactSellerButton } from '../components/ContactSellerButton';
 import { ListingChatSection, type ListingChatSectionHandle } from '../components/ListingChatSection';
 import { EQUIPMENT_CATEGORIES } from '../constants/equipment';
@@ -12,6 +12,7 @@ import { CATEGORY_LABELS } from '../constants/cars';
 import { BODY_LABELS, CONDITION_LABELS, DRIVE_LABELS, FLAG_LABELS, type FlagField } from '../constants/technical';
 import VideoPlayer from '../components/VideoPlayer';
 import PromoteListingDialog from '../components/PromoteListingDialog';
+import ReportListingDialog from '../components/ReportListingDialog';
 import { activeUntilLabel } from '../utils/promotion';
 
 const FUEL_LABELS: Record<string, string> = {
@@ -25,12 +26,13 @@ const TRANSMISSION_LABELS: Record<CarListing['transmission'], string> = {
 export default function CarDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { user } = useAuth();
+    const { user, isAuthenticated } = useAuth();
     const [car, setCar] = useState<CarListing | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<'notFound' | 'failed' | null>(null);
     const [imgIdx, setImgIdx] = useState(0);
     const [promoteOpen, setPromoteOpen] = useState(false);
+    const [reportOpen, setReportOpen] = useState(false);
     const chatRef = useRef<ListingChatSectionHandle>(null);
 
     // `loading` starts true, so the first load doesn't set it; retry() does
@@ -38,12 +40,20 @@ export default function CarDetail() {
         if (!id) return;
         getCar(id)
             .then(setCar)
-            .catch((err) => {
-                console.error(err);
-                setLoadError(axios.isAxiosError(err) && err.response?.status === 404 ? 'notFound' : 'failed');
+            .catch(async (err) => {
+                const notFound = axios.isAxiosError(err) && err.response?.status === 404;
+                // A blocked or suspended listing is 404 publicly; its owner still sees it (with the reason)
+                if (notFound && isAuthenticated) {
+                    try {
+                        setCar(await getMyCar(id));
+                        return;
+                    } catch { /* not the owner: fall through to "not found" */ }
+                }
+                if (!notFound) console.error(err);
+                setLoadError(notFound ? 'notFound' : 'failed');
             })
             .finally(() => setLoading(false));
-    }, [id]);
+    }, [id, isAuthenticated]);
 
     useEffect(() => {
         loadCar();
@@ -122,6 +132,22 @@ export default function CarDetail() {
                     <ChevronLeft size={18} />
                     Wróć
                 </button>
+
+                {(car.status === 'BLOCKED' || car.status === 'SUSPENDED') && (
+                    <div className="mb-6 flex items-start gap-3 bg-red-500/10 border border-red-700 rounded-xl p-4 text-sm">
+                        <ShieldOff size={18} className="text-red-400 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-medium text-red-300">
+                                {car.status === 'BLOCKED' ? 'Ogłoszenie zostało zablokowane przez moderatora' : 'Ogłoszenie jest zawieszone'}
+                            </p>
+                            <p className="text-avtovo-text-secondary mt-1">
+                                {car.status === 'BLOCKED'
+                                    ? `Nie jest widoczne dla innych użytkowników.${car.moderationReason ? ` Powód: ${car.moderationReason}` : ''}`
+                                    : 'Twoje konto jest zablokowane, więc ogłoszenie nie jest widoczne dla innych użytkowników.'}
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Left: images + details */}
@@ -283,6 +309,12 @@ export default function CarDetail() {
                             </div>
                             <ContactSellerButton carId={car.id} sellerId={car.sellerId}
                                                  listingActive={car.status === 'ACTIVE'} onWrite={() => chatRef.current?.openAndFocus()} />
+                            {isAuthenticated && !isOwner && (car.status === 'ACTIVE' || car.status === 'SOLD') && (
+                                <button onClick={() => setReportOpen(true)}
+                                        className="w-full flex items-center justify-center gap-2 text-sm text-avtovo-text-secondary hover:text-red-400 py-2 transition-colors">
+                                    <Flag size={14} /> Zgłoś ogłoszenie
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -290,6 +322,7 @@ export default function CarDetail() {
                 <ListingChatSection ref={chatRef} carId={car.id} sellerId={car.sellerId} />
             </div>
             {promoteOpen && isOwner && <PromoteListingDialog car={car} onClose={() => setPromoteOpen(false)} />}
+            {reportOpen && <ReportListingDialog carId={car.id} onClose={() => setReportOpen(false)} />}
         </div>
     );
 }

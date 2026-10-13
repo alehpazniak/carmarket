@@ -46,7 +46,21 @@ class FlywayMigrationTest {
         flyway("fresh").migrate();
 
         jdbc().execute(insert("fresh", "SUSPENDED"));
+        jdbc().execute(insert("fresh", "BLOCKED"));
         assertThatThrownBy(() -> jdbc().execute(insert("fresh", "BOGUS")));
+    }
+
+    @Test
+    void onlyOneOpenReportPerUserAndListing() {
+        flyway("reports").migrate();
+        JdbcTemplate jdbc = jdbc();
+        String insert = "INSERT INTO reports.listing_reports (id, car_id, reporter_id, reason, status) "
+            + "VALUES (gen_random_uuid(), '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002', 'SCAM', ?)";
+
+        jdbc.update(insert, "OPEN");
+        assertThatThrownBy(() -> jdbc.update(insert, "OPEN"));
+        jdbc.update(insert, "DISMISSED");
+        jdbc.update(insert, "RESOLVED");
     }
 
     @Test
@@ -64,8 +78,9 @@ class FlywayMigrationTest {
         flyway("legacy").migrate();
 
         jdbc.execute(insert("legacy", "SUSPENDED"));
+        jdbc.execute(insert("legacy", "BLOCKED"));
         assertThat(jdbc.queryForList("SELECT version FROM legacy.flyway_schema_history_car ORDER BY installed_rank", String.class))
-            .containsExactly("6", "7");
+            .containsExactly("6", "7", "8");
     }
 
     @Test
@@ -80,6 +95,6 @@ class FlywayMigrationTest {
         flyway("shared").migrate();
 
         assertThat(jdbc.queryForList("SELECT version FROM shared.flyway_schema_history_car ORDER BY installed_rank", String.class))
-            .containsExactly("6", "7");
+            .containsExactly("6", "7", "8");
     }
 }

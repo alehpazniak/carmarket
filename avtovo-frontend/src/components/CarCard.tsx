@@ -24,6 +24,8 @@ const FUEL_LABELS: Record<string, string> = {
 const STATUS_LABELS: Record<string, string> = {
     SOLD: 'Sprzedane',
     REMOVED: 'Usunięte',
+    BLOCKED: 'Zablokowane',
+    SUSPENDED: 'Zawieszone',
 };
 
 export default function CarCard({ car, editHref, onMarkSold, onDelete, onPromote }: Props) {

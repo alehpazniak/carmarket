@@ -39,6 +39,7 @@ import java.util.UUID;
 public class CarListingController {
 
     private final CarListingService service;
+    private final com.carmarket.car.service.ListingReportService reportService;
 
     @GetMapping
     public ResponseEntity<Page<CarListingResponse>> listAll(
@@ -61,6 +62,21 @@ public class CarListingController {
     public ResponseEntity<Page<CarListingResponse>> myListings(@RequestHeader("X-User-Id") String userId,
                                                                @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
         return ResponseEntity.ok(service.getMyListings(UUID.fromString(userId), pageable));
+    }
+
+    /** The owner's own listing in any status (BLOCKED / SUSPENDED included), with the moderation reason. */
+    @GetMapping("/my/{id}")
+    public ResponseEntity<CarListingResponse> myListing(@PathVariable UUID id, @RequestHeader("X-User-Id") String userId) {
+        return ResponseEntity.ok(service.getMine(id, UUID.fromString(userId)));
+    }
+
+    /** "Zgłoś ogłoszenie": logged in, not the owner, one open report per listing, 10 per day. */
+    @PostMapping("/{id}/reports")
+    public ResponseEntity<com.carmarket.car.dto.ReportDtos.ReportView> report(
+        @PathVariable UUID id, @RequestHeader("X-User-Id") String userId,
+        @Valid @RequestBody com.carmarket.car.dto.ReportDtos.CreateReportRequest request) {
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+            .body(reportService.create(id, UUID.fromString(userId), request));
     }
 
     @PostMapping({"", "/"})

@@ -82,14 +82,25 @@ export default function MyListings() {
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {cars.map(car => (
-                            <CarCard
-                                key={car.id}
-                                car={car}
-                                editHref={`/ogloszenia/${car.id}/edytuj`}
-                                onMarkSold={handleMarkSold}
-                                onDelete={handleDelete}
-                                onPromote={id => setPromoting(cars.find(c => c.id === id) ?? null)}
-                            />
+                            <div key={car.id} className="space-y-2">
+                                <CarCard
+                                    car={car}
+                                    editHref={`/ogloszenia/${car.id}/edytuj`}
+                                    onMarkSold={handleMarkSold}
+                                    onDelete={handleDelete}
+                                    onPromote={id => setPromoting(cars.find(c => c.id === id) ?? null)}
+                                />
+                                {car.status === 'BLOCKED' && (
+                                    <p className="text-xs text-red-300 bg-red-500/10 border border-red-800 rounded-lg px-3 py-2">
+                                        Zablokowane przez moderatora{car.moderationReason ? `: ${car.moderationReason}` : ''}
+                                    </p>
+                                )}
+                                {car.status === 'SUSPENDED' && (
+                                    <p className="text-xs text-yellow-200 bg-yellow-500/10 border border-yellow-800 rounded-lg px-3 py-2">
+                                        Zawieszone, bo Twoje konto jest zablokowane
+                                    </p>
+                                )}
+                            </div>
                         ))}
                     </div>
                 )}

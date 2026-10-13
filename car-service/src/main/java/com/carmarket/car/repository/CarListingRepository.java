@@ -27,6 +27,10 @@ public interface CarListingRepository extends JpaRepository<CarListing, UUID> {
 
     List<CarListing> findBySellerIdAndStatus(UUID sellerId, ListingStatus status);
 
+    /** Native on purpose, like {@link #findSummariesByIdIn}: admins also see REMOVED listings. */
+    @Query(value = "SELECT * FROM car_listings WHERE id = :id", nativeQuery = true)
+    Optional<CarListing> findAnyById(@Param("id") UUID id);
+
     /** Row lock, so a promotion purchase, a refund and the expiry job never overwrite each other. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from CarListing c where c.id = :id")
