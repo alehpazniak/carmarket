@@ -22,6 +22,7 @@
         <module>auction-import-service</module>
         <module>payment-service</module>
         <module>import-order-service</module>
+        <module>admin-service</module>
     </modules>
 
     <properties>

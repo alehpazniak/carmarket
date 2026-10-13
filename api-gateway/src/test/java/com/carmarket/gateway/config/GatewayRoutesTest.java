@@ -72,6 +72,15 @@ class GatewayRoutesTest {
         assertThat(GatewayConfig.importAccessKeyResolver(new ClientIpResolver(0)).resolve(exchange).block()).isEqualTo("import-access:203.0.113.9");
     }
 
+    @Test
+    void adminPanelRoutesToAdminService() {
+        List<Route> routes = routeLocator.getRoutes().collectList().block();
+        assertThat(routes).isNotNull();
+
+        assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/admin/audit"))).isEqualTo("admin-service");
+        assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/admin/system/health"))).isEqualTo("admin-service");
+    }
+
     private static String firstMatch(List<Route> routes, MockServerHttpRequest.BaseBuilder<?> request) {
         MockServerHttpRequest built = request.build();
         return routes.stream()

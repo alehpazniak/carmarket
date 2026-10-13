@@ -1,5 +1,6 @@
 package com.carmarket.payment.service;
 
+import com.carmarket.payment.audit.AdminAuditPublisher;
 import com.carmarket.payment.client.CarListingClient;
 import com.carmarket.payment.client.CarListingClient.CarListingSummary;
 import com.carmarket.payment.config.PaymentProductProperties;
@@ -45,6 +46,7 @@ class PaymentServiceTest {
     private final Przelewy24Client client = mock(Przelewy24Client.class);
     private final PaymentEventProducer producer = mock(PaymentEventProducer.class);
     private final CarListingClient carListingClient = mock(CarListingClient.class);
+    private final AdminAuditPublisher auditPublisher = mock(AdminAuditPublisher.class);
     private final Przelewy24SignCalculator signCalculator = new Przelewy24SignCalculator();
     private final Przelewy24Properties p24 = new Przelewy24Properties();
     private PaymentService service;
@@ -69,7 +71,7 @@ class PaymentServiceTest {
         products.setProducts(Map.of("LISTING_PROMOTION", product, "LISTING_HIGHLIGHT", highlight));
 
         when(repository.save(any(Payment.class))).thenAnswer(inv -> inv.getArgument(0));
-        service = new PaymentService(repository, products, p24, client, signCalculator, producer, carListingClient);
+        service = new PaymentService(repository, products, p24, client, signCalculator, producer, carListingClient, auditPublisher);
     }
 
     @Test
@@ -250,6 +252,33 @@ class PaymentServiceTest {
             .isEqualTo(status);
         verify(repository, never()).save(any());
         verify(client, never()).registerTransaction(anyString(), anyInt(), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void refundIsAuditedWithTheAdminAndReason() {
+        Payment payment = pendingPayment();
+        payment.setStatus(PaymentStatus.PAID);
+        payment.setP24OrderId(555L);
+        when(repository.findByIdForUpdate(payment.getId())).thenReturn(Optional.of(payment));
+        AdminAuditPublisher.Actor admin = new AdminAuditPublisher.Actor("admin-1", "boss@example.com");
+
+        service.refund(payment.getId(), null, "duplicate payment", admin);
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+        verify(producer).publishRefunded(payment);
+        verify(auditPublisher).publish(eq(admin), eq("PAYMENT_REFUNDED"), eq("PAYMENT"), eq(payment.getId().toString()),
+            eq("duplicate payment"), eq(Map.of("amount", 1999, "currency", "PLN", "productCode", "LISTING_PROMOTION",
+                "userId", USER_ID.toString())));
+    }
+
+    @Test
+    void refundOfAnUnpaidPaymentIsNotAudited() {
+        Payment payment = pendingPayment();
+        when(repository.findByIdForUpdate(payment.getId())).thenReturn(Optional.of(payment));
+
+        assertThatThrownBy(() -> service.refund(payment.getId(), null, "reason", new AdminAuditPublisher.Actor("a", null)))
+            .isInstanceOf(PaymentException.class);
+        verify(auditPublisher, never()).publish(any(), anyString(), anyString(), anyString(), anyString(), any());
     }
 
     private Payment pendingPayment() {

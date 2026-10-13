@@ -1,5 +1,6 @@
 package com.carmarket.car.controller;
 
+import com.carmarket.car.audit.AdminAuditPublisher;
 import com.carmarket.car.entity.CarListing;
 import com.carmarket.car.kafka.CarEventProducer;
 import com.carmarket.car.repository.CarListingRepository;
@@ -9,8 +10,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -32,10 +35,12 @@ public class ReindexController {
 
     private final CarListingRepository carListingRepository;
     private final CarEventProducer eventProducer;
+    private final AdminAuditPublisher auditPublisher;
 
     @PostMapping("/reindex")
     @Transactional(readOnly = true)
-    public ResponseEntity<Map<String, Object>> reindex() {
+    public ResponseEntity<Map<String, Object>> reindex(@AuthenticationPrincipal String adminId,
+                                                       @RequestHeader(value = "X-User-Email", required = false) String adminEmail) {
         long total = 0;
         int pageNumber = 0;
         Page<CarListing> page;
@@ -51,6 +56,8 @@ public class ReindexController {
         } while (page.hasNext());
 
         log.info("Reindex triggered: re-published {} car listings to Kafka", total);
+        auditPublisher.publish(new AdminAuditPublisher.Actor(adminId, adminEmail), "SEARCH_REINDEXED",
+            "SEARCH_INDEX", "car_listings", null, Map.of("published", total));
         return ResponseEntity.ok(Map.of(
             "status", "reindex triggered",
             "published", total

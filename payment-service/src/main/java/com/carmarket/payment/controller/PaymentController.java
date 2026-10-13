@@ -1,5 +1,6 @@
 package com.carmarket.payment.controller;
 
+import com.carmarket.payment.audit.AdminAuditPublisher;
 import com.carmarket.payment.dto.PaymentDtos.CreatePaymentRequest;
 import com.carmarket.payment.dto.PaymentDtos.CreatePaymentResponse;
 import com.carmarket.payment.dto.PaymentDtos.PaymentResponse;
@@ -64,8 +65,11 @@ public class PaymentController {
     // ─── Admin ─────────────────────────────────────────────────────────────
 
     @PostMapping("/{id}/refund")
-    public PaymentResponse refund(@PathVariable UUID id, @Valid @RequestBody(required = false) RefundRequest request) {
-        return paymentService.refund(id, request != null ? request.description() : null);
+    public PaymentResponse refund(@AuthenticationPrincipal String adminId,
+                                  @RequestHeader(value = "X-User-Email", required = false) String adminEmail,
+                                  @PathVariable UUID id, @Valid @RequestBody(required = false) RefundRequest request) {
+        return paymentService.refund(id, request != null ? request.description() : null,
+            request != null ? request.reason() : null, new AdminAuditPublisher.Actor(adminId, adminEmail));
     }
 
     /** Checks the configured P24 credentials against /api/v1/testAccess. */

@@ -27,6 +27,9 @@ spring:
       acks: all
       retries: 3
 
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+
 jwt:
   secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
   access-token-expiry-ms: 900000      # 15 minutes

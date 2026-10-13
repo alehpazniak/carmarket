@@ -96,6 +96,12 @@ app:
   frontend-url: ${FRONTEND_URL:http://localhost:5173}
   dealer-upgrade:
     token-ttl: 24h
+  # Comma-separated emails promoted to ADMIN when they log in (never demoted automatically)
+  admin:
+    bootstrap-emails: ${ADMIN_EMAILS:}
+
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
 
 management:
   endpoints:

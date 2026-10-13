@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -21,7 +22,7 @@ import java.util.Map;
  * These endpoints handle token management:
  * POST /api/auth/refresh                → exchange refresh token for new pair
  * POST /api/auth/logout                 → revoke refresh token
- * POST /api/auth/logout-all             → revoke all sessions (requires X-User-Id header)
+ * POST /api/auth/logout-all             → revoke all sessions (gateway-signed caller only)
  */
 @Slf4j
 @RestController
@@ -57,10 +58,11 @@ public class AuthController {
 
     /**
      * Logout all devices — revokes all refresh tokens for a user.
-     * Requires a valid access token (X-User-Id injected by gateway).
+     * Requires a gateway-signed request (SecurityConfig): the gateway only forwards it with a valid
+     * access token, so nobody can log out someone else by calling port 8081 directly.
      */
     @PostMapping("/logout-all")
-    public ResponseEntity<Map<String, String>> logoutAll(@RequestHeader("X-User-Id") String userId) {
+    public ResponseEntity<Map<String, String>> logoutAll(@AuthenticationPrincipal String userId) {
         authService.logoutAllDevices(userId);
         return ResponseEntity.ok(Map.of("message", "All sessions terminated"));
     }
@@ -69,7 +71,7 @@ public class AuthController {
      * Health/debug — returns current user info from gateway headers.
      */
     @GetMapping("/me")
-    public ResponseEntity<Map<String, String>> me(@RequestHeader(value = "X-User-Id", required = false) String userId,
+    public ResponseEntity<Map<String, String>> me(@AuthenticationPrincipal String userId,
                                                   @RequestHeader(value = "X-User-Email", required = false) String email,
                                                   @RequestHeader(value = "X-User-Roles", required = false) String roles) {
         return ResponseEntity.ok(Map.of(

@@ -80,6 +80,51 @@ class JwtAuthenticationFilterTest {
         }
     }
 
+    @Test
+    void adminPathsAreNeverPublic() {
+        for (MockServerHttpRequest request : List.of(
+            MockServerHttpRequest.get("/api/cars/admin/listings").build(),
+            MockServerHttpRequest.get("/api/cars/admin").build(),
+            MockServerHttpRequest.post("/api/cars/admin/reindex").build(),
+            MockServerHttpRequest.get("/api/auth/admin/users").build(),
+            MockServerHttpRequest.post("/api/auth/admin/users/abc/block").build(),
+            MockServerHttpRequest.get("/api/search/admin/anything").build(),
+            MockServerHttpRequest.get("/api/auctions/admin/status").build(),
+            MockServerHttpRequest.post("/api/payments/admin/p24/notify").build(),
+            MockServerHttpRequest.get("/api/payments/admin/payments").build(),
+            MockServerHttpRequest.get("/api/admin/audit").build(),
+            MockServerHttpRequest.get("/api/admin").build())) {
+            String path = request.getPath().value();
+            assertThat(filter.isPublicRoute(path, request.getMethod().name())).as(path).isFalse();
+
+            MockServerWebExchange exchange = MockServerWebExchange.from(request);
+            AtomicBoolean forwarded = new AtomicBoolean();
+            filter.filter(exchange, chain(forwarded)).block();
+
+            assertThat(exchange.getResponse().getStatusCode()).as(path).isEqualTo(HttpStatus.UNAUTHORIZED);
+            assertThat(forwarded).as(path).isFalse();
+        }
+    }
+
+    @Test
+    void authCallsActingOnTheCallerRequireAToken() {
+        for (String path : List.of("/api/auth/logout-all", "/api/auth/me")) {
+            assertThat(filter.isPublicRoute(path, "POST")).as(path).isFalse();
+            assertThat(filter.isPublicRoute(path, "GET")).as(path).isFalse();
+        }
+        for (String path : List.of("/api/auth/refresh", "/api/auth/logout", "/api/auth/oauth2/authorization/google",
+            "/api/auth/dealer-upgrade/confirm")) {
+            assertThat(filter.isPublicRoute(path, "POST")).as(path).isTrue();
+        }
+    }
+
+    @Test
+    void ownListingPathsRequireAToken() {
+        assertThat(filter.isPublicRoute("/api/cars/my", "GET")).isFalse();
+        assertThat(filter.isPublicRoute("/api/cars/my/123", "GET")).isFalse();
+        assertThat(filter.isPublicRoute("/api/cars/123", "GET")).isTrue();
+    }
+
     private static GatewayFilterChain chain(AtomicBoolean forwarded) {
         return ex -> {
             forwarded.set(true);

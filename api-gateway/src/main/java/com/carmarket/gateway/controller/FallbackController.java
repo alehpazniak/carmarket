@@ -46,6 +46,11 @@ public class FallbackController {
         return fallback("import-order-service");
     }
 
+    @RequestMapping("/admin")
+    public ResponseEntity<Map<String, String>> adminFallback() {
+        return fallback("admin-service");
+    }
+
     private ResponseEntity<Map<String, String>> fallback(String service) {
         return ResponseEntity
             .status(HttpStatus.SERVICE_UNAVAILABLE)

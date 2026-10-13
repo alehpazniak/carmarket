@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Car, Plus, User, LogOut, ChevronDown, Gavel, MessageSquare, ClipboardList } from 'lucide-react';
+import { Car, Plus, User, LogOut, ChevronDown, Gavel, MessageSquare, ClipboardList, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useChat } from '../context/ChatContext';
 import { getUnreadCount, UNREAD_CHANGED_EVENT } from '../api/chat';
@@ -8,6 +8,7 @@ import { getUnreadCount, UNREAD_CHANGED_EVENT } from '../api/chat';
 export default function Navbar() {
     const { user, isAuthenticated, loginWithGoogle, logout, hasRole } = useAuth();
     const isDealer = hasRole('DEALER') || hasRole('ADMIN');
+    const isAdmin = hasRole('ADMIN');
     const [menuOpen, setMenuOpen] = useState(false);
     const navigate = useNavigate();
     const [unread, setUnread] = useState(0);
@@ -106,7 +107,7 @@ export default function Navbar() {
                                     </button>
 
                                     {menuOpen && (
-                                        <div className="absolute right-0 mt-2 w-48 bg-avtovo-card border border-avtovo-border rounded-xl shadow-xl overflow-hidden">
+                                        <div className="absolute right-0 mt-2 w-56 bg-avtovo-card border border-avtovo-border rounded-xl shadow-xl overflow-hidden">
                                             <Link
                                                 to="/moje-ogloszenia"
                                                 onClick={() => setMenuOpen(false)}
@@ -123,6 +124,16 @@ export default function Navbar() {
                                                 >
                                                     <ClipboardList size={15} />
                                                     Zlecenia importu
+                                                </Link>
+                                            )}
+                                            {isAdmin && (
+                                                <Link
+                                                    to="/admin"
+                                                    onClick={() => setMenuOpen(false)}
+                                                    className="flex items-center gap-2 px-4 py-3 text-sm text-avtovo-text hover:bg-white/5 transition-colors"
+                                                >
+                                                    <ShieldCheck size={15} />
+                                                    Panel administratora
                                                 </Link>
                                             )}
                                             <Link

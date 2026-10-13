@@ -1,5 +1,6 @@
 package com.carmarket.payment.service;
 
+import com.carmarket.payment.audit.AdminAuditPublisher;
 import com.carmarket.payment.client.CarListingClient;
 import com.carmarket.payment.client.CarListingClient.CarListingSummary;
 import com.carmarket.payment.config.PaymentProductProperties;
@@ -28,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -56,6 +58,7 @@ public class PaymentService {
     private final Przelewy24SignCalculator signCalculator;
     private final PaymentEventProducer eventProducer;
     private final CarListingClient carListingClient;
+    private final AdminAuditPublisher auditPublisher;
 
     public List<ProductResponse> listProducts() {
         return productProperties.getProducts().entrySet().stream()
@@ -198,7 +201,7 @@ public class PaymentService {
 
     /** Full refund of a PAID payment (admin only). P24 executes it asynchronously. */
     @Transactional
-    public PaymentResponse refund(UUID paymentId, String description) {
+    public PaymentResponse refund(UUID paymentId, String description, String reason, AdminAuditPublisher.Actor actor) {
         requireConfigured();
         Payment payment = paymentRepository.findByIdForUpdate(paymentId)
             .orElseThrow(PaymentException::notFound);
@@ -214,6 +217,11 @@ public class PaymentService {
         payment.setStatus(PaymentStatus.REFUNDED);
         payment.setRefundedAt(Instant.now());
         eventProducer.publishRefunded(payment);
+        auditPublisher.publish(actor, "PAYMENT_REFUNDED", "PAYMENT", payment.getId().toString(), reason, Map.of(
+            "amount", payment.getAmount(),
+            "currency", payment.getCurrency(),
+            "productCode", payment.getProductCode(),
+            "userId", payment.getUserId().toString()));
         log.info("Refund requested for payment {}", payment.getId());
         return PaymentResponse.from(payment);
     }

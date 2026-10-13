@@ -29,6 +29,7 @@ volumes:
   postgres-auction-data:
   postgres-payment-data:
   postgres-import-order-data:
+  postgres-admin-data:
 
 services:
 
@@ -268,6 +269,7 @@ services:
       FACEBOOK_CLIENT_SECRET: ${FACEBOOK_CLIENT_SECRET:-}
       OAUTH2_REDIRECT_URI: ${OAUTH2_REDIRECT_URI:-http://localhost:5173/auth/callback}
       OAUTH2_ALLOWED_HOSTS: ${OAUTH2_ALLOWED_HOSTS:-localhost}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
     restart: on-failure
 
   # ─── USER SERVICE ─────────────────────────────────────────────────────────────
@@ -626,4 +628,53 @@ services:
       IMPORT_ORDER_AWS_ACCESS_KEY_ID: ${IMPORT_ORDER_AWS_ACCESS_KEY_ID:-}
       IMPORT_ORDER_AWS_SECRET_ACCESS_KEY: ${IMPORT_ORDER_AWS_SECRET_ACCESS_KEY:-}
       IMPORT_ORDER_TRUSTED_PROXIES: ${IMPORT_ORDER_TRUSTED_PROXIES:-0}
+    restart: on-failure
+
+  # ─── ADMIN DATABASE ─────────────────────────────────────────────────────────
+  postgres-admin:
+    image: postgres:16-alpine
+    container_name: postgres-admin
+    networks: [carmarket-net]
+    ports: ["5441:5432"]
+    environment:
+      POSTGRES_DB: admin_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-admin-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d admin_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── ADMIN SERVICE (audit log, system health) ───────────────────────────────
+  # Rebuild: docker compose build admin-service
+  # Restart: docker compose up -d --build --no-deps admin-service
+  # Every endpoint is ADMIN only (gateway-signed); reached through the gateway at /api/admin/**.
+  admin-service:
+    build:
+      context: ./admin-service
+      dockerfile: Dockerfile
+    image: carmarket/admin-service:local
+    container_name: admin-service
+    networks: [carmarket-net]
+    ports: ["8090:8090"]
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      postgres-admin:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      EUREKA_HOST: eureka-server
+      EUREKA_USER: ${EUREKA_USER:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      DB_HOST: postgres-admin
+      DB_PORT: 5432
+      DB_NAME: admin_db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     restart: on-failure

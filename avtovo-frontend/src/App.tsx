@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ChatProvider } from './context/ChatContext';
@@ -21,6 +22,9 @@ import ImportOrderCreate from './pages/importOrders/ImportOrderCreate';
 import ImportOrderDetail from './pages/importOrders/ImportOrderDetail';
 import ClientOrderPage from './pages/ClientOrderPage';
 
+// Own chunk: admins only, and the main bundle is already large
+const AdminApp = lazy(() => import('./admin/AdminApp'));
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, isLoading } = useAuth();
     if (isLoading) return (
@@ -41,6 +45,22 @@ function DealerRoute({ children }: { children: React.ReactNode }) {
         </ProtectedRoute>
     );
 }
+
+/** Admin panel: ADMIN only (role from the access token); anyone else goes to the home page. */
+function AdminRoute({ children }: { children: React.ReactNode }) {
+    const { hasRole } = useAuth();
+    return (
+        <ProtectedRoute>
+            {hasRole('ADMIN') ? children : <Navigate to="/" replace />}
+        </ProtectedRoute>
+    );
+}
+
+const spinner = (
+    <div className="min-h-[50vh] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-avtovo-accent border-t-transparent rounded-full animate-spin" />
+    </div>
+);
 
 function AppRoutes() {
     return (
@@ -85,6 +105,9 @@ function AppRoutes() {
                     } />
                     {/* Public: the client opens the dealer's link with a password, no account needed */}
                     <Route path="/zlecenie/:code" element={<ClientOrderPage />} />
+                    <Route path="/admin/*" element={
+                        <AdminRoute><Suspense fallback={spinner}><AdminApp /></Suspense></AdminRoute>
+                    } />
                     <Route path="/platnosc/:id" element={
                         <ProtectedRoute><PaymentReturn /></ProtectedRoute>
                     } />

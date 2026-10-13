@@ -101,9 +101,18 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         return chain.filter(exchange.mutate().request(mutatedRequest).build());
     }
 
-    private boolean isPublicRoute(String path, String method) {
+    boolean isPublicRoute(String path, String method) {
+        // Admin endpoints are never public, whatever the method or the service's other public rules
+        if (isAdminPath(path)) {
+            return false;
+        }
         if (pathMatcher.match("/api/cars/favorites", path) || pathMatcher.match("/api/cars/*/favorite", path)
-            || pathMatcher.match("/api/cars/my", path) || pathMatcher.match("/api/cars/summaries", path)) {
+            || pathMatcher.match("/api/cars/my", path) || pathMatcher.match("/api/cars/my/**", path)
+            || pathMatcher.match("/api/cars/summaries", path)) {
+            return false;
+        }
+        // /api/auth/** is public (OAuth2, refresh, logout), except the calls that act on the caller's identity
+        if (pathMatcher.match("/api/auth/logout-all", path) || pathMatcher.match("/api/auth/me", path)) {
             return false;
         }
         if ("GET".equals(method) &&
@@ -127,6 +136,11 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             return true;
         }
         return PUBLIC_ROUTES.stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
+    }
+
+    /** /api/admin/** (admin-service) and /api/{service}/admin/** (admin endpoints in the owning service). */
+    boolean isAdminPath(String path) {
+        return pathMatcher.match("/api/admin/**", path) || pathMatcher.match("/api/*/admin/**", path);
     }
 
     private Mono<Void> onUnauthorized(ServerHttpResponse response, String message) {
