@@ -16,7 +16,7 @@ type Form = {
     titleExportOk: boolean | null;
     titleRegistrationOk: boolean | null;
     notifyClient: boolean;
-} & Record<'lotNumber' | 'vin' | 'make' | 'model' | 'year' | 'saleDate' | 'purchasePriceUsd' | 'auctionLocation'
+} & Record<'lotNumber' | 'vin' | 'make' | 'model' | 'year' | 'saleDate' | 'purchasePriceUsd' | 'auctionLocation' | 'auctionUrl'
     | 'titleType' | 'clientName' | 'clientEmail' | 'clientPhone' | 'dealerContactName' | 'dealerContactPhone'
     | 'dealerContactEmail', string>;
 
@@ -31,6 +31,7 @@ function toForm(o: ImportOrderDetail): Form {
         saleDate: o.saleDate ?? '',
         purchasePriceUsd: o.purchasePriceUsd != null ? String(o.purchasePriceUsd) : '',
         auctionLocation: o.auctionLocation ?? '',
+        auctionUrl: o.auctionUrl ?? '',
         titleType: o.titleType ?? '',
         titleExportOk: o.titleExportOk,
         titleRegistrationOk: o.titleRegistrationOk,
@@ -64,6 +65,7 @@ export default function OverviewTab({ order, onChange }: Props) {
             saleDate: form.saleDate || null,
             purchasePriceUsd: form.purchasePriceUsd ? Number(form.purchasePriceUsd.replace(',', '.')) : null,
             auctionLocation: text(form.auctionLocation),
+            auctionUrl: text(form.auctionUrl),
             titleType: text(form.titleType),
             titleExportOk: form.titleExportOk,
             titleRegistrationOk: form.titleRegistrationOk,
@@ -122,6 +124,7 @@ export default function OverviewTab({ order, onChange }: Props) {
                     <Field label="Data aukcji"><input type="date" value={form.saleDate} onChange={e => set('saleDate', e.target.value)} className={inputClass} /></Field>
                     <Field label="Cena zakupu (USD)"><input inputMode="decimal" value={form.purchasePriceUsd} onChange={e => set('purchasePriceUsd', e.target.value)} className={inputClass} /></Field>
                     <Field label="Lokalizacja aukcji"><input value={form.auctionLocation} onChange={e => set('auctionLocation', e.target.value)} className={inputClass} /></Field>
+                    <Field label="Link do aukcji"><input type="url" value={form.auctionUrl} onChange={e => set('auctionUrl', e.target.value)} placeholder="https://www.copart.com/lot/…" className={inputClass} /></Field>
                     <Field label="Dokument (title)"><input value={form.titleType} onChange={e => set('titleType', e.target.value)} className={inputClass} /></Field>
                     <Field label="Title pozwala na eksport"><TriStateSelect value={form.titleExportOk} onChange={v => set('titleExportOk', v)} /></Field>
                     <Field label="Title pozwala na rejestrację"><TriStateSelect value={form.titleRegistrationOk} onChange={v => set('titleRegistrationOk', v)} /></Field>

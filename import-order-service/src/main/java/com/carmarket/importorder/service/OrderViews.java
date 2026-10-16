@@ -8,6 +8,8 @@ import com.carmarket.importorder.dto.ImportOrderDtos.FileView;
 import com.carmarket.importorder.dto.ImportOrderDtos.OrderDetail;
 import com.carmarket.importorder.dto.ImportOrderDtos.OrderSummary;
 import com.carmarket.importorder.entity.AccessLogEntry;
+import com.carmarket.importorder.entity.FileKind;
+import com.carmarket.importorder.entity.PhotoStage;
 import com.carmarket.importorder.entity.ImportOrder;
 import com.carmarket.importorder.entity.ImportOrderEvent;
 import com.carmarket.importorder.entity.ImportOrderFile;
@@ -16,10 +18,14 @@ import com.carmarket.importorder.repository.ImportOrderFileRepository;
 import com.carmarket.importorder.storage.FileStorage;
 import com.carmarket.importorder.validation.VinValidator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /** Entity → dealer API responses. */
 @Component
@@ -31,9 +37,34 @@ public class OrderViews {
     private final ImportOrderFileRepository files;
     private final FileStorage storage;
 
-    public OrderSummary summary(ImportOrder o) {
+    /**
+     * List rows with a thumbnail: the first AUCTION-stage photo, else the first photo, as a 5-minute
+     * presigned URL (one query for the whole page; presigning is local, no S3 call).
+     */
+    public Page<OrderSummary> summaries(Page<ImportOrder> page) {
+        Map<UUID, ImportOrderFile> thumbs = new HashMap<>();
+        if (storage.isEnabled() && page.hasContent()) {
+            List<UUID> ids = page.getContent().stream().map(ImportOrder::getId).toList();
+            for (ImportOrderFile f : files.findByOrderIdInAndKindOrderByCreatedAtAsc(ids, FileKind.PHOTO)) {
+                ImportOrderFile current = thumbs.get(f.getOrderId());
+                boolean auction = PhotoStage.AUCTION.name().equals(f.getCategory());
+                if (current == null || (auction && !PhotoStage.AUCTION.name().equals(current.getCategory()))) {
+                    thumbs.put(f.getOrderId(), f);
+                }
+            }
+        }
+        return page.map(o -> {
+            ImportOrderFile thumb = thumbs.get(o.getId());
+            String url = thumb == null ? null
+                : storage.presignGet(thumb.getS3Key(), thumb.getOriginalName(), thumb.getContentType(), false).url();
+            return summary(o, url);
+        });
+    }
+
+    public OrderSummary summary(ImportOrder o, String thumbnailUrl) {
         return new OrderSummary(o.getId(), o.getDealerId(), o.getStatus(), o.getSource(), o.getLotNumber(), o.getVin(), o.getMake(),
-            o.getModel(), o.getYear(), o.getClientName(), o.getEta(), o.getContainerNumber(), o.getCreatedAt(),
+            o.getModel(), o.getYear(), o.getClientName(), o.getEta(), o.getContainerNumber(), o.getAuctionUrl(),
+            thumbnailUrl, AuctionSnapshots.firstPhotoUrl(o.getAuctionSnapshot()), o.getCreatedAt(),
             o.getUpdatedAt(), o.getArchivedAt());
     }
 
@@ -51,7 +82,7 @@ public class OrderViews {
         return new OrderDetail(
             o.getId(), o.getDealerId(), o.getStatus(), o.getSource(), o.getLotNumber(), o.getVin(), o.getMake(),
             o.getModel(), o.getYear(), o.getSaleDate(), o.getPurchasePriceUsd(), o.getAuctionLocation(),
-            o.getTitleType(), o.getTitleExportOk(), o.getTitleRegistrationOk(), o.getAuctionSnapshot(),
+            o.getAuctionUrl(), o.getTitleType(), o.getTitleExportOk(), o.getTitleRegistrationOk(), o.getAuctionSnapshot(),
             o.getPaymentDeadline(), o.getTitleReceivedAt(), o.getPortOfLoading(), o.getShippingLine(),
             o.getContainerNumber(), o.getBookingNumber(), o.getBillOfLading(), o.getVesselName(), o.getEtd(),
             o.getEta(), o.getDestinationPort(), o.getCustomsClearedAt(), o.getClientName(), o.getClientEmail(),

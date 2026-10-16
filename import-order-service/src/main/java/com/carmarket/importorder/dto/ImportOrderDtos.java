@@ -58,6 +58,11 @@ public final class ImportOrderDtos {
         String clientName,
         LocalDate eta,
         String containerNumber,
+        String auctionUrl,
+        /** Presigned (5 min) URL of the order's first auction photo, else its first photo; null if none or no storage. */
+        String thumbnailUrl,
+        /** First photo URL in the auction snapshot; the frontend loads it through the image proxy when there is no thumbnail. */
+        String auctionPhotoUrl,
         Instant createdAt,
         Instant updatedAt,
         Instant archivedAt
@@ -77,6 +82,7 @@ public final class ImportOrderDtos {
         LocalDate saleDate,
         BigDecimal purchasePriceUsd,
         String auctionLocation,
+        String auctionUrl,
         String titleType,
         Boolean titleExportOk,
         Boolean titleRegistrationOk,

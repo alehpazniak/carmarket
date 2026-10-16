@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
@@ -197,6 +198,24 @@ class OrderFilesApiTest extends StorageEnabledTestBase {
         assertThat(deletes.getValue().delete().objects()).extracting(ObjectIdentifier::key)
             .containsExactlyInAnyOrderElementsOf(keys);
         assertThat(jdbc.queryForObject("select count(*) from import_order_files", Integer.class)).isZero();
+    }
+
+    @Test
+    void listThumbnailPrefersAnAuctionPhotoAndContractsAreADocumentCategory() throws Exception {
+        Created order = createOrder(dealerA());
+        upload(order.id(), "PHOTO", "ARRIVAL", file("port.png", FileTypeTest.PNG)).andExpect(status().isCreated());
+        String auctionKey = body(upload(order.id(), "PHOTO", "AUCTION", file("aukcja.png", FileTypeTest.PNG))
+            .andExpect(status().isCreated()).andReturn()).get(0).get("id").asText();
+        upload(order.id(), "DOCUMENT", "CONTRACT", file("umowa.pdf", FileTypeTest.PDF))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$[0].category").value("CONTRACT"));
+
+        String s3Key = jdbc.queryForObject("select s3_key from import_order_files where id = ?::uuid", String.class, auctionKey);
+        mvc.perform(get("/import-orders").with(dealerA()))
+            .andExpect(jsonPath("$.content[0].thumbnailUrl").value(containsString(s3Key)));
+        // Another dealer's list never carries this order's thumbnail
+        mvc.perform(get("/import-orders").with(dealerB()))
+            .andExpect(jsonPath("$.content", hasSize(0)));
     }
 
     private ResultActions upload(UUID orderId, String kind, String category, MockMultipartFile... files) throws Exception {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Archive, ArchiveRestore, ChevronLeft, Loader2, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronLeft, ExternalLink, Loader2, Trash2 } from 'lucide-react';
 import { deleteImportOrder, getImportOrder, setImportOrderArchived } from '../../api/importOrders';
 import StatusBadge from '../../components/importOrders/StatusBadge';
 import OverviewTab from '../../components/importOrders/tabs/OverviewTab';
@@ -10,7 +10,7 @@ import DocumentsTab from '../../components/importOrders/tabs/DocumentsTab';
 import PhotosTab from '../../components/importOrders/tabs/PhotosTab';
 import ClientAccessTab from '../../components/importOrders/tabs/ClientAccessTab';
 import NotesTab from '../../components/importOrders/tabs/NotesTab';
-import { SOURCE_LABELS, carTitle } from '../../constants/importOrders';
+import { SOURCE_LABELS, auctionLink, carTitle } from '../../constants/importOrders';
 import { apiErrorMessage } from '../../utils/importOrderUi';
 import type { ImportOrderDetail as Order } from '../../types/importOrders';
 import { userIdFromToken } from '../../utils/jwt';
@@ -110,6 +110,12 @@ export default function ImportOrderDetail() {
                             {SOURCE_LABELS[order.source]}{order.lotNumber ? ` · lot ${order.lotNumber}` : ''}{order.vin ? ` · VIN ${order.vin}` : ''}
                             {order.clientName ? ` · ${order.clientName}` : ''}
                         </p>
+                        {auctionLink(order) && (
+                            <a href={auctionLink(order)!} target="_blank" rel="noopener noreferrer"
+                               className="inline-flex items-center gap-1.5 text-sm text-avtovo-accent hover:underline">
+                                <ExternalLink size={14} /> Zobacz na {order.source === 'OTHER' ? 'aukcji' : SOURCE_LABELS[order.source]}
+                            </a>
+                        )}
                     </div>
                     {!readOnly && <div className="flex items-center gap-2">
                         <button onClick={toggleArchive} disabled={busy}

@@ -131,7 +131,7 @@ public class ImportOrderService {
         };
         PageRequest pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
             Sort.by(Sort.Direction.DESC, "createdAt"));
-        return orders.findAll(spec, pageable).map(views::summary);
+        return views.summaries(orders.findAll(spec, pageable));
     }
 
     @Transactional(readOnly = true)

@@ -53,6 +53,7 @@ export const DOCUMENT_CATEGORY_LABELS: Record<DocumentCategory, string> = {
     CUSTOMS: 'Dokumenty celne',
     TRANSPORT: 'Transport',
     PAYMENT_CONFIRMATION: 'Potwierdzenie płatności',
+    CONTRACT: 'Umowa',
     OTHER: 'Inne',
 };
 
@@ -101,4 +102,16 @@ export function formatBytes(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
     return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+/**
+ * The lot page on the auction site: the link the dealer pasted, else (Copart only, whose lot URLs
+ * are just /lot/{number}) one built from the lot number.
+ */
+export function auctionLink(o: { source: LotSource; lotNumber: string | null; auctionUrl: string | null }): string | null {
+    if (o.auctionUrl && /^https?:\/\//i.test(o.auctionUrl)) return o.auctionUrl;
+    if (o.source === 'COPART' && o.lotNumber && /^\d+$/.test(o.lotNumber)) {
+        return `https://www.copart.com/lot/${o.lotNumber}`;
+    }
+    return null;
 }

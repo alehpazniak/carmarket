@@ -9,7 +9,7 @@ export type LotSource = 'COPART' | 'IAAI' | 'OTHER';
 export type FileKind = 'DOCUMENT' | 'PHOTO';
 export type DocumentCategory =
     | 'INVOICE_DEALER' | 'INVOICE_AUCTION' | 'TITLE' | 'BILL_OF_LADING' | 'CUSTOMS' | 'TRANSPORT'
-    | 'PAYMENT_CONFIRMATION' | 'OTHER';
+    | 'PAYMENT_CONFIRMATION' | 'CONTRACT' | 'OTHER';
 export type PhotoStage = 'AUCTION' | 'US_WAREHOUSE' | 'LOADING' | 'ARRIVAL' | 'DELIVERY' | 'OTHER';
 export type AccessEvent = 'LOGIN_OK' | 'LOGIN_FAILED' | 'VIEW';
 
@@ -25,6 +25,8 @@ export interface ImportOrderFields {
     saleDate?: string | null;
     purchasePriceUsd?: number | null;
     auctionLocation?: string | null;
+    /** The lot page on Copart/IAAI the dealer pasted; dealer-only, never on the client page. */
+    auctionUrl?: string | null;
     titleType?: string | null;
     titleExportOk?: boolean | null;
     titleRegistrationOk?: boolean | null;
@@ -70,6 +72,11 @@ export interface ImportOrderSummary {
     clientName: string | null;
     eta: string | null;
     containerNumber: string | null;
+    auctionUrl: string | null;
+    /** Presigned (5 min) URL of the order's first auction photo, else its first photo. */
+    thumbnailUrl: string | null;
+    /** First photo in the auction snapshot; load it through the image proxy (the auction sites block hotlinking). */
+    auctionPhotoUrl: string | null;
     createdAt: string;
     updatedAt: string;
     archivedAt: string | null;

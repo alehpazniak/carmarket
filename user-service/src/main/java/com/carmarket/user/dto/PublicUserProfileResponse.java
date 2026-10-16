@@ -12,7 +12,8 @@ import java.util.UUID;
  * <p>
  * An explicit allow-list built by hand, not by MapStruct: a field added to {@link UserProfile}
  * never shows up here by accident. Email, phone, street address and account state stay private;
- * the phone is only available per listing via GET /users/{id}/phone.
+ * the phone is only available per listing via GET /users/{id}/phone. {@code dealerSlug} is set only
+ * when the user has a published dealer page (/dealer/{slug}).
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record PublicUserProfileResponse(
@@ -22,10 +23,16 @@ public record PublicUserProfileResponse(
     String city,
     String bio,
     UserRole role,
-    LocalDateTime memberSince
+    LocalDateTime memberSince,
+    String dealerSlug
 ) {
     public static PublicUserProfileResponse from(UserProfile p) {
+        return from(p, null);
+    }
+
+    public static PublicUserProfileResponse from(UserProfile p, String dealerSlug) {
         return new PublicUserProfileResponse(
-            p.getId(), p.getDisplayName(), p.getAvatarUrl(), p.getCity(), p.getBio(), p.getRole(), p.getCreatedAt());
+            p.getId(), p.getDisplayName(), p.getAvatarUrl(), p.getCity(), p.getBio(), p.getRole(), p.getCreatedAt(),
+            dealerSlug);
     }
 }

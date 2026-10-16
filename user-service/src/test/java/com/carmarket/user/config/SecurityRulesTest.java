@@ -35,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Runs the real {@link SecurityConfig} + GatewaySignatureFilter (unlike {@link SecurityConfigTest},
  * which permits everything) with requests signed the way the gateway signs them.
  */
-@WebMvcTest(UserController.class)
+@WebMvcTest({UserController.class, com.carmarket.user.controller.DealerPageController.class})
 @Import(SecurityConfig.class)
 @TestPropertySource(properties = "gateway.internal-secret=" + SecurityRulesTest.SECRET)
 @DisplayName("user-service security rules")
@@ -54,6 +54,9 @@ class SecurityRulesTest {
 
     @MockBean
     private SellerPhoneService sellerPhoneService;
+
+    @MockBean
+    private com.carmarket.user.service.DealerPageService dealerPageService;
 
     private final UUID targetUserId = UUID.randomUUID();
 
@@ -136,5 +139,42 @@ class SecurityRulesTest {
             .header("X-User-Id", userId)
             .header("X-User-Roles", String.join(",", roles))
             .header("X-Gateway-Signature", ts + ":" + sig);
+    }
+
+    @Test
+    @DisplayName("dealer pages and their phone are public; unknown slug is 404")
+    void dealerPage_public() throws Exception {
+        when(dealerPageService.findPublic("auto-kowalski")).thenReturn(Optional.empty());
+        when(dealerPageService.findPublicPhone("auto-kowalski")).thenReturn(Optional.of("+48 600 100 200"));
+
+        mockMvc.perform(get("/users/dealers/auto-kowalski")).andExpect(status().isNotFound());
+        mockMvc.perform(get("/users/dealers/auto-kowalski/phone")).andExpect(status().isOk());
+        when(dealerPageService.findPublicByUserId(any())).thenReturn(Optional.empty());
+        mockMvc.perform(get("/users/dealers/by-user/{id}", UUID.randomUUID())).andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("own dealer page: unsigned request (gateway bypassed) gets 403")
+    void ownDealerPage_unsigned_forbidden() throws Exception {
+        mockMvc.perform(get("/users/me/dealer-page").header("X-User-Id", UUID.randomUUID().toString()))
+            .andExpect(status().isForbidden());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/users/me/dealer-page")
+                .header("X-User-Id", UUID.randomUUID().toString())
+                .contentType("application/json").content("{}"))
+            .andExpect(status().isForbidden());
+        verify(dealerPageService, never()).save(any(), any());
+    }
+
+    @Test
+    @DisplayName("own dealer page: signed request reaches the service; invalid slug is a 400")
+    void ownDealerPage_signed() throws Exception {
+        when(dealerPageService.findOwn(any())).thenReturn(Optional.empty());
+        mockMvc.perform(signed(get("/users/me/dealer-page"), "DEALER")).andExpect(status().isNotFound());
+
+        mockMvc.perform(signed(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/users/me/dealer-page")
+                .contentType("application/json")
+                .content("{\"slug\":\"-Bad Slug-\",\"companyName\":\"Auto\",\"published\":true}"), "DEALER"))
+            .andExpect(status().isBadRequest());
+        verify(dealerPageService, never()).save(any(), any());
     }
 }

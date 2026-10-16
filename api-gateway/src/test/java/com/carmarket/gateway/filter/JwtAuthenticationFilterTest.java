@@ -135,6 +135,17 @@ class JwtAuthenticationFilterTest {
     }
 
     @Test
+    void dealerPagesArePublicButTheOwnersEditorIsNot() {
+        assertThat(filter.isPublicRoute("/api/users/dealers/auto-kowalski", "GET")).isTrue();
+        assertThat(filter.isPublicRoute("/api/users/dealers/auto-kowalski/phone", "GET")).isTrue();
+        assertThat(filter.isPublicRoute("/api/users/dealers/auto-kowalski", "PUT")).isFalse();
+        assertThat(filter.isPublicRoute("/api/users/me/dealer-page", "GET")).isFalse();
+        assertThat(filter.isPublicRoute("/api/users/me/dealer-page", "PUT")).isFalse();
+        assertThat(filter.isPublicRoute("/api/cars/dealer-media", "POST")).isFalse();
+        assertThat(filter.isPublicRoute("/api/cars/seller/" + UUID.randomUUID(), "GET")).isTrue();
+    }
+
+    @Test
     void blockedAndRevokedTokensAreRejectedOthersForwardedWithIdentity() {
         JwtUtil jwt = mock(JwtUtil.class);
         GatewaySignatureService signer = mock(GatewaySignatureService.class);

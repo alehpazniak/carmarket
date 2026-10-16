@@ -21,6 +21,8 @@ import ImportOrderList from './pages/importOrders/ImportOrderList';
 import ImportOrderCreate from './pages/importOrders/ImportOrderCreate';
 import ImportOrderDetail from './pages/importOrders/ImportOrderDetail';
 import ClientOrderPage from './pages/ClientOrderPage';
+import DealerPage from './pages/dealer/DealerPage';
+import DealerPageEditor from './pages/dealer/DealerPageEditor';
 
 // Own chunk: admins only, and the main bundle is already large
 const AdminApp = lazy(() => import('./admin/AdminApp'));
@@ -103,6 +105,13 @@ function AppRoutes() {
                     <Route path="/panel-dealera/zlecenia/:id" element={
                         <DealerRoute><ImportOrderDetail /></DealerRoute>
                     } />
+                    <Route path="/panel-dealera/strona" element={
+                        <DealerRoute><DealerPageEditor /></DealerRoute>
+                    } />
+                    {/* Public dealer pages, like otomoto's: O nas / Oferta / Kontakt */}
+                    <Route path="/dealer/:slug" element={<DealerPage />} />
+                    <Route path="/dealer/:slug/oferta" element={<DealerPage tab="offers" />} />
+                    <Route path="/dealer/:slug/kontakt" element={<DealerPage tab="contact" />} />
                     {/* Public: the client opens the dealer's link with a password, no account needed */}
                     <Route path="/zlecenie/:code" element={<ClientOrderPage />} />
                     <Route path="/admin/*" element={

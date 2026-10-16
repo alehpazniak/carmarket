@@ -24,6 +24,7 @@ import java.util.UUID;
  * <p>
  * GET    /cars               → public list of active listings
  * GET    /cars/{id}          → public single listing
+ * GET    /cars/seller/{id}   → public list of one seller's active listings (dealer page)
  * GET    /cars/my            → authenticated seller's own listings
  * GET    /cars/summaries?ids= → title/price/status for up to 100 ids, REMOVED included (authenticated)
  * POST   /cars               → create listing (authenticated)
@@ -53,6 +54,12 @@ public class CarListingController {
     }
 
     /** Literal path, so it wins over /{id} (like /my). */
+    @GetMapping("/seller/{sellerId}")
+    public ResponseEntity<Page<CarListingResponse>> sellerListings(@PathVariable UUID sellerId,
+        @PageableDefault(size = 24, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(service.getSellerListings(sellerId, pageable));
+    }
+
     @GetMapping("/summaries")
     public ResponseEntity<List<CarListingSummary>> summaries(@RequestParam(defaultValue = "") List<UUID> ids) {
         return ResponseEntity.ok(service.getSummaries(ids));

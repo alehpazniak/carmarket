@@ -25,6 +25,8 @@ public interface CarListingRepository extends JpaRepository<CarListing, UUID> {
 
     Page<CarListing> findByStatus(ListingStatus status, Pageable pageable);
 
+    Page<CarListing> findBySellerIdAndStatus(UUID sellerId, ListingStatus status, Pageable pageable);
+
     List<CarListing> findBySellerIdAndStatus(UUID sellerId, ListingStatus status);
 
     /** Native on purpose, like {@link #findSummariesByIdIn}: admins also see REMOVED listings. */

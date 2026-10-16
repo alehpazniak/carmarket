@@ -33,6 +33,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Must stay above the GET /cars/** permitAll rule — the first match wins
                 .requestMatchers("/cars/admin/**").hasRole("ADMIN")
+                // Dealer page images (user-service stores the URLs)
+                .requestMatchers("/cars/dealer-media").hasAnyRole("DEALER", "ADMIN")
                 .requestMatchers(HttpMethod.GET, "/cars/favorites").authenticated()
                 .requestMatchers(HttpMethod.GET, "/cars/*/favorite").authenticated()
                 .requestMatchers(HttpMethod.GET, "/cars/summaries").authenticated()

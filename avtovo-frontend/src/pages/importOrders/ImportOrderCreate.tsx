@@ -149,6 +149,7 @@ export default function ImportOrderCreate() {
             dealerContactEmail: text(form.dealerContactEmail),
             internalNotes: text(form.internalNotes),
             auctionSnapshot: prefill?.fields.auctionSnapshot ?? undefined,
+            auctionUrl: /^https?:\/\//i.test(auctionUrl.trim()) ? auctionUrl.trim() : undefined,
         };
         setSaving(true);
         try {

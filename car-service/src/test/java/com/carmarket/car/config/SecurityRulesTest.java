@@ -42,7 +42,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Runs the real {@link SecurityConfig} + GatewaySignatureFilter (unlike {@link SecurityConfigTest},
  * which permits everything) with requests signed the way the gateway signs them.
  */
-@WebMvcTest({ReindexController.class, CarListingController.class, com.carmarket.car.controller.AdminListingController.class})
+@WebMvcTest({ReindexController.class, CarListingController.class, com.carmarket.car.controller.AdminListingController.class,
+    com.carmarket.car.controller.DealerMediaController.class})
 @Import(SecurityConfig.class)
 @TestPropertySource(properties = "gateway.internal-secret=" + SecurityRulesTest.SECRET)
 @DisplayName("car-service security rules")
@@ -197,5 +198,43 @@ class SecurityRulesTest {
     void listing_unsigned_public() throws Exception {
         mockMvc.perform(get("/cars/{id}", UUID.randomUUID()))
             .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("GET /cars/seller/{id} (dealer page offers) is public")
+    void sellerListings_unsigned_public() throws Exception {
+        when(carListingService.getSellerListings(any(), any())).thenReturn(Page.empty());
+        mockMvc.perform(get("/cars/seller/{id}", UUID.randomUUID()))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("dealer-media: DEALER/ADMIN only, never unsigned")
+    void dealerMedia_dealersOnly() throws Exception {
+        org.springframework.mock.web.MockMultipartFile file =
+            new org.springframework.mock.web.MockMultipartFile("file", "logo.png", "image/png", new byte[]{1});
+        when(s3Service.uploadDealerImage(any(), any())).thenReturn("https://b.s3.eu-central-1.amazonaws.com/dealers/x/y.png");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/cars/dealer-media").file(file)
+                .header("X-User-Id", UUID.randomUUID().toString()).header("X-User-Roles", "DEALER"))
+            .andExpect(status().isForbidden());
+        mockMvc.perform(signed(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/cars/dealer-media").file(file), "USER"))
+            .andExpect(status().isForbidden());
+        verify(s3Service, never()).uploadDealerImage(any(), any());
+
+        mockMvc.perform(signed(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/cars/dealer-media").file(file), "DEALER"))
+            .andExpect(status().isCreated());
+    }
+
+    @Test
+    @DisplayName("dealer-media DELETE: someone else's image is a 404")
+    void dealerMedia_delete_ownOnly() throws Exception {
+        when(s3Service.deleteDealerImage(any(), eq("https://mine"))).thenReturn(true);
+        mockMvc.perform(signed(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/cars/dealer-media")
+                .param("url", "https://mine"), "DEALER"))
+            .andExpect(status().isNoContent());
+        mockMvc.perform(signed(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/cars/dealer-media")
+                .param("url", "https://not-mine"), "DEALER"))
+            .andExpect(status().isNotFound());
     }
 }

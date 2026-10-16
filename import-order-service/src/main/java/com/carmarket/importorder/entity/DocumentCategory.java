@@ -8,5 +8,6 @@ public enum DocumentCategory {
     CUSTOMS,
     TRANSPORT,
     PAYMENT_CONFIRMATION,
+    CONTRACT,
     OTHER
 }
