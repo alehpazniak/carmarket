@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { Building2, Clock, ExternalLink, Facebook, Globe, Instagram, Loader2, MapPin, Navigation, Phone, Youtube } from 'lucide-react';
+import { Building2, Clock, Pencil, ExternalLink, Facebook, Globe, Instagram, Loader2, MapPin, Navigation, Phone, Youtube } from 'lucide-react';
 import { getDealerPage, getDealerPhone, getSellerListings } from '../../api/dealers';
+import { useAuth } from '../../context/AuthContext';
 import CarCard from '../../components/CarCard';
 import PhotoGallery from '../../components/PhotoGallery';
 import type { CarListing, Page } from '../../types';
@@ -44,6 +45,7 @@ function isoToday(): number {
  */
 export default function DealerPage({ tab }: { tab?: DealerTab }) {
     const { slug = '' } = useParams();
+    const { user } = useAuth();
     // Keyed by slug, so moving to another dealer shows the spinner without resetting state in the effect
     const [loaded, setLoaded] = useState<{ slug: string; dealer: DealerPageView | null; failed: boolean } | null>(null);
     const [offerCount, setOfferCount] = useState<number | null>(null);
@@ -120,6 +122,12 @@ export default function DealerPage({ tab }: { tab?: DealerTab }) {
                                 {offerCount != null && <span>{offersLabel(offerCount)}</span>}
                             </p>
                         </div>
+                        {user?.id === dealer.userId && (
+                            <Link to="/panel-dealera/strona"
+                                  className="sm:ml-auto inline-flex items-center gap-1.5 self-start sm:self-end px-3 py-2 rounded-lg border border-avtovo-border text-sm text-avtovo-text hover:border-avtovo-accent">
+                                <Pencil size={14} /> Edytuj stronę
+                            </Link>
+                        )}
                     </div>
                     <nav className="flex gap-1 overflow-x-auto -mb-px">
                         {tabs.map(t => (
