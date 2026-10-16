@@ -118,14 +118,15 @@ export default function DealerPageEditor() {
         });
     };
 
-    const submit = async (e: FormEvent) => {
-        e.preventDefault();
+    /** publish: true = public, false = draft; Enter in a field keeps the current state. */
+    const save = async (publish: boolean) => {
         setSaving(true);
         setMessage(null);
         setFieldErrors({});
         try {
             const body: DealerPageRequest = {
                 ...form,
+                published: publish,
                 services: form.services.map(s => s.trim()).filter(Boolean),
                 team: form.team.filter(m => m.name.trim()).map(m => ({ name: m.name.trim(), role: m.role?.trim() || null })),
             };
@@ -133,7 +134,9 @@ export default function DealerPageEditor() {
             setForm(toDealerPageRequest(saved));
             setSavedSlug(saved.slug);
             setSavedPublished(saved.published);
-            setMessage({ ok: true, text: saved.published ? 'Zapisano. Strona jest widoczna publicznie.' : 'Zapisano. Strona nie jest jeszcze opublikowana.' });
+            setMessage({ ok: true, text: saved.published
+                ? `Opublikowano. Strona jest widoczna pod adresem /dealer/${saved.slug}.`
+                : 'Zapisano jako szkic. Strona nie jest widoczna publicznie — kliknij „Opublikuj stronę”.' });
             // Drop images the saved page no longer uses
             const used = new Set([saved.logoUrl, saved.bannerUrl, ...saved.galleryUrls].filter(Boolean) as string[]);
             for (const url of Array.from(knownImages.current)) {
@@ -153,6 +156,11 @@ export default function DealerPageEditor() {
         } finally {
             setSaving(false);
         }
+    };
+
+    const submit = (e: FormEvent) => {
+        e.preventDefault();
+        save(savedPublished);
     };
 
     if (loading) return <div className="min-h-screen bg-avtovo-bg flex items-center justify-center"><Loader2 className="animate-spin text-avtovo-accent" /></div>;
@@ -182,10 +190,12 @@ export default function DealerPageEditor() {
                     <Field label="Adres strony" error={fieldErrors.slug} hint={publicUrl}>
                         <input value={form.slug} onChange={e => set('slug', e.target.value.toLowerCase())} required maxLength={40} className={inputClass} />
                     </Field>
-                    <label className="flex items-center gap-2 text-sm text-avtovo-text">
-                        <input type="checkbox" checked={form.published} onChange={e => set('published', e.target.checked)} className="accent-avtovo-accent" />
-                        Opublikuj stronę (widoczna dla wszystkich)
-                    </label>
+                    <p className="text-sm">
+                        Status:{' '}
+                        {savedPublished
+                            ? <span className="text-green-400 font-medium">opublikowana — widoczna dla wszystkich</span>
+                            : <span className="text-amber-400 font-medium">szkic — niewidoczna publicznie</span>}
+                    </p>
                 </Section>
 
                 <Section title="O firmie">
@@ -315,11 +325,30 @@ export default function DealerPageEditor() {
                 </Section>
 
                 {message && <p className={`text-sm ${message.ok ? 'text-green-400' : 'text-red-400'}`}>{message.text}</p>}
-                <div className="flex justify-end">
-                    <button type="submit" disabled={saving || uploading !== null}
-                            className="inline-flex items-center gap-2 bg-avtovo-accent hover:bg-avtovo-accent-hover text-white px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">
-                        {saving && <Loader2 size={15} className="animate-spin" />} Zapisz stronę
-                    </button>
+                <div className="flex flex-wrap justify-end gap-2">
+                    {savedPublished ? (
+                        <>
+                            <button type="button" onClick={() => save(false)} disabled={saving || uploading !== null}
+                                    className="px-4 py-2.5 rounded-lg border border-avtovo-border text-sm text-avtovo-text-secondary hover:text-avtovo-text disabled:opacity-50">
+                                Ukryj stronę
+                            </button>
+                            <button type="button" onClick={() => save(true)} disabled={saving || uploading !== null}
+                                    className="inline-flex items-center gap-2 bg-avtovo-accent hover:bg-avtovo-accent-hover text-white px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">
+                                {saving && <Loader2 size={15} className="animate-spin" />} Zapisz zmiany
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <button type="button" onClick={() => save(false)} disabled={saving || uploading !== null}
+                                    className="px-4 py-2.5 rounded-lg border border-avtovo-border text-sm text-avtovo-text hover:border-avtovo-accent disabled:opacity-50">
+                                Zapisz jako szkic
+                            </button>
+                            <button type="button" onClick={() => save(true)} disabled={saving || uploading !== null}
+                                    className="inline-flex items-center gap-2 bg-avtovo-accent hover:bg-avtovo-accent-hover text-white px-5 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50">
+                                {saving && <Loader2 size={15} className="animate-spin" />} Opublikuj stronę
+                            </button>
+                        </>
+                    )}
                 </div>
             </form>
         </div>
