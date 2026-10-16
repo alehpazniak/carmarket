@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Archive, ClipboardList, Loader2, Plus, Search } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Archive, ClipboardList, ExternalLink, Loader2, Plus, Search } from 'lucide-react';
 import { listImportOrders } from '../../api/importOrders';
+import OrderThumbnail from '../../components/importOrders/OrderThumbnail';
 import StatusBadge from '../../components/importOrders/StatusBadge';
-import { ALL_STATUSES, SOURCE_LABELS, STATUS_LABELS, carTitle, formatDate } from '../../constants/importOrders';
+import { ALL_STATUSES, SOURCE_LABELS, STATUS_LABELS, auctionLink, carTitle, formatDate } from '../../constants/importOrders';
 import type { Page } from '../../types';
 import type { ImportOrderStatus, ImportOrderSummary } from '../../types/importOrders';
 
 /** /panel-dealera/zlecenia — the dealer's import orders. */
 export default function ImportOrderList() {
-    const navigate = useNavigate();
     const [status, setStatus] = useState<ImportOrderStatus | ''>('');
     const [q, setQ] = useState('');
     const [query, setQuery] = useState('');
@@ -19,7 +19,7 @@ export default function ImportOrderList() {
     const [error, setError] = useState(false);
 
     const load = useCallback(() => {
-        listImportOrders({ status, q: query, archived, page, size: 20 })
+        listImportOrders({ status, q: query, archived, page, size: 24 })
             .then(result => {
                 setData(result);
                 setError(false);
@@ -103,48 +103,44 @@ export default function ImportOrderList() {
 
                 {data && data.content.length > 0 && (
                     <>
-                        {/* Mobile: cards */}
-                        <div className="sm:hidden space-y-2">
-                            {data.content.map(o => (
-                                <button key={o.id} onClick={() => navigate(`/panel-dealera/zlecenia/${o.id}`)}
-                                        className="w-full text-left bg-avtovo-card border border-avtovo-border rounded-xl p-4 space-y-1.5">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <span className="font-medium text-avtovo-text truncate">{carTitle(o)}</span>
-                                        <StatusBadge status={o.status} />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {data.content.map(o => {
+                                const title = carTitle(o);
+                                const link = auctionLink(o);
+                                return (
+                                    <div key={o.id} className="bg-avtovo-card border border-avtovo-border rounded-xl overflow-hidden flex flex-col hover:border-avtovo-accent/60 transition-colors">
+                                        <Link to={`/panel-dealera/zlecenia/${o.id}`} className="block">
+                                            <div className="relative aspect-[4/3] bg-avtovo-bg">
+                                                <OrderThumbnail thumbnailUrl={o.thumbnailUrl} auctionPhotoUrl={o.auctionPhotoUrl} alt={title} />
+                                                <div className="absolute top-2 left-2"><StatusBadge status={o.status} /></div>
+                                            </div>
+                                            <div className="p-4 space-y-1">
+                                                <h2 className="font-semibold text-avtovo-text truncate">{title}</h2>
+                                                <p className="text-xs text-avtovo-text-secondary">
+                                                    {SOURCE_LABELS[o.source]}{o.lotNumber ? ` · lot ${o.lotNumber}` : ''}
+                                                </p>
+                                                <p className="text-xs text-avtovo-text-secondary font-mono break-all">{o.vin ?? 'VIN —'}</p>
+                                                <dl className="grid grid-cols-2 gap-x-3 gap-y-1 pt-2 text-xs">
+                                                    <dt className="text-avtovo-muted">Klient</dt>
+                                                    <dd className="text-avtovo-text truncate">{o.clientName ?? '—'}</dd>
+                                                    <dt className="text-avtovo-muted">ETA</dt>
+                                                    <dd className="text-avtovo-text">{formatDate(o.eta)}</dd>
+                                                    {o.containerNumber && <>
+                                                        <dt className="text-avtovo-muted">Kontener</dt>
+                                                        <dd className="text-avtovo-text font-mono">{o.containerNumber}</dd>
+                                                    </>}
+                                                </dl>
+                                            </div>
+                                        </Link>
+                                        {link && (
+                                            <a href={link} target="_blank" rel="noopener noreferrer"
+                                               className="mt-auto mx-4 mb-4 inline-flex items-center gap-1.5 text-xs text-avtovo-accent hover:underline">
+                                                <ExternalLink size={13} /> Zobacz na {o.source === 'OTHER' ? 'aukcji' : SOURCE_LABELS[o.source]}
+                                            </a>
+                                        )}
                                     </div>
-                                    <p className="text-xs text-avtovo-text-secondary break-all">{o.vin ?? '—'}</p>
-                                    <p className="text-xs text-avtovo-text-secondary">{o.clientName ?? 'Bez klienta'} · ETA {formatDate(o.eta)}</p>
-                                </button>
-                            ))}
-                        </div>
-                        {/* Desktop: table */}
-                        <div className="hidden sm:block bg-avtovo-card border border-avtovo-border rounded-xl overflow-hidden">
-                            <table className="w-full text-sm">
-                                <thead className="text-left text-avtovo-text-secondary border-b border-avtovo-border">
-                                <tr>
-                                    <th className="px-4 py-3 font-medium">Status</th>
-                                    <th className="px-4 py-3 font-medium">Pojazd</th>
-                                    <th className="px-4 py-3 font-medium">VIN</th>
-                                    <th className="px-4 py-3 font-medium">Klient</th>
-                                    <th className="px-4 py-3 font-medium">ETA</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {data.content.map(o => (
-                                    <tr key={o.id} onClick={() => navigate(`/panel-dealera/zlecenia/${o.id}`)}
-                                        className="border-b border-avtovo-border/60 last:border-0 hover:bg-white/5 cursor-pointer">
-                                        <td className="px-4 py-3"><StatusBadge status={o.status} /></td>
-                                        <td className="px-4 py-3 text-avtovo-text">
-                                            {carTitle(o)}
-                                            <span className="block text-xs text-avtovo-text-secondary">{SOURCE_LABELS[o.source]}{o.lotNumber ? ` · lot ${o.lotNumber}` : ''}</span>
-                                        </td>
-                                        <td className="px-4 py-3 text-avtovo-text-secondary font-mono text-xs">{o.vin ?? '—'}</td>
-                                        <td className="px-4 py-3 text-avtovo-text">{o.clientName ?? '—'}</td>
-                                        <td className="px-4 py-3 text-avtovo-text-secondary">{formatDate(o.eta)}</td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
+                                );
+                            })}
                         </div>
                         {data.totalPages > 1 && (
                             <div className="flex items-center justify-center gap-3 text-sm">

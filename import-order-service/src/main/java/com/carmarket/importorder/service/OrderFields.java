@@ -26,6 +26,7 @@ import java.util.regex.Pattern;
 final class OrderFields {
 
     private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+    private static final Pattern HTTP_URL = Pattern.compile("^https?://[^\\s/?#]+\\.[^\\s/?#]+(?:[/?#]\\S*)?$", Pattern.CASE_INSENSITIVE);
     private static final BigDecimal MAX_PRICE = new BigDecimal("9999999999.99");
     /** Serialized size cap for auctionSnapshot. */
     private static final int MAX_SNAPSHOT_CHARS = 200_000;
@@ -56,6 +57,7 @@ final class OrderFields {
                 case "saleDate" -> order.setSaleDate(date(name, value));
                 case "purchasePriceUsd" -> order.setPurchasePriceUsd(price(value));
                 case "auctionLocation" -> order.setAuctionLocation(text(name, value, 200));
+                case "auctionUrl" -> order.setAuctionUrl(httpUrl(name, value, 500));
                 case "titleType" -> order.setTitleType(text(name, value, 120));
                 case "titleExportOk" -> order.setTitleExportOk(nullableBool(name, value));
                 case "titleRegistrationOk" -> order.setTitleRegistrationOk(nullableBool(name, value));
@@ -99,6 +101,14 @@ final class OrderFields {
         String s = value.asText().trim();
         if (s.isEmpty()) return null;
         if (s.length() > maxLength) throw ApiException.badRequest(name + ": at most " + maxLength + " characters");
+        return s;
+    }
+
+    /** An http(s) link; anything else (javascript:, data:, ...) is a 400, since the UI renders it as a link. */
+    static String httpUrl(String name, JsonNode value, int maxLength) {
+        String s = text(name, value, maxLength);
+        if (s == null) return null;
+        if (!HTTP_URL.matcher(s).matches()) throw ApiException.badRequest(name + ": expected an http(s) link");
         return s;
     }
 

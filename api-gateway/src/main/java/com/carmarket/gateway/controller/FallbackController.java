@@ -46,6 +46,11 @@ public class FallbackController {
         return fallback("import-order-service");
     }
 
+    @RequestMapping("/notification")
+    public ResponseEntity<Map<String, String>> notificationFallback() {
+        return fallback("notification-service");
+    }
+
     @RequestMapping("/admin")
     public ResponseEntity<Map<String, String>> adminFallback() {
         return fallback("admin-service");

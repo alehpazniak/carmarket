@@ -7,6 +7,7 @@ import com.carmarket.user.dto.UserProfileRequest;
 import com.carmarket.user.dto.UserProfileResponse;
 import com.carmarket.user.entity.UserProfile;
 import com.carmarket.user.mapper.UserProfileMapper;
+import com.carmarket.user.service.DealerPageService;
 import com.carmarket.user.service.SellerPhoneService;
 import com.carmarket.user.service.UserProfileService;
 import jakarta.validation.Valid;
@@ -40,6 +41,7 @@ public class UserController {
     private final UserProfileService userProfileService;
     private final UserProfileMapper userProfileMapper;
     private final SellerPhoneService sellerPhoneService;
+    private final DealerPageService dealerPageService;
 
     /**
      * Get current user's profile.
@@ -77,7 +79,8 @@ public class UserController {
 
         return userProfileService.getUserProfile(id)
             .filter(UserProfile::isActive)
-            .map(profile -> ResponseEntity.ok(PublicUserProfileResponse.from(profile)))
+            .map(profile -> ResponseEntity.ok(
+                PublicUserProfileResponse.from(profile, dealerPageService.publishedSlug(profile).orElse(null))))
             .orElseGet(() -> {
                 log.warn("User not found or inactive: {}", id);
                 return ResponseEntity.notFound().build();

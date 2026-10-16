@@ -21,7 +21,13 @@ public class AuctionLotService {
     private static final String TOPIC_LOT_UPDATED = "auction.lot.updated";
 
     @Transactional
-    public void saveOrUpdateLots(List<AuctionLot> lots) {
+    /** How many lots a sync added and updated (unchanged ones are neither). */
+    public record SyncCounts(int added, int updated) {
+    }
+
+    public SyncCounts saveOrUpdateLots(List<AuctionLot> lots) {
+        int added = 0;
+        int updated = 0;
         for (AuctionLot lot : lots) {
             Optional<AuctionLot> existing = repository.findByLotNumberAndSource(
                 lot.getLotNumber(), lot.getSource());
@@ -33,13 +39,16 @@ public class AuctionLotService {
                     updateLot(current, lot);
                     repository.save(current);
                     kafkaTemplate.send(TOPIC_LOT_UPDATED, current.getId().toString(), current);
+                    updated++;
                 }
             } else {
                 AuctionLot saved = repository.save(lot);
                 kafkaTemplate.send(TOPIC_LOT_UPDATED, saved.getId().toString(), saved);
                 log.info("New lot indexed: {} {}", saved.getSource(), saved.getLotNumber());
+                added++;
             }
         }
+        return new SyncCounts(added, updated);
     }
 
     private boolean hasSignificantChanges(AuctionLot existing, AuctionLot incoming) {

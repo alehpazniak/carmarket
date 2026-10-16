@@ -67,9 +67,8 @@ public class PaymentController {
     @PostMapping("/{id}/refund")
     public PaymentResponse refund(@AuthenticationPrincipal String adminId,
                                   @RequestHeader(value = "X-User-Email", required = false) String adminEmail,
-                                  @PathVariable UUID id, @Valid @RequestBody(required = false) RefundRequest request) {
-        return paymentService.refund(id, request != null ? request.description() : null,
-            request != null ? request.reason() : null, new AdminAuditPublisher.Actor(adminId, adminEmail));
+                                  @PathVariable UUID id, @Valid @RequestBody RefundRequest request) {
+        return paymentService.refund(id, request.description(), request.reason(), new AdminAuditPublisher.Actor(adminId, adminEmail));
     }
 
     /** Checks the configured P24 credentials against /api/v1/testAccess. */

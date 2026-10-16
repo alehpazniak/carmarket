@@ -195,6 +195,34 @@ class DealerOrderApiTest extends StorageEnabledTestBase {
     }
 
     @Test
+    void auctionLinkIsStoredValidatedAndListedWithTheSnapshotPhoto() throws Exception {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("source", "COPART");
+        body.put("lotNumber", "61747696");
+        body.put("make", "Mazda");
+        body.put("auctionUrl", "https://www.copart.com/lot/61747696/salvage-2021-mazda-cx-5-grand-touring-il-chicago-south");
+        body.put("auctionSnapshot", Map.of("media", Map.of("items", List.of(
+            Map.of("type", "video", "url", "https://img.example.com/walkaround.mp4"),
+            Map.of("type", "image", "thumb", "https://img.example.com/1-thumb.jpg", "large", "https://img.example.com/1.jpg")))));
+        Created order = createOrder(dealerA(), body);
+
+        assertThat(order.body().get("order").get("auctionUrl").asText()).startsWith("https://www.copart.com/lot/61747696");
+        mvc.perform(get("/import-orders").with(dealerA()))
+            .andExpect(jsonPath("$.content[0].auctionUrl").value(containsString("copart.com/lot/61747696")))
+            .andExpect(jsonPath("$.content[0].auctionPhotoUrl").value("https://img.example.com/1-thumb.jpg"))
+            .andExpect(jsonPath("$.content[0].thumbnailUrl").doesNotExist());
+
+        patchOrder(order.id(), "{\"auctionUrl\":\"javascript:alert(1)\"}").andExpect(status().isBadRequest());
+        patchOrder(order.id(), "{\"auctionUrl\":\"https://\"}").andExpect(status().isBadRequest());
+        patchOrder(order.id(), "{\"auctionUrl\":\"https://www.iaai.com/VehicleDetail/42~US\"}")
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.auctionUrl").value("https://www.iaai.com/VehicleDetail/42~US"));
+        patchOrder(order.id(), "{\"auctionUrl\":null}")
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.auctionUrl").doesNotExist());
+    }
+
+    @Test
     void listFiltersAndSearches() throws Exception {
         Created audi = createOrder(dealerA(), Map.of("source", "COPART", "lotNumber", "111", "make", "Audi",
             "clientName", "Anna Nowak"));

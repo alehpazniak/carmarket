@@ -108,11 +108,14 @@ public class ImportOrderService {
         return new CreatedOrder(views.detail(order), properties.clientLink(order.getPublicCode()), password);
     }
 
+    /** {@code dealerId} narrows an admin's list to one dealer; for dealers it is ignored (always their own). */
     @Transactional(readOnly = true)
-    public Page<OrderSummary> list(Actor actor, ImportOrderStatus status, String q, boolean archived, int page, int size) {
+    public Page<OrderSummary> list(Actor actor, ImportOrderStatus status, String q, boolean archived, UUID dealerId,
+                                   int page, int size) {
         Specification<ImportOrder> spec = (root, query, cb) -> {
             List<Predicate> where = new ArrayList<>();
             if (!actor.admin()) where.add(cb.equal(root.get("dealerId"), actor.userId()));
+            else if (dealerId != null) where.add(cb.equal(root.get("dealerId"), dealerId));
             if (status != null) where.add(cb.equal(root.get("status"), status));
             where.add(archived ? cb.isNotNull(root.get("archivedAt")) : cb.isNull(root.get("archivedAt")));
             if (q != null && !q.isBlank()) {
@@ -128,7 +131,7 @@ public class ImportOrderService {
         };
         PageRequest pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), MAX_PAGE_SIZE),
             Sort.by(Sort.Direction.DESC, "createdAt"));
-        return orders.findAll(spec, pageable).map(views::summary);
+        return views.summaries(orders.findAll(spec, pageable));
     }
 
     @Transactional(readOnly = true)

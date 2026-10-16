@@ -63,6 +63,9 @@ class UserControllerTest {
     @MockBean
     private CarListingClient carListingClient;
 
+    @MockBean
+    private com.carmarket.user.service.DealerPageService dealerPageService;
+
     @Autowired
     private MockMvc mockMvc;
 

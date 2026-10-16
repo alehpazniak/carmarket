@@ -6,6 +6,7 @@ import type {CarListing} from '../types';
 import { useAuth } from '../context/AuthContext';
 import { MapPin, Fuel, Gauge, Calendar, Cog, Palette, Tag, Trash2, ChevronLeft, ChevronRight, Check, Pencil, Zap, Car, Hash, Globe, ShieldCheck, Settings2, Sparkles, Flag, ShieldOff } from 'lucide-react';
 import { ContactSellerButton } from '../components/ContactSellerButton';
+import DealerBox from '../components/DealerBox';
 import { ListingChatSection, type ListingChatSectionHandle } from '../components/ListingChatSection';
 import { EQUIPMENT_CATEGORIES } from '../constants/equipment';
 import { CATEGORY_LABELS } from '../constants/cars';
@@ -307,6 +308,7 @@ export default function CarDetail() {
                                     </div>
                                 ) : null}
                             </div>
+                            <DealerBox sellerId={car.sellerId} />
                             <ContactSellerButton carId={car.id} sellerId={car.sellerId}
                                                  listingActive={car.status === 'ACTIVE'} onWrite={() => chatRef.current?.openAndFocus()} />
                             {isAuthenticated && !isOwner && (car.status === 'ACTIVE' || car.status === 'SOLD') && (

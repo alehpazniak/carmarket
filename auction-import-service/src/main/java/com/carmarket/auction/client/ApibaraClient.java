@@ -154,6 +154,11 @@ public class ApibaraClient {
         }
     }
 
+    /** Whether apibara.api-key is set; without it every call returns null and the sync is skipped. */
+    public boolean isConfigured() {
+        return !apiKeyMissing();
+    }
+
     private boolean apiKeyMissing() {
         return config.getApiKey() == null || config.getApiKey().isBlank();
     }

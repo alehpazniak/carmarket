@@ -125,6 +125,8 @@ export interface PublicUserProfile {
     bio?: string;
     role?: UserRole;
     memberSince?: string;
+    /** Set when the user has a published dealer page (/dealer/{slug}). */
+    dealerSlug?: string;
 }
 
 /** The logged-in user's own full profile (GET /api/users/me only, user-service's UserProfileResponse). */

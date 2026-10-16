@@ -98,6 +98,10 @@ public class ImportOrder {
     @Column(name = "title_registration_ok")
     private Boolean titleRegistrationOk;
 
+    /** The lot page the dealer pasted (Copart/IAAI/other); shown as "Zobacz na aukcji" to the dealer only. */
+    @Column(name = "auction_url", length = 500)
+    private String auctionUrl;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "auction_snapshot", columnDefinition = "jsonb")
     private Map<String, Object> auctionSnapshot;

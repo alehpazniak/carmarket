@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Archive, ArchiveRestore, ChevronLeft, Loader2, Trash2 } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronLeft, ExternalLink, Loader2, Trash2 } from 'lucide-react';
 import { deleteImportOrder, getImportOrder, setImportOrderArchived } from '../../api/importOrders';
 import StatusBadge from '../../components/importOrders/StatusBadge';
 import OverviewTab from '../../components/importOrders/tabs/OverviewTab';
@@ -10,9 +10,10 @@ import DocumentsTab from '../../components/importOrders/tabs/DocumentsTab';
 import PhotosTab from '../../components/importOrders/tabs/PhotosTab';
 import ClientAccessTab from '../../components/importOrders/tabs/ClientAccessTab';
 import NotesTab from '../../components/importOrders/tabs/NotesTab';
-import { SOURCE_LABELS, carTitle } from '../../constants/importOrders';
+import { SOURCE_LABELS, auctionLink, carTitle } from '../../constants/importOrders';
 import { apiErrorMessage } from '../../utils/importOrderUi';
 import type { ImportOrderDetail as Order } from '../../types/importOrders';
+import { userIdFromToken } from '../../utils/jwt';
 
 const TABS = [
     { id: 'overview', label: 'Przegląd' },
@@ -87,6 +88,9 @@ export default function ImportOrderDetail() {
         }
     };
 
+    // Admins may read every order but only change their own (OrderLookup): someone else's is read-only
+    const readOnly = order.dealerId !== userIdFromToken(localStorage.getItem('access_token'));
+
     return (
         <div className="min-h-screen bg-avtovo-bg py-6 sm:py-8">
             <div className="max-w-5xl mx-auto px-4 space-y-4">
@@ -106,8 +110,14 @@ export default function ImportOrderDetail() {
                             {SOURCE_LABELS[order.source]}{order.lotNumber ? ` · lot ${order.lotNumber}` : ''}{order.vin ? ` · VIN ${order.vin}` : ''}
                             {order.clientName ? ` · ${order.clientName}` : ''}
                         </p>
+                        {auctionLink(order) && (
+                            <a href={auctionLink(order)!} target="_blank" rel="noopener noreferrer"
+                               className="inline-flex items-center gap-1.5 text-sm text-avtovo-accent hover:underline">
+                                <ExternalLink size={14} /> Zobacz na {order.source === 'OTHER' ? 'aukcji' : SOURCE_LABELS[order.source]}
+                            </a>
+                        )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    {!readOnly && <div className="flex items-center gap-2">
                         <button onClick={toggleArchive} disabled={busy}
                                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-avtovo-border text-sm text-avtovo-text-secondary hover:text-avtovo-text disabled:opacity-50">
                             {order.archivedAt ? <><ArchiveRestore size={15} /> Przywróć</> : <><Archive size={15} /> Archiwizuj</>}
@@ -126,8 +136,13 @@ export default function ImportOrderDetail() {
                                 <Trash2 size={15} /> Usuń
                             </button>
                         )}
-                    </div>
+                    </div>}
                 </div>
+                {readOnly && (
+                    <p className="text-sm text-amber-300 bg-amber-500/10 border border-amber-800 rounded-lg px-3 py-2">
+                        Podgląd zlecenia innego dealera — tylko do odczytu.
+                    </p>
+                )}
                 {confirmDelete && (
                     <p className="text-sm text-red-300">Usunięcie skasuje zlecenie, historię i wszystkie pliki (także w chmurze). Tego nie można cofnąć.</p>
                 )}
@@ -143,6 +158,7 @@ export default function ImportOrderDetail() {
                     ))}
                 </nav>
 
+                <fieldset disabled={readOnly} className="min-w-0 border-0 p-0 m-0">
                 {tab === 'overview' && <OverviewTab order={order} onChange={setOrder} />}
                 {tab === 'status' && <StatusTab order={order} onChange={setOrder} />}
                 {tab === 'transport' && <TransportTab order={order} onChange={setOrder} />}
@@ -150,6 +166,7 @@ export default function ImportOrderDetail() {
                 {tab === 'photos' && <PhotosTab order={order} onReload={load} />}
                 {tab === 'access' && <ClientAccessTab order={order} onChange={setOrder} />}
                 {tab === 'notes' && <NotesTab order={order} onChange={setOrder} />}
+                </fieldset>
             </div>
         </div>
     );

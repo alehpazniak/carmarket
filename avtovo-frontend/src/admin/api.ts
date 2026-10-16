@@ -243,6 +243,173 @@ export const dismissReports = (carId: string, note: string) =>
 export const getListingStats = () =>
     api.get<ListingStats>('/api/cars/admin/stats').then(r => r.data);
 
+// payment-service /api/payments/admin/** (AdminPaymentDtos). Amounts in grosz.
+
+export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
+
+export interface AdminPayment {
+    id: string;
+    userId: string;
+    email: string;
+    productCode: string;
+    referenceId: string | null;
+    amount: number;
+    currency: string;
+    description: string;
+    status: PaymentStatus;
+    p24OrderId: number | null;
+    p24MethodId: number | null;
+    failureReason: string | null;
+    createdAt: string;
+    paidAt: string | null;
+    refundedAt: string | null;
+}
+
+export interface PaymentFilters {
+    status?: string;
+    productCode?: string;
+    userId?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    size?: number;
+}
+
+export interface PaymentStats {
+    from: string;
+    to: string;
+    revenue: number;
+    revenueByProduct: { productCode: string; amount: number; count: number }[];
+    countByStatus: Record<PaymentStatus, number>;
+    refundedAmount: number;
+    refundedCount: number;
+    daily: { date: string; amount: number; count: number }[];
+}
+
+export const listAdminPayments = (filters: PaymentFilters) =>
+    api.get<Page<AdminPayment>>('/api/payments/admin/payments', { params: cleanParams(filters) }).then(r => r.data);
+
+export const getAdminPayment = (id: string) =>
+    api.get<AdminPayment>(`/api/payments/admin/payments/${id}`).then(r => r.data);
+
+export const refundPayment = (id: string, reason: string) =>
+    api.post(`/api/payments/${id}/refund`, { reason }).then(r => r.data);
+
+/** Downloads the CSV (max 10,000 rows) through the authenticated client; returns whether it was cut off. */
+export async function downloadPaymentsCsv(filters: PaymentFilters): Promise<boolean> {
+    const res = await api.get<Blob>('/api/payments/admin/payments.csv', { params: cleanParams(filters), responseType: 'blob' });
+    const url = URL.createObjectURL(res.data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `platnosci-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    return res.headers['x-export-truncated'] === 'true';
+}
+
+export const getPaymentStats = (from?: string, to?: string) =>
+    api.get<PaymentStats>('/api/payments/admin/stats', { params: cleanParams({ from, to }) }).then(r => r.data);
+
+// import-order-service
+
+export interface ImportOrderStats {
+    total: number;
+    open: number;
+    archived: number;
+    byStatus: Record<string, number>;
+    newLast30Days: number;
+    dealers: number;
+    daily: DailyCount[];
+}
+
+export const getImportOrderStats = () =>
+    api.get<ImportOrderStats>('/api/import-orders/admin/stats').then(r => r.data);
+
+// auction-import-service /api/auctions/admin/**
+
+export interface SyncRun {
+    id: string;
+    parser: string;
+    trigger: 'SCHEDULED' | 'MANUAL';
+    startedAt: string;
+    finishedAt: string | null;
+    lotsFetched: number | null;
+    lotsAdded: number | null;
+    lotsUpdated: number | null;
+    error: string | null;
+}
+
+export interface AuctionStatus {
+    apibaraConfigured: boolean;
+    apibaraUsage: Record<string, unknown> | null;
+    apibaraUsageError: string | null;
+    syncRunning: boolean;
+    lastRuns: SyncRun[];
+    exchangeRate: { rate: number; fetchedAt: string; fallback: boolean } | null;
+}
+
+export const getAuctionStatus = () =>
+    api.get<AuctionStatus>('/api/auctions/admin/status').then(r => r.data);
+
+export const triggerAuctionSync = () =>
+    api.post('/api/auctions/admin/sync').then(r => r.data);
+
+/** car-service: re-publishes every listing so search-service rebuilds the index. */
+export const reindexSearch = () =>
+    api.post<{ status: string; published: number }>('/api/cars/admin/reindex').then(r => r.data);
+
+// notification-service /api/notifications/admin/**
+
+export type NotificationStatus = 'PENDING' | 'SENT' | 'CANCELLED' | 'ACKNOWLEDGED' | 'FAILED';
+
+export interface AdminNotification {
+    id: string;
+    type: string;
+    status: NotificationStatus;
+    recipientId: string;
+    recipientEmail: string | null;
+    createdAt: string;
+    sendAt: string;
+    sentAt: string | null;
+    attempts: number;
+    lastError: string | null;
+}
+
+export interface NotificationStats {
+    byStatus: Record<NotificationStatus, number>;
+    failedLast24h: number;
+    sentLast7Days: number;
+    failedByType: Record<string, number>;
+    pending: number;
+}
+
+export const listNotifications = (status: string, type: string, page = 0) =>
+    api.get<Page<AdminNotification>>('/api/notifications/admin/notifications',
+        { params: cleanParams({ status, type, page, size: 20 }) }).then(r => r.data);
+
+export const retryNotification = (id: string) =>
+    api.post(`/api/notifications/admin/notifications/${id}/retry`).then(() => undefined);
+
+export const getNotificationStats = () =>
+    api.get<NotificationStats>('/api/notifications/admin/stats').then(r => r.data);
+
+// chat-service /api/chat/admin/stats — counts only
+
+export interface ChatStats {
+    conversations: number;
+    newConversationsLast7Days: number;
+    newConversationsLast30Days: number;
+    messagesLast7Days: number;
+    messagesLast30Days: number;
+    dailyMessages: DailyCount[];
+    blockedUsers: number;
+}
+
+export const getChatStats = () =>
+    api.get<ChatStats>('/api/chat/admin/stats').then(r => r.data);
+
 export const getAuditLog = (filters: AuditFilters) =>
     api.get<Page<AuditEntry>>('/api/admin/audit', { params: cleanParams(filters) }).then(r => r.data);
 

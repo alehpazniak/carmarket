@@ -51,8 +51,8 @@ public final class PaymentDtos {
     public record ProductResponse(String code, int amount, String currency, String description, Integer durationDays) {
     }
 
-    /** description goes to P24 (max 35 chars); reason is the admin's note for the audit log. */
-    public record RefundRequest(@Size(max = 35) String description, @Size(min = 5, max = 500) String reason) {
+    /** description goes to P24 (max 35 chars); reason (required, ≥ 5 chars) is the admin's note for the audit log. */
+    public record RefundRequest(@Size(max = 35) String description, @jakarta.validation.constraints.NotBlank @Size(min = 5, max = 500) String reason) {
     }
 
     public record TestAccessResponse(boolean configured, boolean sandbox, boolean accessGranted) {

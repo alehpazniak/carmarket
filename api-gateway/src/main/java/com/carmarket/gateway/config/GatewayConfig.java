@@ -93,6 +93,19 @@ public class GatewayConfig {
         return exchange -> Mono.just("import-access:" + clientIp.resolve(exchange));
     }
 
+    /**
+     * "Wyświetl numer" on a public dealer page: anonymous, so keyed by IP under its own prefix
+     * (see importAccessKeyResolver). Same rate as the seller phone: burst 10, then 2 per minute.
+     */
+    @Bean
+    public RedisRateLimiter dealerPhoneRateLimiter() {
+        return new RedisRateLimiter(1, 300, 30);
+    }
+
+    static KeyResolver dealerPhoneKeyResolver(ClientIpResolver clientIp) {
+        return exchange -> Mono.just("dealer-phone:" + clientIp.resolve(exchange));
+    }
+
     /*
      * Limiters are picked by @Qualifier: @Primary wins over a matching parameter name, so without it
      * every RedisRateLimiter parameter would get standardRateLimiter.
@@ -104,7 +117,8 @@ public class GatewayConfig {
                                @Qualifier("authRateLimiter") RedisRateLimiter authRateLimiter,
                                @Qualifier("standardRateLimiter") RedisRateLimiter standardRateLimiter,
                                @Qualifier("phoneRateLimiter") RedisRateLimiter phoneRateLimiter,
-                               @Qualifier("importOrderAccessRateLimiter") RedisRateLimiter importOrderAccessRateLimiter) {
+                               @Qualifier("importOrderAccessRateLimiter") RedisRateLimiter importOrderAccessRateLimiter,
+                               @Qualifier("dealerPhoneRateLimiter") RedisRateLimiter dealerPhoneRateLimiter) {
         return builder.routes()
 
             // ─── AUTH SERVICE ────────────────────────────────────────────
@@ -117,6 +131,17 @@ public class GatewayConfig {
                         .setKeyResolver(keyResolver))
                     .rewritePath("/api/auth/(?<segment>.*)", "/auth/${segment}"))
                 .uri("lb://auth-service"))
+
+            // ─── USER SERVICE — dealer page phone, public (must stay above the generic user routes) ───
+            .route("user-service-dealer-phone", r -> r
+                .path("/api/users/dealers/*/phone")
+                .filters(f -> f
+                    .circuitBreaker(c -> c.setName("user-cb").setFallbackUri("forward:/fallback/user"))
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(dealerPhoneRateLimiter)
+                        .setKeyResolver(dealerPhoneKeyResolver(clientIp)))
+                    .rewritePath("/api/users/(?<segment>.*)", "/users/${segment}"))
+                .uri("lb://user-service"))
 
             // ─── USER SERVICE — seller phone (must stay above the generic user routes) ───
             .route("user-service-phone", r -> r
@@ -283,6 +308,17 @@ public class GatewayConfig {
                         .setKeyResolver(keyResolver))
                     .rewritePath("/api/admin/(?<segment>.*)", "/admin/${segment}"))
                 .uri("lb://admin-service"))
+
+            // ─── NOTIFICATION SERVICE — admin panel only; the service has no other HTTP API ───
+            .route("notification-service-admin", r -> r
+                .path("/api/notifications/admin/**")
+                .filters(f -> f
+                    .circuitBreaker(c -> c.setName("notification-cb").setFallbackUri("forward:/fallback/notification"))
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(standardRateLimiter)
+                        .setKeyResolver(keyResolver))
+                    .rewritePath("/api/notifications/admin/(?<segment>.*)", "/notifications/admin/${segment}"))
+                .uri("lb://notification-service"))
 
             .route("auction-analytics", r -> r
                 .path("/api/analytics/**")

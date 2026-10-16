@@ -48,6 +48,26 @@ class GatewayRoutesTest {
     }
 
     @Test
+    void dealerPagePhoneHitsItsOwnRouteAndPagesTheGenericOne() {
+        List<Route> routes = routeLocator.getRoutes().collectList().block();
+        assertThat(routes).isNotNull();
+
+        assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/users/dealers/auto-kowalski/phone")))
+            .isEqualTo("user-service-dealer-phone");
+        assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/users/dealers/auto-kowalski")))
+            .isEqualTo("user-service");
+    }
+
+    @Test
+    void dealerPhoneKeyResolverUsesItsOwnBucketPerIp() {
+        ServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/users/dealers/x/phone")
+            .remoteAddress(new InetSocketAddress("203.0.113.9", 4000)));
+
+        assertThat(GatewayConfig.dealerPhoneKeyResolver(new ClientIpResolver(0)).resolve(exchange).block())
+            .isEqualTo("dealer-phone:203.0.113.9");
+    }
+
+    @Test
     void importOrderPasswordChecksHitTheStrictRouteFirst() {
         List<Route> routes = routeLocator.getRoutes().collectList().block();
         assertThat(routes).isNotNull();
@@ -79,6 +99,8 @@ class GatewayRoutesTest {
 
         assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/admin/audit"))).isEqualTo("admin-service");
         assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/admin/system/health"))).isEqualTo("admin-service");
+        assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/notifications/admin/stats"))).isEqualTo("notification-service-admin");
+        assertThat(routes.stream().filter(r -> matches(r, "/api/notifications/abc")).findFirst()).isEmpty();
     }
 
     private static String firstMatch(List<Route> routes, MockServerHttpRequest.BaseBuilder<?> request) {

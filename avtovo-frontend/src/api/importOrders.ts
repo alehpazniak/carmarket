@@ -24,6 +24,8 @@ export interface ImportOrderListParams {
     status?: ImportOrderStatus | '';
     q?: string;
     archived?: boolean;
+    /** Admins only: one dealer's orders (ignored for dealers). */
+    dealerId?: string;
     page?: number;
     size?: number;
 }

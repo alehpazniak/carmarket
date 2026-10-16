@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Car, Plus, User, LogOut, ChevronDown, Gavel, MessageSquare, ClipboardList, ShieldCheck } from 'lucide-react';
+import { Car, Plus, User, LogOut, ChevronDown, Gavel, MessageSquare, ClipboardList, ShieldCheck, Building2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useChat } from '../context/ChatContext';
 import { getUnreadCount, UNREAD_CHANGED_EVENT } from '../api/chat';
@@ -124,6 +124,16 @@ export default function Navbar() {
                                                 >
                                                     <ClipboardList size={15} />
                                                     Zlecenia importu
+                                                </Link>
+                                            )}
+                                            {isDealer && (
+                                                <Link
+                                                    to="/panel-dealera/strona"
+                                                    onClick={() => setMenuOpen(false)}
+                                                    className="flex items-center gap-2 px-4 py-3 text-sm text-avtovo-text hover:bg-white/5 transition-colors"
+                                                >
+                                                    <Building2 size={15} />
+                                                    Strona dealera
                                                 </Link>
                                             )}
                                             {isAdmin && (

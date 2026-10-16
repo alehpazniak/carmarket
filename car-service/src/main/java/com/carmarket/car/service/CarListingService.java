@@ -13,7 +13,9 @@ import com.carmarket.car.repository.CarListingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -87,6 +89,20 @@ public class CarListingService {
     @Transactional(readOnly = true)
     public Page<CarListingResponse> getAll(Pageable pageable) {
         return repository.findByStatus(ListingStatus.ACTIVE, pageable)
+            .map(mapper::toResponse);
+    }
+
+    private static final Set<String> SELLER_LISTING_SORTS = Set.of("createdAt", "price", "mileage", "year");
+
+    /** A seller's ACTIVE listings, for the public dealer page. Unknown sort fields fall back to newest first. */
+    @Transactional(readOnly = true)
+    public Page<CarListingResponse> getSellerListings(UUID sellerId, Pageable pageable) {
+        Sort sort = pageable.getSort().stream().allMatch(o -> SELLER_LISTING_SORTS.contains(o.getProperty()))
+            && pageable.getSort().isSorted()
+            ? pageable.getSort()
+            : Sort.by(Sort.Direction.DESC, "createdAt");
+        Pageable safe = PageRequest.of(pageable.getPageNumber(), Math.min(pageable.getPageSize(), 48), sort);
+        return repository.findBySellerIdAndStatus(sellerId, ListingStatus.ACTIVE, safe)
             .map(mapper::toResponse);
     }
 

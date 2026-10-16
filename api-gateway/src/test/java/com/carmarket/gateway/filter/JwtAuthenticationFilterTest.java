@@ -98,6 +98,10 @@ class JwtAuthenticationFilterTest {
             MockServerHttpRequest.post("/api/payments/admin/p24/notify").build(),
             MockServerHttpRequest.get("/api/payments/admin/payments").build(),
             MockServerHttpRequest.get("/api/admin/audit").build(),
+            MockServerHttpRequest.get("/api/notifications/admin/notifications").build(),
+            MockServerHttpRequest.get("/api/chat/admin/stats").build(),
+            MockServerHttpRequest.get("/api/import-orders/admin/stats").build(),
+            MockServerHttpRequest.get("/api/users/admin/users/abc").build(),
             MockServerHttpRequest.get("/api/admin").build())) {
             String path = request.getPath().value();
             assertThat(filter.isPublicRoute(path, request.getMethod().name())).as(path).isFalse();
@@ -128,6 +132,17 @@ class JwtAuthenticationFilterTest {
         assertThat(filter.isPublicRoute("/api/cars/my", "GET")).isFalse();
         assertThat(filter.isPublicRoute("/api/cars/my/123", "GET")).isFalse();
         assertThat(filter.isPublicRoute("/api/cars/123", "GET")).isTrue();
+    }
+
+    @Test
+    void dealerPagesArePublicButTheOwnersEditorIsNot() {
+        assertThat(filter.isPublicRoute("/api/users/dealers/auto-kowalski", "GET")).isTrue();
+        assertThat(filter.isPublicRoute("/api/users/dealers/auto-kowalski/phone", "GET")).isTrue();
+        assertThat(filter.isPublicRoute("/api/users/dealers/auto-kowalski", "PUT")).isFalse();
+        assertThat(filter.isPublicRoute("/api/users/me/dealer-page", "GET")).isFalse();
+        assertThat(filter.isPublicRoute("/api/users/me/dealer-page", "PUT")).isFalse();
+        assertThat(filter.isPublicRoute("/api/cars/dealer-media", "POST")).isFalse();
+        assertThat(filter.isPublicRoute("/api/cars/seller/" + UUID.randomUUID(), "GET")).isTrue();
     }
 
     @Test

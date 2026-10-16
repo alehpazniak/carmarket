@@ -14,6 +14,16 @@ import java.util.Map;
 public class CurrencyExchangeService {
 
     private final WebClient webClient;
+    /** The last rate actually fetched (calls within the day are served from the cache). */
+    private volatile LastRate lastRate;
+
+    /** fallback = the API failed and the built-in 4.00 was used. */
+    public record LastRate(BigDecimal rate, java.time.Instant fetchedAt, boolean fallback) {
+    }
+
+    public java.util.Optional<LastRate> lastRate() {
+        return java.util.Optional.ofNullable(lastRate);
+    }
 
     public CurrencyExchangeService(WebClient.Builder builder) {
         this.webClient = builder.baseUrl("https://api.exchangerate-api.com/v4/latest/USD").build();
@@ -31,12 +41,16 @@ public class CurrencyExchangeService {
                 Map<String, Number> rates = (Map<String, Number>) response.get("rates");
                 Number pln = rates.get("PLN");
                 if (pln != null) {
-                    return BigDecimal.valueOf(pln.doubleValue()).setScale(4, RoundingMode.HALF_UP);
+                    BigDecimal rate = BigDecimal.valueOf(pln.doubleValue()).setScale(4, RoundingMode.HALF_UP);
+                    lastRate = new LastRate(rate, java.time.Instant.now(), false);
+                    return rate;
                 }
             }
         } catch (Exception e) {
             log.warn("Failed to fetch exchange rate, using fallback", e);
         }
-        return new BigDecimal("4.00"); // Fallback
+        BigDecimal fallback = new BigDecimal("4.00");
+        lastRate = new LastRate(fallback, java.time.Instant.now(), true);
+        return fallback; // Fallback
     }
 }
