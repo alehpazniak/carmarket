@@ -55,8 +55,13 @@ public class ImportOrderFile {
     @Column(name = "client_visible", nullable = false)
     private boolean clientVisible;
 
-    @Column(name = "uploaded_by", nullable = false)
+    /** The dealer (or admin) who uploaded it; null for files the client uploaded. */
+    @Column(name = "uploaded_by")
     private UUID uploadedBy;
+
+    /** Uploaded by the client on /zlecenie/{code}, e.g. a payment confirmation. */
+    @Column(name = "uploaded_by_client", nullable = false)
+    private boolean uploadedByClient;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

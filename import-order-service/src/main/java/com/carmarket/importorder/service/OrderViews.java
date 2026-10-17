@@ -100,7 +100,7 @@ public class OrderViews {
 
     public static FileView file(ImportOrderFile f) {
         return new FileView(f.getId(), f.getKind(), f.getCategory(), f.getOriginalName(), f.getContentType(),
-            f.getSizeBytes(), f.isClientVisible(), f.getCreatedAt());
+            f.getSizeBytes(), f.isClientVisible(), f.isUploadedByClient(), f.getCreatedAt());
     }
 
     public static AccessLogView accessLog(AccessLogEntry e) {

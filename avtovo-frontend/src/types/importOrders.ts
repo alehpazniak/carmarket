@@ -11,7 +11,7 @@ export type DocumentCategory =
     | 'INVOICE_DEALER' | 'INVOICE_AUCTION' | 'TITLE' | 'BILL_OF_LADING' | 'CUSTOMS' | 'TRANSPORT'
     | 'PAYMENT_CONFIRMATION' | 'CONTRACT' | 'OTHER';
 export type PhotoStage = 'AUCTION' | 'US_WAREHOUSE' | 'LOADING' | 'ARRIVAL' | 'DELIVERY' | 'OTHER';
-export type AccessEvent = 'LOGIN_OK' | 'LOGIN_FAILED' | 'VIEW';
+export type AccessEvent = 'LOGIN_OK' | 'LOGIN_FAILED' | 'VIEW' | 'UPLOAD';
 
 /** Editable order fields (create + PATCH). Absent = unchanged, null = clear. */
 export interface ImportOrderFields {
@@ -100,6 +100,8 @@ export interface ImportOrderFile {
     contentType: string;
     sizeBytes: number;
     clientVisible: boolean;
+    /** Uploaded by the client on /zlecenie/:code (e.g. a payment confirmation). */
+    uploadedByClient: boolean;
     createdAt: string;
 }
 
@@ -191,6 +193,7 @@ export interface ClientOrderFile {
     originalName: string;
     contentType: string;
     sizeBytes: number;
+    uploadedByClient: boolean;
     /** Short-lived presigned URL; null while storage is not configured. */
     url: string | null;
 }

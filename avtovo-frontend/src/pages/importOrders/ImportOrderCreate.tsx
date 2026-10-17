@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronLeft, Link2, Loader2 } from 'lucide-react';
 import { createImportOrder, resolveAuctionUrl } from '../../api/importOrders';
-import { getApibaraVehicle } from '../../api/auctions';
+import { isAxiosError } from 'axios';
 import { getMyProfile } from '../../api/users';
 import CredentialsModal from '../../components/importOrders/CredentialsModal';
 import { Field, Section, TriStateSelect, inputClass } from '../../components/importOrders/FormField';
@@ -100,19 +100,17 @@ export default function ImportOrderCreate() {
         setResolving(true);
         setResolveError(null);
         try {
-            const resolved = await resolveAuctionUrl(auctionUrl.trim());
-            const data = (resolved.data ?? resolved) as Record<string, unknown>;
-            const id = [data.vin, data.lot_number, data.lotNumber, data.slug_vin]
-                .find(v => typeof v === 'string' || typeof v === 'number');
-            if (id == null) throw new Error('No identifier in url-to-details response');
-            const vehicle = await getApibaraVehicle(String(id));
+            // The backend resolves the link (falling back to the lot number in it) in one Apibara request
+            const vehicle = await resolveAuctionUrl(auctionUrl.trim());
             if (!vehicle.data) throw new Error('Vehicle not found');
             const result = fromApibaraVehicle(vehicle.data);
             setPrefill(result);
             setForm(f => applyPrefill(f, result));
         } catch (err) {
             console.error(err);
-            setResolveError('Nie udało się odczytać pojazdu z tego linku. Sprawdź link albo wpisz dane ręcznie.');
+            setResolveError(isAxiosError(err) && err.response?.status === 503
+                ? 'Wyszukiwanie pojazdów (Apibara) nie jest skonfigurowane. Wpisz dane ręcznie.'
+                : 'Nie udało się odczytać pojazdu z tego linku. Sprawdź link albo wpisz dane ręcznie.');
         } finally {
             setResolving(false);
         }
@@ -171,7 +169,7 @@ export default function ImportOrderCreate() {
 
                 <Section title="Pojazd">
                     <div className="space-y-1.5">
-                        <span className="text-xs text-avtovo-text-secondary">Wklej link z Copart/IAAI</span>
+                        <span className="text-xs text-avtovo-text-secondary">Wklej link z Copart/IAAI, numer lotu albo VIN</span>
                         <div className="flex gap-2">
                             <input value={auctionUrl} onChange={e => setAuctionUrl(e.target.value)} placeholder="https://www.copart.com/lot/…"
                                    className={inputClass} />
@@ -180,7 +178,7 @@ export default function ImportOrderCreate() {
                                 {resolving ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />} Uzupełnij
                             </button>
                         </div>
-                        <span className="block text-xs text-avtovo-muted">Zużywa 2 zapytania z limitu Apibara.</span>
+                        <span className="block text-xs text-avtovo-muted">Zużywa 1 zapytanie z limitu Apibara.</span>
                         {resolveError && <p className="text-sm text-red-400">{resolveError}</p>}
                     </div>
 

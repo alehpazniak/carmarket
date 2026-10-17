@@ -48,7 +48,7 @@ public class ClientViewFactory {
                 }
             }
             ClientOrderView.File view = new ClientOrderView.File(file.getId(), file.getKind(), file.getCategory(),
-                file.getOriginalName(), file.getContentType(), file.getSizeBytes(), url);
+                file.getOriginalName(), file.getContentType(), file.getSizeBytes(), file.isUploadedByClient(), url);
             (file.getKind() == FileKind.DOCUMENT ? documents : photos).add(view);
         }
 

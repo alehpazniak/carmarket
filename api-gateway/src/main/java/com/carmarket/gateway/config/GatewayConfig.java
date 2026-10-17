@@ -93,6 +93,11 @@ public class GatewayConfig {
         return exchange -> Mono.just("import-access:" + clientIp.resolve(exchange));
     }
 
+    /** The client page's uploads: same limiter as the password check, but its own bucket. */
+    static KeyResolver importUploadKeyResolver(ClientIpResolver clientIp) {
+        return exchange -> Mono.just("import-upload:" + clientIp.resolve(exchange));
+    }
+
     /**
      * "Wyświetl numer" on a public dealer page: anonymous, so keyed by IP under its own prefix
      * (see importAccessKeyResolver). Same rate as the seller phone: burst 10, then 2 per minute.
@@ -264,6 +269,17 @@ public class GatewayConfig {
                     .requestRateLimiter(rl -> rl
                         .setRateLimiter(importOrderAccessRateLimiter)
                         .setKeyResolver(importAccessKeyResolver(clientIp)))
+                    .rewritePath("/api/import-orders/(?<segment>.*)", "/import-orders/${segment}"))
+                .uri("lb://import-order-service"))
+
+            // ─── IMPORT ORDER SERVICE — the client's uploads (e.g. payment confirmation): public, so keyed by IP
+            //     under its own prefix, and no circuit breaker (its time limit would cut off large uploads) ───
+            .route("import-order-service-client-files", r -> r
+                .path("/api/import-orders/public/*/files").and().method(HttpMethod.POST)
+                .filters(f -> f
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(importOrderAccessRateLimiter)
+                        .setKeyResolver(importUploadKeyResolver(clientIp)))
                     .rewritePath("/api/import-orders/(?<segment>.*)", "/import-orders/${segment}"))
                 .uri("lb://import-order-service"))
 

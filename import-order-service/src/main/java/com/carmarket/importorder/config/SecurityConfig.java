@@ -26,7 +26,7 @@ public class SecurityConfig {
             .addFilterBefore(gatewaySignatureFilter, UsernamePasswordAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 // Client page: link + password → X-Order-Token, checked by ClientAccessService
-                .requestMatchers(HttpMethod.POST, "/import-orders/public/*/access").permitAll()
+                .requestMatchers(HttpMethod.POST, "/import-orders/public/*/access", "/import-orders/public/*/files").permitAll()
                 .requestMatchers(HttpMethod.GET, "/import-orders/public/**").permitAll()
                 // Must stay above the DEALER/ADMIN rule: the first match wins
                 .requestMatchers("/import-orders/admin/**").hasRole("ADMIN")

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Loader2, Lock } from 'lucide-react';
 import { updateImportOrder } from '../../../api/importOrders';
 import { Section, inputClass } from '../FormField';
@@ -8,6 +9,7 @@ import type { ImportOrderDetail } from '../../../types/importOrders';
 /** Notatki wewnętrzne: never shown to the client. */
 export default function NotesTab({ order, onChange }: { order: ImportOrderDetail; onChange: (o: ImportOrderDetail) => void }) {
     const [notes, setNotes] = useState(order.internalNotes ?? '');
+    const navigate = useNavigate();
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -17,7 +19,8 @@ export default function NotesTab({ order, onChange }: { order: ImportOrderDetail
         try {
             const updated = await updateImportOrder(order.id, { internalNotes: notes.trim() || null });
             onChange(updated);
-            setMessage({ ok: true, text: 'Zapisano.' });
+            // Back to the dealer's order list once the changes are saved
+            navigate('/panel-dealera/zlecenia');
         } catch (err) {
             setMessage({ ok: false, text: apiErrorMessage(err, 'Nie udało się zapisać.') });
         } finally {

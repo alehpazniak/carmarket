@@ -117,7 +117,10 @@ export default function DocumentsTab({ order, onReload }: { order: ImportOrderDe
                                 <FileText size={18} className="text-avtovo-accent shrink-0" />
                                 <div className="min-w-0 flex-1">
                                     <p className="text-sm text-avtovo-text truncate">{d.originalName}</p>
-                                    <p className="text-xs text-avtovo-text-secondary">{formatBytes(d.sizeBytes)} · {formatDate(d.createdAt)}</p>
+                                    <p className="text-xs text-avtovo-text-secondary">
+                                        {d.uploadedByClient && <span className="mr-1.5 rounded bg-avtovo-accent/15 px-1.5 py-0.5 text-avtovo-accent">Od klienta</span>}
+                                        {formatBytes(d.sizeBytes)} · {formatDate(d.createdAt)}
+                                    </p>
                                 </div>
                                 <select value={d.category} disabled={busy}
                                         onChange={e => run(() => updateImportOrderFile(order.id, d.id, { category: e.target.value }), 'Nie udało się zmienić kategorii.')}

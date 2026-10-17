@@ -65,6 +65,8 @@ public record ClientOrderView(
         String originalName,
         String contentType,
         long sizeBytes,
+        /** The client uploaded it themselves. */
+        boolean uploadedByClient,
         String url
     ) {
     }

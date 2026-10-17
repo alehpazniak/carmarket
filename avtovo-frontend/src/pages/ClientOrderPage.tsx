@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { Loader2, Lock, ShieldAlert } from 'lucide-react';
-import { clientOrderAccess, getClientOrder } from '../api/importOrders';
+import { clientOrderAccess, getClientOrder, uploadClientOrderFiles } from '../api/importOrders';
 import ClientOrderViewCard from '../components/importOrders/ClientOrderViewCard';
-import type { ClientOrderView } from '../types/importOrders';
+import type { ClientOrderView, DocumentCategory } from '../types/importOrders';
 
 interface StoredToken {
     token: string;
@@ -119,6 +119,32 @@ export default function ClientOrderPage() {
         };
     }, [phase, load]);
 
+    /** Rejects with a message for the upload box; an expired session goes back to the password form. */
+    const uploadDocuments = async (files: File[], category: DocumentCategory) => {
+        const stored = readToken(code);
+        if (!stored) {
+            setPhase({ kind: 'password', message: 'Sesja wygasła — podaj hasło ponownie.' });
+            return;
+        }
+        try {
+            await uploadClientOrderFiles(code, stored.token, files, category);
+        } catch (err) {
+            const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+            if (status === 401) {
+                writeToken(code, null);
+                setPhase({ kind: 'password', message: 'Podaj hasło, aby zobaczyć zlecenie.' });
+                return;
+            }
+            const server = axios.isAxiosError(err) ? String(err.response?.data?.error ?? '') : '';
+            throw new Error(status === 503 ? 'Wysyłanie plików jest chwilowo niedostępne. Skontaktuj się z dealerem.'
+                : status === 413 ? 'Plik jest za duży (najwyżej 20 MB).'
+                : status === 429 ? 'Zbyt wiele prób — spróbuj za chwilę.'
+                : server.includes('per order') ? 'Osiągnięto limit dokumentów w tym zleceniu. Skontaktuj się z dealerem.'
+                : 'Nie udało się wysłać plików (dozwolone: PDF, JPEG, PNG, WEBP).');
+        }
+        load();
+    };
+
     const submit = async (e: FormEvent) => {
         e.preventDefault();
         if (!password.trim()) return;
@@ -144,7 +170,7 @@ export default function ClientOrderPage() {
             <div className="max-w-xl mx-auto px-4">
                 {phase.kind === 'loading' && <div className="flex justify-center py-16"><Loader2 className="animate-spin text-avtovo-accent" /></div>}
 
-                {phase.kind === 'view' && <ClientOrderViewCard view={phase.view} />}
+                {phase.kind === 'view' && <ClientOrderViewCard view={phase.view} onUpload={uploadDocuments} />}
 
                 {phase.kind === 'error' && (
                     <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-6 text-center space-y-3">

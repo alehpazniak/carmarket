@@ -3,6 +3,7 @@ package com.carmarket.importorder.service;
 import com.carmarket.importorder.dto.ImportOrderDtos.FilePatchRequest;
 import com.carmarket.importorder.dto.ImportOrderDtos.FileView;
 import com.carmarket.importorder.dto.ImportOrderDtos.PresignedUrl;
+import com.carmarket.importorder.entity.DocumentCategory;
 import com.carmarket.importorder.entity.FileKind;
 import com.carmarket.importorder.entity.ImportOrder;
 import com.carmarket.importorder.entity.ImportOrderFile;
@@ -27,6 +28,7 @@ import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * Documents and photos of an order. Types are recognised by magic bytes, never by the client's
@@ -40,6 +42,8 @@ public class OrderFileService {
     static final long MAX_PHOTO_BYTES = 15L * 1024 * 1024;
     static final int MAX_PHOTOS_PER_UPLOAD = 30;
     static final int MAX_DOCUMENTS_PER_UPLOAD = 10;
+    static final int MAX_CLIENT_DOCUMENTS_PER_UPLOAD = 5;
+    static final int MAX_CLIENT_DOCUMENTS_PER_ORDER = 30;
     private static final int MAX_NAME_LENGTH = 120;
 
     private final ImportOrderFileRepository files;
@@ -60,14 +64,47 @@ public class OrderFileService {
     record ValidatedFile(MultipartFile file, FileType type, String originalName) {
     }
 
+    /** Who uploads, and how the order is (re)loaded and checked inside each transaction. */
+    record Uploader(Supplier<ImportOrder> loadOrder, UUID userId, boolean client) {
+    }
+
+    /** A dealer's (or admin's) upload; documents may be shared with the client right away. */
+    public List<FileView> upload(Actor actor, UUID orderId, List<MultipartFile> uploads, FileKind kind,
+                                 String category, boolean clientVisible) {
+        return store(new Uploader(() -> lookup.forWrite(actor, orderId), actor.userId(), false),
+            uploads, kind, category, clientVisible);
+    }
+
+    /**
+     * The client's upload from /zlecenie/{code} ({@code loadOrder} checks the X-Order-Token): documents
+     * only, in the categories a client may use, always visible to the client, and capped per order.
+     */
+    public List<FileView> uploadFromClient(Supplier<ImportOrder> loadOrder, List<MultipartFile> uploads, String category) {
+        if (category == null || !DocumentCategory.CLIENT_UPLOADABLE.contains(category)) {
+            throw ApiException.badRequest("Invalid category");
+        }
+        if (uploads != null && uploads.size() > MAX_CLIENT_DOCUMENTS_PER_UPLOAD) {
+            throw ApiException.badRequest("At most " + MAX_CLIENT_DOCUMENTS_PER_UPLOAD + " files per upload");
+        }
+        Supplier<ImportOrder> withinLimit = () -> {
+            ImportOrder order = loadOrder.get();
+            long existing = files.countByOrderIdAndUploadedByClientTrue(order.getId());
+            if (existing + (uploads == null ? 0 : uploads.size()) > MAX_CLIENT_DOCUMENTS_PER_ORDER) {
+                throw ApiException.badRequest("At most " + MAX_CLIENT_DOCUMENTS_PER_ORDER + " uploaded documents per order");
+            }
+            return order;
+        };
+        return store(new Uploader(withinLimit, null, true), uploads, FileKind.DOCUMENT, category, true);
+    }
+
     /**
      * Validates every file first, uploads them to S3, then writes the rows in one transaction.
      * If anything fails after the first upload, the objects already uploaded are deleted again.
      */
-    public List<FileView> upload(Actor actor, UUID orderId, List<MultipartFile> uploads, FileKind kind,
+    private List<FileView> store(Uploader uploader, List<MultipartFile> uploads, FileKind kind,
                                  String category, boolean clientVisible) {
         storage.requireEnabled();
-        ImportOrder order = transaction.execute(status -> lookup.forWrite(actor, orderId));
+        ImportOrder order = transaction.execute(status -> uploader.loadOrder().get());
         if (!kind.isValidCategory(category)) throw ApiException.badRequest("Invalid category for " + kind);
         List<ValidatedFile> validated = validate(uploads, kind);
 
@@ -89,18 +126,21 @@ public class OrderFileService {
                     .contentType(v.type().contentType())
                     .sizeBytes(v.file().getSize())
                     .clientVisible(clientVisible)
-                    .uploadedBy(actor.userId())
+                    .uploadedBy(uploader.userId())
+                    .uploadedByClient(uploader.client())
                     .build());
             }
             List<ImportOrderFile> saved = transaction.execute(status -> {
-                ImportOrder current = lookup.forWrite(actor, orderId); // still there and still ours
+                ImportOrder current = uploader.loadOrder().get(); // still there and still allowed
                 List<ImportOrderFile> stored = files.saveAll(rows);
-                if (kind == FileKind.DOCUMENT && clientVisible) {
+                // The client is told about the dealer's documents, not about their own uploads
+                if (kind == FileKind.DOCUMENT && clientVisible && !uploader.client()) {
                     eventProducer.publishClientUpdate(current, ImportOrderEventProducer.Reason.DOCUMENT);
                 }
                 return stored;
             });
-            log.info("{} {} file(s) uploaded to import order {} by {}", saved.size(), kind, orderId, actor.userId());
+            log.info("{} {} file(s) uploaded to import order {} by {}", saved.size(), kind, order.getId(),
+                uploader.client() ? "the client" : uploader.userId());
             return saved.stream().map(OrderViews::file).toList();
         } catch (IOException e) {
             cleanUp(uploadedKeys);

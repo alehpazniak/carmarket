@@ -78,6 +78,8 @@ class GatewayRoutesTest {
             .isEqualTo("import-order-service");
         assertThat(firstMatch(routes, MockServerHttpRequest.post("/api/import-orders/123/files")))
             .isEqualTo("import-order-service-files");
+        assertThat(firstMatch(routes, MockServerHttpRequest.post("/api/import-orders/public/abc/files")))
+            .isEqualTo("import-order-service-client-files");
         assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/import-orders/123/files/456/url")))
             .isEqualTo("import-order-service");
         assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/import-orders")))
@@ -90,6 +92,7 @@ class GatewayRoutesTest {
             .remoteAddress(new InetSocketAddress("203.0.113.9", 4000)));
 
         assertThat(GatewayConfig.importAccessKeyResolver(new ClientIpResolver(0)).resolve(exchange).block()).isEqualTo("import-access:203.0.113.9");
+        assertThat(GatewayConfig.importUploadKeyResolver(new ClientIpResolver(0)).resolve(exchange).block()).isEqualTo("import-upload:203.0.113.9");
     }
 
     @Test

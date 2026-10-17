@@ -19,6 +19,8 @@ public interface ImportOrderFileRepository extends JpaRepository<ImportOrderFile
 
     long countByOrderId(UUID orderId);
 
+    long countByOrderIdAndUploadedByClientTrue(UUID orderId);
+
     /** Photos of a page of orders, for the list thumbnails. */
     List<ImportOrderFile> findByOrderIdInAndKindOrderByCreatedAtAsc(Collection<UUID> orderIds, FileKind kind);
 }

@@ -80,6 +80,9 @@ export const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
 export const MAX_PHOTO_BYTES = 15 * 1024 * 1024;
 export const MAX_PHOTOS_PER_UPLOAD = 30;
 export const MAX_DOCUMENTS_PER_UPLOAD = 10;
+export const MAX_CLIENT_DOCUMENTS_PER_UPLOAD = 5;
+/** What a client may file their own uploads under. */
+export const CLIENT_DOCUMENT_CATEGORIES: DocumentCategory[] = ['PAYMENT_CONFIRMATION', 'OTHER'];
 export const MAX_AUCTION_PHOTOS = 20;
 
 export function carTitle(o: { make?: string | null; model?: string | null; year?: number | null }): string {

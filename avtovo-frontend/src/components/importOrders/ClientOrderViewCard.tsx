@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle2, Circle, Download, FileText, Mail, Phone, Ship, User } from 'lucide-react';
 import PhotoGallery from '../PhotoGallery';
 import StatusBadge from './StatusBadge';
+import ClientDocumentUpload from './ClientDocumentUpload';
 import {
     MAIN_STATUSES,
     PHOTO_STAGE_LABELS,
@@ -12,7 +13,7 @@ import {
     formatBytes,
     formatDate,
 } from '../../constants/importOrders';
-import type { ClientOrderView, ImportOrderStatus } from '../../types/importOrders';
+import type { ClientOrderView, DocumentCategory, ImportOrderStatus } from '../../types/importOrders';
 
 const SHIPPING_LABELS: { key: keyof ClientOrderView['shipping']; label: string; date?: boolean }[] = [
     { key: 'paymentDeadline', label: 'Termin płatności na aukcji', date: true },
@@ -31,9 +32,13 @@ const SHIPPING_LABELS: { key: keyof ClientOrderView['shipping']; label: string; 
 
 /**
  * The client page body, mobile first. Rendered on /zlecenie/:code and in the dealer's
- * "Podgląd jako klient", from the same allow-listed ClientOrderView.
+ * "Podgląd jako klient", from the same allow-listed ClientOrderView. {@code onUpload} (client page only)
+ * lets the client send their own documents, e.g. a payment confirmation.
  */
-export default function ClientOrderViewCard({ view }: { view: ClientOrderView }) {
+export default function ClientOrderViewCard({ view, onUpload }: {
+    view: ClientOrderView;
+    onUpload?: (files: File[], category: DocumentCategory) => Promise<void>;
+}) {
     const title = carTitle(view);
     const cover = view.photos.find(p => p.url)?.url ?? null;
     const currentIndex = view.status ? MAIN_STATUSES.indexOf(view.status) : -1;
@@ -143,16 +148,18 @@ export default function ClientOrderViewCard({ view }: { view: ClientOrderView })
             )}
 
             {/* Documents */}
-            {view.documents.length > 0 && (
-                <section className="bg-avtovo-card border border-avtovo-border rounded-xl p-4 sm:p-5">
-                    <h2 className="font-semibold text-avtovo-text mb-3">Dokumenty</h2>
-                    <ul className="space-y-2">
+            {(view.documents.length > 0 || onUpload) && (
+                <section className="bg-avtovo-card border border-avtovo-border rounded-xl p-4 sm:p-5 space-y-4">
+                    <h2 className="font-semibold text-avtovo-text">Dokumenty</h2>
+                    {view.documents.length > 0 && <ul className="space-y-2">
                         {view.documents.map(d => (
                             <li key={d.id} className="flex items-center gap-3 bg-avtovo-bg border border-avtovo-border rounded-lg px-3 py-2.5">
                                 <FileText size={18} className="text-avtovo-accent shrink-0" />
                                 <div className="min-w-0 flex-1">
                                     <p className="text-sm text-avtovo-text truncate">{d.originalName}</p>
-                                    <p className="text-xs text-avtovo-text-secondary">{categoryLabel(d.category)} · {formatBytes(d.sizeBytes)}</p>
+                                    <p className="text-xs text-avtovo-text-secondary">
+                                        {categoryLabel(d.category)} · {formatBytes(d.sizeBytes)}{d.uploadedByClient ? ' · wysłane przez Ciebie' : ''}
+                                    </p>
                                 </div>
                                 {d.url && (
                                     <a href={d.url} target="_blank" rel="noreferrer"
@@ -162,7 +169,8 @@ export default function ClientOrderViewCard({ view }: { view: ClientOrderView })
                                 )}
                             </li>
                         ))}
-                    </ul>
+                    </ul>}
+                    {onUpload && <ClientDocumentUpload onUpload={onUpload} />}
                 </section>
             )}
 

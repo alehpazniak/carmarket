@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Eye, KeyRound, Loader2, LogIn, ShieldOff, ShieldCheck, XCircle } from 'lucide-react';
+import { Eye, KeyRound, Loader2, LogIn, ShieldOff, ShieldCheck, Upload, XCircle } from 'lucide-react';
 import { getAccessLog, getClientPreview, resetClientAccess, setClientAccessEnabled } from '../../../api/importOrders';
 import { Section } from '../FormField';
 import CopyButton from '../CopyButton';
@@ -13,6 +13,7 @@ const EVENT_TEXT: Record<AccessLogEntry['event'], { text: string; icon: typeof E
     VIEW: { text: 'Klient otworzył stronę', icon: Eye, className: 'text-avtovo-text' },
     LOGIN_OK: { text: 'Klient zalogował się hasłem', icon: LogIn, className: 'text-emerald-400' },
     LOGIN_FAILED: { text: 'Błędne hasło', icon: XCircle, className: 'text-red-400' },
+    UPLOAD: { text: 'Klient dodał dokument', icon: Upload, className: 'text-avtovo-accent' },
 };
 
 /** Dostęp klienta: link, password reset, on/off switch, access log and "preview as client". */
