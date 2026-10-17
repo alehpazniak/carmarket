@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { updateImportOrder } from '../../../api/importOrders';
 import { Field, Section, inputClass } from '../FormField';
@@ -27,6 +28,7 @@ function toForm(o: ImportOrderDetail): Record<string, string> {
 /** Transport: shipping details; empty fields are hidden from the client. */
 export default function TransportTab({ order, onChange }: { order: ImportOrderDetail; onChange: (o: ImportOrderDetail) => void }) {
     const [form, setForm] = useState(() => toForm(order));
+    const navigate = useNavigate();
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -38,8 +40,8 @@ export default function TransportTab({ order, onChange }: { order: ImportOrderDe
         try {
             const updated = await updateImportOrder(order.id, fields);
             onChange(updated);
-            setForm(toForm(updated));
-            setMessage({ ok: true, text: 'Zapisano.' });
+            // Back to the dealer's order list once the changes are saved
+            navigate('/panel-dealera/zlecenia');
         } catch (err) {
             const text = apiErrorMessage(err, 'Nie udało się zapisać.');
             setMessage({ ok: false, text: text.includes('containerNumber') ? 'Nieprawidłowy numer kontenera (ISO 6346, np. MSCU1234566).' : text });

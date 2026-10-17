@@ -147,6 +147,8 @@ public final class ImportOrderDtos {
         String contentType,
         long sizeBytes,
         boolean clientVisible,
+        /** Uploaded by the client on the client page (e.g. a payment confirmation). */
+        boolean uploadedByClient,
         Instant createdAt
     ) {
     }

@@ -1,0 +1,286 @@
+{
+ "ok": true,
+ "data": {
+  "slug_vin": "2021-mazda-cx-5-grand-touring-JM3KFBDM6M1463543",
+  "vin": "JM3KFBDM6M1463543",
+  "platform": "copart",
+  "platform_id": 1,
+  "lot_number": "61747696",
+  "ad": "2026-09-09T17:00:00+00:00",
+  "title": "2021 MAZDA CX-5 GRAND TOURING",
+  "year": 2021,
+  "make": "MAZDA",
+  "model": "CX-5",
+  "series": {
+   "key": "CX5",
+   "name": "CX-5"
+  },
+  "generation": {
+   "id": 2642,
+   "name": "Second gen (KF)",
+   "generation": "Second gen (KF)",
+   "make": "Mazda",
+   "model": "CX-5",
+   "series": "CX-5",
+   "series_key": "CX5",
+   "year_from": 2017,
+   "year_to": null,
+   "label": "Second gen (KF) (2017+)"
+  },
+  "type": "AUTOMOBILE",
+  "subLot": false,
+  "auction": {
+   "state": "finished",
+   "formatted": "Sep 09, 2026 20:00",
+   "full_date": "2026-09-09T17:00:00+00:00",
+   "diff_minutes": -54396,
+   "ad": "2026-09-09T17:00:00+00:00",
+   "countdown": {
+    "days": 0,
+    "hours": 0,
+    "minutes": 0
+   },
+   "is_timed": false,
+   "is_buy_now": false,
+   "auction_at": "2026-09-09T17:00:00+00:00",
+   "timed_end_at": null,
+   "last_sold_day": "2026-09-09",
+   "last_sold_at": "2026-09-09T18:30:05+00:00",
+   "last_sold_status": "Sold",
+   "outcome_status": "Sold",
+   "auction_ended_at": "2026-09-09T18:30:05+00:00",
+   "outcome_observed_at": "2026-09-09T18:30:05+00:00",
+   "lot_removed": false,
+   "sold_buy_now": false,
+   "sold_timed": false
+  },
+  "pricing": {
+   "current_bid_usd": 7900,
+   "current_bid_at": "2026-09-09T18:30:05+00:00",
+   "current_bid2_usd": 7900,
+   "buy_now_usd": null,
+   "estimated_retail_value_usd": null,
+   "sale_price_usd": 7900,
+   "last_sold_price_usd": 7900,
+   "estimated_cost": {
+    "from": 5165,
+    "to": 8130,
+    "median": 6600,
+    "text": "$5,165 - $8,130",
+    "sample_count": 131,
+    "refinement_method": "engine_mileage",
+    "refinement_sample_count": 37,
+    "engine_size_l": 2.5,
+    "mileage_bucket": "75-125k",
+    "market_multiplier": 0.957,
+    "previous_high_bid_usd": null
+   }
+  },
+  "location": {
+   "display": "Chicago South (IL)",
+   "send_from": "Chicago",
+   "state": null
+  },
+  "seller": {
+   "name": "Non-insurance Company",
+   "type": "non_insurance",
+   "class": "bg-warning-F6AD71",
+   "text_class": "text-warning"
+  },
+  "condition": {
+   "run_condition": {
+    "value": "Run & Drive Verified",
+    "label": "Run & drive verified",
+    "class_hint": "warning"
+   },
+   "has_key": true,
+   "loss": null,
+   "primary_damage": "Rear end",
+   "secondary_damage": null
+  },
+  "odometer": {
+   "mi": 79677,
+   "km": 128227
+  },
+  "vehicle_specs": {
+   "exterior_color": "White",
+   "engine": {
+    "raw": "2.5L 4",
+    "size_l": "2.5",
+    "hp": null,
+    "layout": null
+   },
+   "transmission": "Automatic",
+   "fuel_type": "Gas",
+   "drive_type": "ALL WHEEL DRIVE",
+   "body_style": "Sport utility vehicle",
+   "airbags": null,
+   "restraint_system": null
+  },
+  "sale_document": {
+   "name": "SALVAGE CERTIFICATE",
+   "type": "success",
+   "export": true,
+   "registration": true,
+   "is_pending": false,
+   "page_id": 9,
+   "sale_document_group": "approved"
+  },
+  "media": {
+   "thumbs_count": 13,
+   "images_count": 13,
+   "items_count": 14,
+   "has_video": true,
+   "has_360": false,
+   "thumbs": [
+    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/93ff97255853416f879bc6e3aab9796f_ful.jpg",
+    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/df10f661cbfc49aea4ac65bc2e3db1d4_ful.jpg",
+    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/ab067b5901a34c5db0106063dec8c436_ful.jpg",
+    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/6c1ca5f28f5a4bb98a66a49e02781a72_ful.jpg",
+    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/decf692ea54b4b47b09e7947bc70eede_ful.jpg",
+    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/1407ab28c3364bef8c0ee8d490804006_ful.jpg",
+    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/58f78567f2964e2183fd741f268cb9e3_ful.jpg",
+    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/00187624a2b24c049b93dca5cccdb39e_ful.jpg",
+    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/c76cdd2202dc4347bcdcd42471add679_ful.jpg",
+    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/15444d479076444b94e1c9324b0a27b7_ful.jpg",
+    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/dd162266700141b7b1ea5df4d9542c17_ful.jpg",
+    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/d4e9ab3eeaf54ec4aae29409d784ee30_ful.jpg",
+    "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/645d323d7d5d4ab2b7d8d57c6afd7200_vful.jpg"
+   ],
+   "items": [
+    {
+     "type": "image",
+     "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/93ff97255853416f879bc6e3aab9796f_ful.jpg",
+     "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/93ff97255853416f879bc6e3aab9796f_ful.jpg",
+     "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/93ff97255853416f879bc6e3aab9796f_hrs.jpg"
+    },
+    {
+     "type": "image",
+     "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/df10f661cbfc49aea4ac65bc2e3db1d4_ful.jpg",
+     "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/df10f661cbfc49aea4ac65bc2e3db1d4_ful.jpg",
+     "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/df10f661cbfc49aea4ac65bc2e3db1d4_hrs.jpg"
+    },
+    {
+     "type": "image",
+     "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/ab067b5901a34c5db0106063dec8c436_ful.jpg",
+     "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/ab067b5901a34c5db0106063dec8c436_ful.jpg",
+     "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/ab067b5901a34c5db0106063dec8c436_hrs.jpg"
+    },
+    {
+     "type": "image",
+     "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/6c1ca5f28f5a4bb98a66a49e02781a72_ful.jpg",
+     "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/6c1ca5f28f5a4bb98a66a49e02781a72_ful.jpg",
+     "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/6c1ca5f28f5a4bb98a66a49e02781a72_hrs.jpg"
+    },
+    {
+     "type": "image",
+     "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/decf692ea54b4b47b09e7947bc70eede_ful.jpg",
+     "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/decf692ea54b4b47b09e7947bc70eede_ful.jpg",
+     "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/decf692ea54b4b47b09e7947bc70eede_hrs.jpg"
+    },
+    {
+     "type": "image",
+     "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/1407ab28c3364bef8c0ee8d490804006_ful.jpg",
+     "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/1407ab28c3364bef8c0ee8d490804006_ful.jpg",
+     "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/1407ab28c3364bef8c0ee8d490804006_hrs.jpg"
+    },
+    {
+     "type": "image",
+     "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/58f78567f2964e2183fd741f268cb9e3_ful.jpg",
+     "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/58f78567f2964e2183fd741f268cb9e3_ful.jpg",
+     "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/58f78567f2964e2183fd741f268cb9e3_hrs.jpg"
+    },
+    {
+     "type": "image",
+     "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/00187624a2b24c049b93dca5cccdb39e_ful.jpg",
+     "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/00187624a2b24c049b93dca5cccdb39e_ful.jpg",
+     "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/00187624a2b24c049b93dca5cccdb39e_hrs.jpg"
+    },
+    {
+     "type": "image",
+     "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/c76cdd2202dc4347bcdcd42471add679_ful.jpg",
+     "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/c76cdd2202dc4347bcdcd42471add679_ful.jpg",
+     "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/c76cdd2202dc4347bcdcd42471add679_hrs.jpg"
+    },
+    {
+     "type": "image",
+     "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/15444d479076444b94e1c9324b0a27b7_ful.jpg",
+     "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/15444d479076444b94e1c9324b0a27b7_ful.jpg",
+     "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/15444d479076444b94e1c9324b0a27b7_hrs.jpg"
+    },
+    {
+     "type": "image",
+     "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/dd162266700141b7b1ea5df4d9542c17_ful.jpg",
+     "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/dd162266700141b7b1ea5df4d9542c17_ful.jpg",
+     "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/dd162266700141b7b1ea5df4d9542c17_hrs.jpg"
+    },
+    {
+     "type": "image",
+     "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/d4e9ab3eeaf54ec4aae29409d784ee30_ful.jpg",
+     "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/d4e9ab3eeaf54ec4aae29409d784ee30_ful.jpg",
+     "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/d4e9ab3eeaf54ec4aae29409d784ee30_hrs.jpg"
+    },
+    {
+     "type": "image",
+     "thumb": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/645d323d7d5d4ab2b7d8d57c6afd7200_vful.jpg",
+     "full": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/645d323d7d5d4ab2b7d8d57c6afd7200_vful.jpg",
+     "large": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/lpp/0726/645d323d7d5d4ab2b7d8d57c6afd7200_vhrs.jpg"
+    },
+    {
+     "type": "video",
+     "url": "https://cs.copart.com/v1/AUTH_svc.pdoc00001/ids-c-prod-lpp/0726/85670ae1081a4b5d82bdb20143fc41a4_O.mp4"
+    }
+   ]
+  },
+  "details": {
+   "source": null,
+   "sale_status": "Sold",
+   "bid_status": null,
+   "has_bid": null,
+   "seller_reserve_met": true,
+   "starting_bid": null,
+   "buy_now_available": false,
+   "buy_now_price_usd": null,
+   "estimated_retail_value_usd": null,
+   "yard": {
+    "number": 81,
+    "name": "IL - CHICAGO SOUTH"
+   },
+   "media": {
+    "source_image_count": null,
+    "views_360_count": 0,
+    "image_api_url": null,
+    "fetched_at": null
+   },
+   "source_updated_at": null
+  },
+  "facility": {
+   "id": 81,
+   "state": "IL",
+   "zip": "60411",
+   "lat": 41.5070957,
+   "lng": -87.6159798,
+   "office_name": "IL - CHICAGO SOUTH",
+   "address": "1301 STATE STREET",
+   "city": "CHICAGO HEIGHTS",
+   "source_location_name": "IL - CHICAGO SOUTH",
+   "is_offsite": false,
+   "storage_location_id": null,
+   "storage_facility_id": 81,
+   "canonical": {
+    "id": 81,
+    "name": "IL - CHICAGO SOUTH",
+    "address": "1301 STATE STREET",
+    "city": "CHICAGO HEIGHTS",
+    "state": "IL",
+    "zip": "60411",
+    "lat": 41.5070957,
+    "lng": -87.6159798,
+    "url": "/locations/chicago-south-il-81"
+   }
+  },
+  "distance": null,
+  "updated_at": "2026-09-15T02:00:18.000000Z"
+ },
+ "url": true
+}

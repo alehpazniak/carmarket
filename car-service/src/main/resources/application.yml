@@ -92,8 +92,8 @@ aws:
   s3:
     bucket: avtovo-images-503561426315-eu-central-1-an
     region: eu-central-1
-    access-key: AKIAXKPUZSWFZZVDDJLO
-    secret-key: 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
+    access-key: ${AWS_ACCESS_KEY_ID:AKIAXKPUZSWFZZVDDJLO}
+    secret-key: ${AWS_SECRET_ACCESS_KEY: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}
 
 management:
   endpoints:

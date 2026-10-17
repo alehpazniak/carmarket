@@ -6,6 +6,7 @@ import com.carmarket.auction.client.ApibaraShippingResponse;
 import com.carmarket.auction.client.ApibaraVehicleDetailResponse;
 import com.carmarket.auction.dto.MaxBidRequest;
 import com.carmarket.auction.dto.MaxBidResponse;
+import com.carmarket.auction.service.ApibaraVehicleResolver;
 import com.carmarket.auction.service.UsaShippingRateService;
 import com.carmarket.auction.service.calculator.MaxBidCalculator;
 import com.carmarket.auction.service.calculator.MaxBidInput;
@@ -41,15 +42,22 @@ public class ApibaraController {
     private final ApibaraClient client;
     private final MaxBidCalculator maxBidCalculator;
     private final UsaShippingRateService shippingRateService;
+    private final ApibaraVehicleResolver vehicleResolver;
 
     @GetMapping("/vehicles/filters")
     public ResponseEntity<JsonNode> getFilters() {
         return okOrBadGateway(client.getFiltersMetadata());
     }
 
+    /** A pasted Copart/IAAI link, lot number or VIN → the vehicle (same shape as GET /vehicles/{slugVin}); 404 if none. */
     @GetMapping("/vehicles/url-to-details")
-    public ResponseEntity<JsonNode> resolveFromUrl(@RequestParam String url) {
-        return okOrBadGateway(client.resolveFromUrl(url));
+    public ResponseEntity<ApibaraVehicleDetailResponse> resolveFromUrl(@RequestParam String url) {
+        if (!client.isConfigured()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+        return vehicleResolver.resolve(url)
+            .map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/vehicles")

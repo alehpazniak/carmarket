@@ -116,10 +116,10 @@ public class ApibaraClient {
     }
 
     /** GET /vehicles/urltodetails — resolve a Copart/IAAI listing URL to a normalized vehicle record. */
-    public JsonNode resolveFromUrl(String url) {
+    public ApibaraVehicleDetailResponse resolveFromUrl(String url) {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("url", url);
-        return get(VEHICLE_URL_TO_DETAILS_PATH, params, JsonNode.class);
+        return get(VEHICLE_URL_TO_DETAILS_PATH, params, ApibaraVehicleDetailResponse.class);
     }
 
     /** GET /usage — API key usage stats and plan limits. */

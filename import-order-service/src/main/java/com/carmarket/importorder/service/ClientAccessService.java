@@ -3,6 +3,7 @@ package com.carmarket.importorder.service;
 import com.carmarket.importorder.config.ImportOrderProperties;
 import com.carmarket.importorder.dto.ClientOrderView;
 import com.carmarket.importorder.dto.ImportOrderDtos.ClientAccessGranted;
+import com.carmarket.importorder.dto.ImportOrderDtos.FileView;
 import com.carmarket.importorder.dto.ImportOrderDtos.PresignedUrl;
 import com.carmarket.importorder.entity.AccessEvent;
 import com.carmarket.importorder.entity.AccessLogEntry;
@@ -24,17 +25,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
- * The client side: link + password → X-Order-Token, then the order view and file URLs.
+ * The client side: link + password → X-Order-Token, then the order view, file URLs and the client's own uploads.
  * <p>
  * Every failed check gives the same 401, and an unknown code still costs a BCrypt comparison, so
  * neither the answer nor its timing tells whether a code exists. After too many wrong passwords
@@ -162,6 +165,19 @@ public class ClientAccessService {
             .orElseThrow(ApiException::notFound);
         storage.requireEnabled();
         return fileService.presign(file);
+    }
+
+    /**
+     * The client's own documents (e.g. a payment confirmation). The token is checked again right
+     * before the rows are written, so a password reset during a slow upload still stops it.
+     */
+    public List<FileView> upload(String code, String token, List<MultipartFile> uploads, String category,
+                                 ClientRequestInfo request) {
+        Authorized auth = transaction.execute(status -> authorize(code, token));
+        List<FileView> stored = fileService.uploadFromClient(() -> authorize(code, token).order(), uploads, category);
+        transaction.executeWithoutResult(status ->
+            logAccess(auth.order(), AccessEvent.UPLOAD, request, auth.token().tokenId()));
+        return stored;
     }
 
     private record Authorized(ImportOrder order, ClientToken token) {

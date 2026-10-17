@@ -1,12 +1,14 @@
 import axios from 'axios';
 import api from './client';
 import type { Page } from '../types';
+import type { ApibaraVehicleDetail } from '../types/auctions';
 import type {
     AccessLogEntry,
     ClientCredentials,
     ClientOrderView,
     CreateImportOrderRequest,
     CreatedImportOrder,
+    DocumentCategory,
     FileKind,
     ImportOrderDetail,
     ImportOrderFields,
@@ -99,8 +101,9 @@ export const fetchAuctionImage = (url: string) =>
     api.get<Blob>('/api/auctions/apibara/image-proxy', { params: { url }, responseType: 'blob' }).then(r => r.data);
 
 /** Copart / IAAI lot page URL → Apibara identifiers (spends one Apibara request). */
+/** A pasted Copart/IAAI link, lot number or VIN → the Apibara vehicle (one Apibara request; 404 if not found). */
 export const resolveAuctionUrl = (url: string) =>
-    api.get<Record<string, unknown>>('/api/auctions/apibara/vehicles/url-to-details', { params: { url } }).then(r => r.data);
+    api.get<ApibaraVehicleDetail>('/api/auctions/apibara/vehicles/url-to-details', { params: { url } }).then(r => r.data);
 
 // ── Client page (/zlecenie/:code) ──
 // A separate axios instance on purpose: no Authorization header and no refresh interceptor. The
@@ -115,6 +118,17 @@ const clientPageApi = axios.create({
 export const clientOrderAccess = (code: string, password: string) =>
     clientPageApi.post<{ token: string; expiresAt: string }>(
         `/api/import-orders/public/${encodeURIComponent(code)}/access`, { password }).then(r => r.data);
+
+/** The client's own documents, e.g. a payment confirmation (PDF/JPEG/PNG/WEBP, ≤ 20 MB, ≤ 5 at once). */
+export const uploadClientOrderFiles = (code: string, token: string, files: File[], category: DocumentCategory) => {
+    const form = new FormData();
+    files.forEach(f => form.append('files', f, f.name));
+    form.append('category', category);
+    return clientPageApi.post<ImportOrderFile[]>(`/api/import-orders/public/${encodeURIComponent(code)}/files`, form, {
+        // Let the browser set multipart/form-data with its boundary
+        headers: { 'X-Order-Token': token, 'Content-Type': undefined },
+    }).then(r => r.data);
+};
 
 export const getClientOrder = (code: string, token: string) =>
     clientPageApi.get<ClientOrderView>(`/api/import-orders/public/${encodeURIComponent(code)}`, {

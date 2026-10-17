@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -237,6 +238,74 @@ class ClientAccessApiTest extends StorageEnabledTestBase {
     }
 
     @Test
+    void clientUploadsAPaymentConfirmation() throws Exception {
+        Created order = createOrder(dealerA());
+        String token = login(order.code(), order.password());
+
+        clientUpload(order.code(), token, "PAYMENT_CONFIRMATION", pdf("potwierdzenie przelewu.pdf"))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$[0].category").value("PAYMENT_CONFIRMATION"))
+            .andExpect(jsonPath("$[0].clientVisible").value(true))
+            .andExpect(jsonPath("$[0].uploadedByClient").value(true));
+
+        // The client sees it as their own; the dealer sees it on the order, marked as the client's
+        view(order.code(), token)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.documents", hasSize(1)))
+            .andExpect(jsonPath("$.documents[0].originalName").value("potwierdzenie przelewu.pdf"))
+            .andExpect(jsonPath("$.documents[0].uploadedByClient").value(true))
+            .andExpect(jsonPath("$.documents[0].url").exists());
+        mvc.perform(get("/import-orders/{id}", order.id()).with(dealerA()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.files[0].uploadedByClient").value(true));
+        assertThat(jdbc.queryForObject("select uploaded_by is null from import_order_files", Boolean.class)).isTrue();
+        assertThat(jdbc.queryForObject("select count(*) from import_order_access_log where event = 'UPLOAD'", Integer.class))
+            .isEqualTo(1);
+
+        // A dealer's own upload is not marked as the client's
+        upload(order.id(), "faktura.pdf", true);
+        mvc.perform(get("/import-orders/{id}", order.id()).with(dealerA()))
+            .andExpect(jsonPath("$.files[?(@.originalName == 'faktura.pdf')].uploadedByClient").value(false));
+    }
+
+    @Test
+    void clientUploadsAreLimited() throws Exception {
+        Created order = createOrder(dealerA());
+        String token = login(order.code(), order.password());
+
+        // Dealer-only categories, photo stages and non-documents are refused
+        clientUpload(order.code(), token, "INVOICE_DEALER", pdf("faktura.pdf")).andExpect(status().isBadRequest());
+        clientUpload(order.code(), token, "AUCTION", pdf("zdjecie.pdf")).andExpect(status().isBadRequest());
+        clientUpload(order.code(), token, "OTHER",
+            new MockMultipartFile("files", "a.pdf", "application/pdf", "<html></html>".getBytes()))
+            .andExpect(status().isBadRequest());
+        // At most 5 files per upload
+        MockMultipartFile[] six = new MockMultipartFile[6];
+        for (int i = 0; i < six.length; i++) six[i] = pdf("plik" + i + ".pdf");
+        clientUpload(order.code(), token, "OTHER", six).andExpect(status().isBadRequest());
+
+        // No token, or a token for another order
+        mvc.perform(multipart("/import-orders/public/{code}/files", order.code())
+                .file(pdf("x.pdf")).param("category", "OTHER"))
+            .andExpect(status().isUnauthorized());
+        Created other = createOrder(dealerA());
+        clientUpload(other.code(), token, "OTHER", pdf("x.pdf")).andExpect(status().isUnauthorized());
+
+        assertThat(jdbc.queryForObject("select count(*) from import_order_files", Integer.class)).isZero();
+    }
+
+    @Test
+    void clientCantUploadAfterAccessIsSwitchedOff() throws Exception {
+        Created order = createOrder(dealerA());
+        String token = login(order.code(), order.password());
+        mvc.perform(patch("/import-orders/{id}/access", order.id()).with(dealerA())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"enabled\":false}"))
+            .andExpect(status().isOk());
+
+        clientUpload(order.code(), token, "OTHER", pdf("x.pdf")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void viewIsLoggedOncePerTokenPerHour() throws Exception {
         Created order = createOrder(dealerA());
         String token = login(order.code(), order.password());
@@ -286,6 +355,16 @@ class ClientAccessApiTest extends StorageEnabledTestBase {
             .andExpect(status().isCreated())
             .andReturn();
         return body(result).get(0).get("id").asText();
+    }
+
+    private ResultActions clientUpload(String code, String token, String category, MockMultipartFile... files) throws Exception {
+        MockMultipartHttpServletRequestBuilder request = multipart("/import-orders/public/{code}/files", code);
+        for (MockMultipartFile f : files) request.file(f);
+        return mvc.perform(request.param("category", category).header("X-Order-Token", token));
+    }
+
+    private static MockMultipartFile pdf(String name) {
+        return new MockMultipartFile("files", name, "application/pdf", FileTypeTest.PDF);
     }
 
     private static JsonNode withoutUrls(JsonNode view) {
