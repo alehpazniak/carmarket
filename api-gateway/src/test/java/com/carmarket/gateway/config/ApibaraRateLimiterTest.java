@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.cloud.gateway.filter.ratelimit.RateLimiter;
 import org.springframework.cloud.gateway.filter.ratelimit.RateLimiter.Response;
 import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
+import org.springframework.test.util.ReflectionTestUtils;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
@@ -54,12 +55,39 @@ class ApibaraRateLimiterTest {
     }
 
     @Test
+    void perIpLimiterAllowsOneRequestASecondWithABurstOfFive() {
+        // Burst 5: the vehicle page sends 3 lookups at once
+        RedisRateLimiter.Config config = config(new GatewayConfig().apibaraAnonymousIpRateLimiter(1, 5));
+
+        assertThat(config.getReplenishRate()).isEqualTo(1);
+        assertThat(config.getBurstCapacity()).isEqualTo(5);
+        assertThat(config.getRequestedTokens()).isEqualTo(1);
+    }
+
+    @Test
+    void sharedLimiterAllowsExactlyFiftyRequestsPerThirtyDaysFromAFullBucket() {
+        RedisRateLimiter.Config config = config(new GatewayConfig().apibaraAnonymousGlobalRateLimiter(50));
+
+        assertThat(config.getReplenishRate()).isEqualTo(1);
+        assertThat(config.getRequestedTokens()).isEqualTo(51_840);
+        assertThat(config.getBurstCapacity()).isEqualTo(2_592_000);
+        assertThat(config.getBurstCapacity() / config.getRequestedTokens()).isEqualTo(50);
+        assertThat(config.getBurstCapacity() % config.getRequestedTokens()).isZero();
+        // Refilled at 1 token/s, an empty bucket is full again after exactly 30 days
+        assertThat(config.getBurstCapacity() / config.getReplenishRate()).isEqualTo(ApibaraRateLimiter.THIRTY_DAYS_SECONDS);
+    }
+
+    @Test
     void perPeriodSpendsTheWholePeriodOnTheGivenNumberOfRequests() {
-        // Refilled at 1 token/s: one request's worth every 720 s = 5 an hour; 2880 s = 30 a day
-        assertThat(ApibaraRateLimiter.tokensPerRequest(5, 3600)).isEqualTo(720);
-        assertThat(ApibaraRateLimiter.tokensPerRequest(30, 86400)).isEqualTo(2880);
+        assertThat(ApibaraRateLimiter.tokensPerRequest(50, ApibaraRateLimiter.THIRTY_DAYS_SECONDS)).isEqualTo(51_840);
         assertThat(ApibaraRateLimiter.tokensPerRequest(0, 3600)).isEqualTo(3600);
-        assertThat(ApibaraRateLimiter.perPeriod(5, 3600)).isNotNull();
+        // More requests than seconds in the period: one token each, capacity = requests
+        RedisRateLimiter.Config big = config(ApibaraRateLimiter.perPeriod(5_000_000, ApibaraRateLimiter.THIRTY_DAYS_SECONDS));
+        assertThat(big.getBurstCapacity() / big.getRequestedTokens()).isEqualTo(5_000_000);
+    }
+
+    static RedisRateLimiter.Config config(RedisRateLimiter limiter) {
+        return (RedisRateLimiter.Config) ReflectionTestUtils.getField(limiter, "defaultConfig");
     }
 
     private static Response allowed(boolean allowed) {

@@ -228,6 +228,9 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       JWT_SECRET: ${JWT_SECRET:-bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}  #  -bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
       GATEWAY_TRUSTED_PROXIES: ${GATEWAY_TRUSTED_PROXIES:-0}
+      APIBARA_ANON_PER_IP_PER_SECOND: ${APIBARA_ANON_PER_IP_PER_SECOND:-1}
+      APIBARA_ANON_PER_IP_BURST: ${APIBARA_ANON_PER_IP_BURST:-5}
+      APIBARA_ANON_GLOBAL_PER_MONTH: ${APIBARA_ANON_GLOBAL_PER_MONTH:-50}
     restart: on-failure
 
   # ─── AUTH SERVICE ────────────────────────────────────────────────────────────

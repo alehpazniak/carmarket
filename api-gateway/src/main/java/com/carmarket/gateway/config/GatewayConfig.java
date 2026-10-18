@@ -127,20 +127,26 @@ public class GatewayConfig {
     }
 
     /**
-     * Anonymous Apibara live lookups, per IP (see {@link ApibaraRateLimiter}): {@code per-ip-per-hour}
-     * requests an hour, all usable at once.
+     * Anonymous Apibara live lookups, per IP (see {@link ApibaraRateLimiter}): {@code per-ip-per-second}
+     * requests a second, with a burst of {@code per-ip-burst}. The burst must cover the vehicle page
+     * (ApibaraVehiclePage), which sends 3 lookups at once; with a burst of 1, two of them would get 429.
      */
     @Bean
     public RedisRateLimiter apibaraAnonymousIpRateLimiter(
-            @Value("${gateway.apibara-anonymous.per-ip-per-hour:5}") int perHour) {
-        return ApibaraRateLimiter.perPeriod(perHour, 3600);
+            @Value("${gateway.apibara-anonymous.per-ip-per-second:1}") int perSecond,
+            @Value("${gateway.apibara-anonymous.per-ip-burst:5}") int burst) {
+        return new RedisRateLimiter(perSecond, burst, 1);
     }
 
-    /** All anonymous Apibara live lookups together: {@code global-per-day} requests a day. */
+    /**
+     * All anonymous Apibara live lookups together: {@code global-per-month} requests per 30 days. This is a
+     * rolling 30-day budget, not a calendar month: the bucket starts full and gets one request back every
+     * 30 days / global-per-month (14.4 h for 50), see {@link ApibaraRateLimiter#perPeriod}.
+     */
     @Bean
     public RedisRateLimiter apibaraAnonymousGlobalRateLimiter(
-            @Value("${gateway.apibara-anonymous.global-per-day:30}") int perDay) {
-        return ApibaraRateLimiter.perPeriod(perDay, 86400);
+            @Value("${gateway.apibara-anonymous.global-per-month:50}") int perMonth) {
+        return ApibaraRateLimiter.perPeriod(perMonth, ApibaraRateLimiter.THIRTY_DAYS_SECONDS);
     }
 
     /** Logged-in users by user id (the standard bucket); anonymous callers under their own prefix and IP. */
