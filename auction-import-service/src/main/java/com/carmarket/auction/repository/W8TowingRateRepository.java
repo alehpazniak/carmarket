@@ -21,6 +21,9 @@ public interface W8TowingRateRepository extends JpaRepository<W8TowingRate, Long
     /** The same location at any auction (W8 prices by location). */
     List<W8TowingRate> findByPriceListAndYardKeyAndState(String priceList, String yardKey, String state);
 
+    /** The same yard name at any auction and in any state, for locations given without a state. */
+    List<W8TowingRate> findByPriceListAndYardKey(String priceList, String yardKey);
+
     List<W8TowingRate> findByPriceListAndAuctionAndState(String priceList, W8Auction auction, String state);
 
     List<W8TowingRate> findByPriceListAndState(String priceList, String state);

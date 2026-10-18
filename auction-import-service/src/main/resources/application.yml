@@ -38,6 +38,34 @@ import:
     # US-built cars (VIN starting with 1, 4 or 5): Regulation (EU) 2026/1455, standard rate again after the date
     us-origin-duty-rate: 0.00
     us-origin-preference-until: 2029-12-31
+  # W8 Shipping (our logistics partner): towing comes from w8_towing_rate (V5), everything else from here.
+  # Used by both calculators when the auction location matches W8's table; otherwise the import.rates
+  # flat values above stay the fallback.
+  w8:
+    price-list: W8-2025-26            # must match w8_towing_rate.price_list
+    include-w8-fees: true             # access + dealer fee, charged when buying through W8
+    access-fee-usd: 75                # ULTRA access per car (PRO: 50)
+    dealer-fee-usd: 125
+    ocean-freight-usd:                # per car → Rotterdam, by container share
+      NEW_YORK: { quarter: 525 }      # confirmed (W8 calculator example)
+    ocean-freight-fallback-usd: 1200  # ports W8 hasn't priced for us yet → quote marks it ESTIMATE
+    ports:
+      SAVANNAH:    { label: "Savannah (Garden City, GA)", transit-days-min: 30, transit-days-max: 35 }
+      LOS_ANGELES: { label: "Los Angeles (Carson, CA)",   transit-days-min: 90, transit-days-max: 90 }
+      NEW_YORK:    { label: "New York (Linden, NJ)",      transit-days-min: 25, transit-days-max: 30 }
+      HOUSTON:     { label: "Houston (Baytown, TX)",      transit-days-min: 30, transit-days-max: 35 }
+      SEATTLE:     { label: "Seattle (Tacoma, WA)" }
+      NORFOLK:     { label: "Norfolk (Chesapeake, VA)" }
+    rotterdam:
+      forwarder-eur: { quarter: 430, third: 480 }   # Marlog Car Handling (Auto America: 445 / 495)
+      broker-eur: 100
+      scan-eur: 50                                 # 40–50 € depending on the line
+    poland-delivery-pln:
+      zones: { A: 2300, B: 2200, C: 2100 }         # C = Łódź/Kutno/Konin area, B = central belt, A = rest
+      default-zone: A
+      over-5m-surcharge: 200                       # e.g. Durango, Pacifica, A8, Challenger, Charger
+      over-5-3m-surcharge: 400                     # e.g. F-150, RAM, Suburban
+    eur-pln-fallback: 4.30
     shipping-delivery-usd: 1000
     shipping-delivery-suv-usd: 1500
 
