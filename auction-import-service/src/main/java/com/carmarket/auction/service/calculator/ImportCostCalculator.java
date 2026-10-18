@@ -19,6 +19,7 @@ public class ImportCostCalculator {
 
     private final ImportRatesConfig rates;
     private final CurrencyExchangeService exchangeService;
+    private final CustomsDutyResolver dutyResolver;
 
     public ImportCalculation calculate(AuctionLot lot, CalculationInput input) {
         BigDecimal auctionPrice = lot.getAuctionPrice() != null
@@ -41,15 +42,17 @@ public class ImportCostCalculator {
         // 4. EU port fee
         BigDecimal euPortFee = rates.getEuPortFeeUsd();
 
-        // 5. Excise (Poland) — depends on engine capacity & fuel type
-        BigDecimal exciseRate = ExciseRateResolver.resolve(lot.getEngineCapacity(), lot.getFuelType());
         // Customs value = auction price + ocean freight (Polish customs rules)
         BigDecimal customsValue = auctionPrice.add(oceanFreight);
-        BigDecimal excise = customsValue.multiply(exciseRate)
+
+        // 5. Customs duty ("cło") — by country of manufacture (VIN), see CustomsDutyResolver
+        BigDecimal customsDuty = customsValue.multiply(dutyResolver.resolve(lot.getVin()))
             .setScale(2, RoundingMode.HALF_UP);
 
-        // 5b. Customs duty ("cło") — non-EU common external tariff on the customs value
-        BigDecimal customsDuty = customsValue.multiply(rates.getCustomsDutyRate())
+        // 5b. Excise (Poland) — depends on engine capacity & fuel type; for imports the base is the
+        // customs value increased by the duty (Polish excise act)
+        BigDecimal exciseRate = ExciseRateResolver.resolve(lot.getEngineCapacity(), lot.getFuelType());
+        BigDecimal excise = customsValue.add(customsDuty).multiply(exciseRate)
             .setScale(2, RoundingMode.HALF_UP);
 
         // 6. VAT 23% (Poland) — base = customs value + duty + excise

@@ -5,6 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Data
 @Component
@@ -17,6 +18,10 @@ public class ImportRatesConfig {
     private BigDecimal vatRate = new BigDecimal("0.23");
     /** Customs duty ("cło") on cars imported from outside the EU — common external tariff. */
     private BigDecimal customsDutyRate = new BigDecimal("0.10");
+    /** Duty on US-built cars (Regulation (EU) 2026/1455), see CustomsDutyResolver. */
+    private BigDecimal usOriginDutyRate = new BigDecimal("0.00");
+    /** Last day of the US-origin preference; after it US-built cars pay customsDutyRate again. */
+    private LocalDate usOriginPreferenceUntil = LocalDate.of(2029, 12, 31);
     /**
      * Flat international shipping/delivery cost (US port → Poland) not covered by Apibara's
      * auction-to-port quote, which only prices the domestic US trucking leg. SUVs cost more to

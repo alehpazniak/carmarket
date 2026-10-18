@@ -19,6 +19,12 @@ public class MaxBidRequest {
     /** Falls back to the lot's own value when present; usually needed since most synced lots lack it. */
     private AuctionLot.FuelType fuelType;
 
+    /**
+     * The car's VIN (may be masked), for the customs duty by country of manufacture. Only used when the
+     * path's identifier isn't a VIN itself (e.g. a lot number); missing → standard duty rate.
+     */
+    private String vin;
+
     /** SUVs cost more to ship — drives which flat shipping-delivery cost applies. Defaults to false. */
     private Boolean suv;
 }

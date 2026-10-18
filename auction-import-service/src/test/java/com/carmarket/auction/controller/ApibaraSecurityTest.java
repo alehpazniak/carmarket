@@ -6,6 +6,7 @@ import com.carmarket.auction.security.GatewaySignatureFilter;
 import com.carmarket.auction.service.ApibaraVehicleResolver;
 import com.carmarket.auction.service.UsaShippingRateService;
 import com.carmarket.auction.service.calculator.MaxBidCalculator;
+import com.carmarket.auction.service.calculator.MaxBidResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -17,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -52,7 +54,7 @@ class ApibaraSecurityTest {
 
     @Test
     void anonymousMaxBidIsNotForbidden() throws Exception {
-        // An empty body fails validation (400) only after security let the request through
+        when(maxBidCalculator.calculate(any())).thenReturn(MaxBidResult.builder().build());
         mvc.perform(post("/api/auctions/apibara/vehicles/{vin}/max-bid", "1hgcm82633a004352")
                 .contentType("application/json").content("{}"))
             .andExpect(result -> org.assertj.core.api.Assertions.assertThat(result.getResponse().getStatus())

@@ -140,6 +140,7 @@ export default function ApibaraVehiclePage() {
                 engineCapacityCm3: engineCapacityCm3 ? Number(engineCapacityCm3) : undefined,
                 fuelType,
                 suv,
+                vin: vehicle?.vin || undefined,
             });
             setMaxBidResult(result);
         } catch (err) {

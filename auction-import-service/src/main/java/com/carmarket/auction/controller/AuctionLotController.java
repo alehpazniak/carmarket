@@ -104,6 +104,7 @@ public class AuctionLotController {
             .engineCapacityCm3(request.getEngineCapacityCm3() != null ? request.getEngineCapacityCm3() : lot.getEngineCapacity())
             .fuelType(request.getFuelType() != null ? request.getFuelType() : lot.getFuelType())
             .suv(request.getSuv())
+            .vin(lot.getVin())
             .build());
 
         return ResponseEntity.ok(MaxBidResponse.from(result));
