@@ -54,7 +54,10 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         String path = exchange.getRequest().getURI().getPath();
         String method = exchange.getRequest().getMethod().name();
 
-        if (isPublicRoute(path, method)) {
+        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        // Optional-auth routes go through anonymously only without a token; a token is still validated, so
+        // logged-in users keep their identity (and their own rate-limit bucket)
+        if (isPublicRoute(path, method) || (authHeader == null && isOptionalAuthRoute(path, method))) {
             // Public route: still strip any spoofed identity headers before forwarding
             ServerHttpRequest cleaned = exchange.getRequest().mutate()
                 .headers(headers -> {
@@ -66,7 +69,6 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange.mutate().request(cleaned).build());
         }
 
-        String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
         if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
             log.warn("Missing or malformed Authorization header for path: {}", path);
             return onUnauthorized(exchange.getResponse(), "Missing Authorization header");
@@ -155,6 +157,22 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             return true;
         }
         return PUBLIC_ROUTES.stream().anyMatch(pattern -> pathMatcher.match(pattern, path));
+    }
+
+    /**
+     * Routes open to anonymous users that still honour a token when one is sent: the Apibara live lookups
+     * (quick check on /aukcje, vehicle preview, shipping, max bid). They spend the account's monthly quota, so
+     * anonymous calls get a strict limiter of their own ({@code ApibaraRateLimiter}). The account usage and the
+     * image proxy stay behind the JWT.
+     */
+    boolean isOptionalAuthRoute(String path, String method) {
+        if (isAdminPath(path)
+            || pathMatcher.match("/api/auctions/apibara/usage", path)
+            || pathMatcher.match("/api/auctions/apibara/image-proxy", path)) {
+            return false;
+        }
+        return ("GET".equals(method) && pathMatcher.match("/api/auctions/apibara/**", path))
+            || ("POST".equals(method) && pathMatcher.match("/api/auctions/apibara/vehicles/*/max-bid", path));
     }
 
     /** /api/admin/** (admin-service) and /api/{service}/admin/** (admin endpoints in the owning service). */

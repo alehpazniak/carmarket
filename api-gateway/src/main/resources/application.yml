@@ -40,6 +40,11 @@ gateway:
   # Reverse proxies in front of the gateway: 0 = use the direct remote address and ignore
   # X-Forwarded-For (local runs); N = take the N-th X-Forwarded-For entry from the right.
   trusted-proxies: ${GATEWAY_TRUSTED_PROXIES:0}
+  # Anonymous Apibara live lookups (quick check on /aukcje, vehicle preview): they spend the account's monthly
+  # quota, so per IP and for all anonymous users together. Logged-in users keep the standard limiter.
+  apibara-anonymous:
+    per-ip-per-hour: ${APIBARA_ANON_PER_IP_PER_HOUR:5}
+    global-per-day: ${APIBARA_ANON_GLOBAL_PER_DAY:30}
 
 # Resilience4j circuit breaker defaults
 resilience4j:

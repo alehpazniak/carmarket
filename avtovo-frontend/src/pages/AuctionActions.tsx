@@ -5,13 +5,14 @@ import {
     searchLots,
     getShippingEstimate,
     searchApibaraVehicles,
+    apibaraErrorMessage,
     type LotSearchParams,
 } from '../api/auctions';
 import type { AuctionLot, ApibaraShippingResult, ApibaraVehicle } from '../types/auctions';
 import AuctionLotCard from '../components/AuctionLotCard';
 import ApibaraVehicleBriefCard from '../components/ApibaraVehicleBriefCard';
 import { useAuth } from '../context/AuthContext';
-import { Search, Ship, ScanSearch, Loader2, Lock, ClipboardList } from 'lucide-react';
+import { Search, Ship, ScanSearch, Loader2, ClipboardList } from 'lucide-react';
 
 const USD = (v: number | undefined) => v == null ? '—' : `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 
@@ -164,7 +165,7 @@ function Row({ label, value, bold }: { label: string; value: string; bold?: bool
 
 function ApibaraQuickTools() {
     const navigate = useNavigate();
-    const { isAuthenticated, isLoading: authLoading, loginWithGoogle } = useAuth();
+    const { isAuthenticated } = useAuth();
 
     const [vin, setVin] = useState('');
     const [lotNumber, setLotNumber] = useState('');
@@ -189,8 +190,9 @@ function ApibaraQuickTools() {
             const result = await getShippingEstimate({ vin: vin || undefined, lot_number: lotNumber || undefined });
             if (!result.data) setShippingError('Brak danych transportowych dla podanego pojazdu');
             setShipping(result);
-        } catch {
-            setShippingError('Nie udało się pobrać wyceny transportu (limit Apibara lub błędne dane)');
+        } catch (err) {
+            setShippingError(apibaraErrorMessage(err, isAuthenticated,
+                'Nie udało się pobrać wyceny transportu (limit Apibara lub błędne dane)'));
         } finally {
             setShippingLoading(false);
         }
@@ -217,35 +219,13 @@ function ApibaraQuickTools() {
             });
             if (result.data.length === 0) setSearchError('Brak pojazdów spełniających kryteria');
             setResults(result.data);
-        } catch {
-            setSearchError('Nie udało się wyszukać pojazdów (limit Apibara lub błędne dane)');
+        } catch (err) {
+            setSearchError(apibaraErrorMessage(err, isAuthenticated,
+                'Nie udało się wyszukać pojazdów (limit Apibara lub błędne dane)'));
         } finally {
             setSearchLoading(false);
         }
     };
-
-    if (authLoading) return null;
-
-    if (!isAuthenticated) {
-        return (
-            <div className="border-t border-avtovo-border pt-8">
-                <div className="bg-avtovo-card border border-avtovo-border rounded-xl p-8 text-center space-y-3">
-                    <Lock size={28} className="text-avtovo-text-secondary mx-auto" />
-                    <h2 className="text-lg font-semibold text-avtovo-text">Szybkie sprawdzenie w Apibara wymaga zalogowania</h2>
-                    <p className="text-avtovo-text-secondary text-sm max-w-md mx-auto">
-                        Wyszukiwanie pojazdów na żywo, podgląd VIN/numeru lota oraz wycena transportu korzystają z płatnego
-                        limitu Apibara i są dostępne tylko dla zalogowanych użytkowników.
-                    </p>
-                    <button
-                        onClick={loginWithGoogle}
-                        className="inline-flex items-center gap-2 bg-avtovo-accent hover:bg-avtovo-accent-hover text-white rounded-lg px-5 py-2 text-sm font-medium transition-colors"
-                    >
-                        Zaloguj się
-                    </button>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="border-t border-avtovo-border pt-8 space-y-6">

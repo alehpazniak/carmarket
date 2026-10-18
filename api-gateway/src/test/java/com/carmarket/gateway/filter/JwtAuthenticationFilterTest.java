@@ -183,6 +183,55 @@ class JwtAuthenticationFilterTest {
         }
     }
 
+    @Test
+    void apibaraLookupsGoThroughAnonymouslyWithoutAToken() {
+        for (MockServerHttpRequest request : List.of(
+            MockServerHttpRequest.get("/api/auctions/apibara/vehicles?make=BMW").header("X-User-Id", "spoofed").build(),
+            MockServerHttpRequest.get("/api/auctions/apibara/vehicles/1hgcm82633a004352").build(),
+            MockServerHttpRequest.get("/api/auctions/apibara/shipping/auction-to-port?vin=x").build(),
+            MockServerHttpRequest.post("/api/auctions/apibara/vehicles/1hgcm82633a004352/max-bid").build())) {
+            MockServerWebExchange exchange = MockServerWebExchange.from(request);
+            AtomicReference<ServerWebExchange> forwarded = new AtomicReference<>();
+
+            filter.filter(exchange, ex -> {
+                forwarded.set(ex);
+                return Mono.empty();
+            }).block();
+
+            assertThat(forwarded.get()).as(request.getPath().value()).isNotNull();
+            assertThat(forwarded.get().getRequest().getHeaders().containsKey("X-User-Id")).isFalse();
+        }
+    }
+
+    @Test
+    void apibaraLookupsStillValidateATokenWhenOneIsSent() {
+        // JwtUtil is a mock, so every token is invalid: a sent token must not fall back to anonymous
+        MockServerWebExchange exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.get("/api/auctions/apibara/vehicles").header("Authorization", "Bearer forged"));
+        AtomicBoolean forwarded = new AtomicBoolean();
+
+        filter.filter(exchange, chain(forwarded)).block();
+
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(forwarded).isFalse();
+    }
+
+    @Test
+    void apibaraUsageImageProxyAndOtherWritesStayBehindTheJwt() {
+        assertThat(filter.isOptionalAuthRoute("/api/auctions/apibara/usage", "GET")).isFalse();
+        assertThat(filter.isOptionalAuthRoute("/api/auctions/apibara/image-proxy", "GET")).isFalse();
+        assertThat(filter.isOptionalAuthRoute("/api/auctions/apibara/vehicles/x", "DELETE")).isFalse();
+        assertThat(filter.isOptionalAuthRoute("/api/auctions/admin/sync", "POST")).isFalse();
+        assertThat(filter.isOptionalAuthRoute("/api/auctions/apibara/vehicles", "GET")).isTrue();
+        assertThat(filter.isPublicRoute("/api/auctions/apibara/vehicles", "GET")).isFalse();
+
+        MockServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/auctions/apibara/usage"));
+        AtomicBoolean forwarded = new AtomicBoolean();
+        filter.filter(exchange, chain(forwarded)).block();
+        assertThat(exchange.getResponse().getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(forwarded).isFalse();
+    }
+
     private static GatewayFilterChain chain(AtomicBoolean forwarded) {
         return ex -> {
             forwarded.set(true);

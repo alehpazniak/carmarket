@@ -1,6 +1,7 @@
 package com.carmarket.gateway.config;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
 import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
 import org.springframework.cloud.gateway.route.RouteLocator;
@@ -125,6 +126,32 @@ public class GatewayConfig {
         return exchange -> Mono.just("dealer-map:" + clientIp.resolve(exchange));
     }
 
+    /**
+     * Anonymous Apibara live lookups, per IP (see {@link ApibaraRateLimiter}): {@code per-ip-per-hour}
+     * requests an hour, all usable at once.
+     */
+    @Bean
+    public RedisRateLimiter apibaraAnonymousIpRateLimiter(
+            @Value("${gateway.apibara-anonymous.per-ip-per-hour:5}") int perHour) {
+        return ApibaraRateLimiter.perPeriod(perHour, 3600);
+    }
+
+    /** All anonymous Apibara live lookups together: {@code global-per-day} requests a day. */
+    @Bean
+    public RedisRateLimiter apibaraAnonymousGlobalRateLimiter(
+            @Value("${gateway.apibara-anonymous.global-per-day:30}") int perDay) {
+        return ApibaraRateLimiter.perPeriod(perDay, 86400);
+    }
+
+    /** Logged-in users by user id (the standard bucket); anonymous callers under their own prefix and IP. */
+    static KeyResolver apibaraKeyResolver(ClientIpResolver clientIp) {
+        return exchange -> {
+            String userId = exchange.getRequest().getHeaders().getFirst("X-User-Id");
+            if (userId != null) return Mono.just(userId);
+            return Mono.just(ApibaraRateLimiter.ANONYMOUS_PREFIX + clientIp.resolve(exchange));
+        };
+    }
+
     /*
      * Limiters are picked by @Qualifier: @Primary wins over a matching parameter name, so without it
      * every RedisRateLimiter parameter would get standardRateLimiter.
@@ -138,7 +165,11 @@ public class GatewayConfig {
                                @Qualifier("phoneRateLimiter") RedisRateLimiter phoneRateLimiter,
                                @Qualifier("importOrderAccessRateLimiter") RedisRateLimiter importOrderAccessRateLimiter,
                                @Qualifier("dealerPhoneRateLimiter") RedisRateLimiter dealerPhoneRateLimiter,
-                               @Qualifier("dealerMapRateLimiter") RedisRateLimiter dealerMapRateLimiter) {
+                               @Qualifier("dealerMapRateLimiter") RedisRateLimiter dealerMapRateLimiter,
+                               @Qualifier("apibaraAnonymousIpRateLimiter") RedisRateLimiter apibaraAnonymousIpRateLimiter,
+                               @Qualifier("apibaraAnonymousGlobalRateLimiter") RedisRateLimiter apibaraAnonymousGlobalRateLimiter) {
+        ApibaraRateLimiter apibaraRateLimiter = new ApibaraRateLimiter(
+            standardRateLimiter, apibaraAnonymousIpRateLimiter, apibaraAnonymousGlobalRateLimiter);
         return builder.routes()
 
             // ─── AUTH SERVICE ────────────────────────────────────────────
@@ -256,6 +287,15 @@ public class GatewayConfig {
                 .filters(f -> f
                     .rewritePath("/api/chat/(?<segment>.*)", "/chat/${segment}"))
                 .uri("lb://chat-service"))
+
+            // ─── AUCTION IMPORT SERVICE — Apibara live lookups, also anonymous (must stay above the generic route) ───
+            .route("auction-import-service-apibara", r -> r
+                .path("/api/auctions/apibara/**")
+                .filters(f -> f
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(apibaraRateLimiter)
+                        .setKeyResolver(apibaraKeyResolver(clientIp))))
+                .uri("lb://auction-import-service"))
 
             // ─── AUCTION IMPORT SERVICE — with path ───────────────────────────────
             .route("auction-import-service", r -> r

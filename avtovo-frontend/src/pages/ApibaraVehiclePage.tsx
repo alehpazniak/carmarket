@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getApibaraVehicle, getVehicleHistory, getRelatedVehicles, calculateApibaraMaxBid } from '../api/auctions';
+import { getApibaraVehicle, getVehicleHistory, getRelatedVehicles, calculateApibaraMaxBid, apibaraErrorMessage } from '../api/auctions';
 import type { ApibaraVehicleDetail, ApibaraHistoryEntry, ApibaraRelatedVehicle, MaxBidResult, FuelType } from '../types/auctions';
 import PhotoGallery, { type GalleryPhoto } from '../components/PhotoGallery';
 import { useAuth } from '../context/AuthContext';
 import {
     ChevronLeft, MapPin, Key, ShieldCheck, Fuel, Cog, Palette, FileCheck2,
-    Lock, Clock, Gavel, Copy, Check, Gauge, Timer, TrendingUp, Loader2, ClipboardPlus,
+    Clock, Gavel, Copy, Check, Gauge, Timer, TrendingUp, Loader2, ClipboardPlus,
 } from 'lucide-react';
 
 type Vehicle = NonNullable<ApibaraVehicleDetail['data']>;
@@ -59,7 +59,7 @@ function timeRemaining(auctionAt?: string): string | null {
 export default function ApibaraVehiclePage() {
     const { identifier } = useParams<{ identifier: string }>();
     const navigate = useNavigate();
-    const { isAuthenticated, isLoading: authLoading, loginWithGoogle, hasRole } = useAuth();
+    const { isAuthenticated, isLoading: authLoading, hasRole } = useAuth();
     const isDealer = hasRole('DEALER') || hasRole('ADMIN');
     const [vehicle, setVehicle] = useState<Vehicle | null>(null);
     const [loading, setLoading] = useState(true);
@@ -88,9 +88,9 @@ export default function ApibaraVehiclePage() {
     const fetchedIdentifierRef = useRef<string | null>(null);
 
     useEffect(() => {
-        // Apibara live-lookup requires a logged-in user (see gateway/auction-import-service
-        // security config) — don't fire the request anonymously, it would just 401.
-        if (!identifier || authLoading || !isAuthenticated) return;
+        // Open to anonymous users too, but wait for the session: a logged-in user's request must carry the
+        // token, or it would count against the strict anonymous limit at the gateway.
+        if (!identifier || authLoading) return;
         if (fetchedIdentifierRef.current === identifier) return;
         fetchedIdentifierRef.current = identifier;
         getApibaraVehicle(identifier)
@@ -101,7 +101,8 @@ export default function ApibaraVehiclePage() {
                 setFuelType(guessFuelType(result.data?.vehicle_specs?.fuel_type));
                 setSuv(guessIsSuv(result.data?.vehicle_specs?.body_style));
             })
-            .catch(() => setError('Nie udało się pobrać danych pojazdu (limit Apibara lub błędne dane)'))
+            .catch(err => setError(apibaraErrorMessage(err, isAuthenticated,
+                'Nie udało się pobrać danych pojazdu (limit Apibara lub błędne dane)')))
             .finally(() => setLoading(false));
     }, [identifier, authLoading, isAuthenticated]);
 
@@ -141,8 +142,9 @@ export default function ApibaraVehiclePage() {
                 suv,
             });
             setMaxBidResult(result);
-        } catch {
-            setMaxBidError('Nie udało się policzyć maksymalnej ceny (limit Apibara lub błędne dane)');
+        } catch (err) {
+            setMaxBidError(apibaraErrorMessage(err, isAuthenticated,
+                'Nie udało się policzyć maksymalnej ceny (limit Apibara lub błędne dane)'));
         } finally {
             setMaxBidCalculating(false);
         }
@@ -151,22 +153,6 @@ export default function ApibaraVehiclePage() {
     if (authLoading) return (
         <div className="min-h-screen bg-avtovo-bg flex items-center justify-center">
             <div className="w-8 h-8 border-2 border-avtovo-accent border-t-transparent rounded-full animate-spin" />
-        </div>
-    );
-
-    if (!isAuthenticated) return (
-        <div className="min-h-screen bg-avtovo-bg flex flex-col items-center justify-center gap-3 px-4">
-            <Lock size={28} className="text-avtovo-text-secondary" />
-            <p className="text-avtovo-text-secondary text-center max-w-sm">
-                Podgląd pojazdu na żywo z Apibara wymaga zalogowania.
-            </p>
-            <button
-                onClick={loginWithGoogle}
-                className="inline-flex items-center gap-2 bg-avtovo-accent hover:bg-avtovo-accent-hover text-white rounded-lg px-5 py-2 text-sm font-medium transition-colors"
-            >
-                Zaloguj się
-            </button>
-            <button onClick={() => navigate(-1)} className="text-avtovo-accent text-sm hover:underline">Wróć</button>
         </div>
     );
 
