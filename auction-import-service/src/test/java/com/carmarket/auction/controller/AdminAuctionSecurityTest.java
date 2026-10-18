@@ -3,7 +3,9 @@ package com.carmarket.auction.controller;
 import com.carmarket.auction.audit.AdminAuditPublisher;
 import com.carmarket.auction.client.ApibaraClient;
 import com.carmarket.auction.config.SecurityConfig;
+import com.carmarket.auction.config.W8ShippingConfig;
 import com.carmarket.auction.repository.SyncRunRepository;
+import com.carmarket.auction.repository.W8TowingRateRepository;
 import com.carmarket.auction.scheduler.LotSyncScheduler;
 import com.carmarket.auction.security.GatewaySignatureFilter;
 import com.carmarket.auction.service.CurrencyExchangeService;
@@ -34,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AdminAuctionController.class)
-@Import({SecurityConfig.class, GatewaySignatureFilter.class})
+@Import({SecurityConfig.class, GatewaySignatureFilter.class, W8ShippingConfig.class})
 @TestPropertySource(properties = "gateway.internal-secret=" + AdminAuctionSecurityTest.SECRET)
 class AdminAuctionSecurityTest {
 
@@ -52,16 +54,21 @@ class AdminAuctionSecurityTest {
     private CurrencyExchangeService currency;
     @MockBean
     private AdminAuditPublisher audit;
+    @MockBean
+    private W8TowingRateRepository w8Rates;
 
     @Test
     void statusAndSyncAreAdminOnly() throws Exception {
         when(currency.lastRate()).thenReturn(Optional.empty());
+        when(w8Rates.countByPriceList("W8-2025-26")).thenReturn(725L);
         mvc.perform(get("/api/auctions/admin/status").with(as("USER"))).andExpect(status().isForbidden());
         mvc.perform(post("/api/auctions/admin/sync").with(as("DEALER"))).andExpect(status().isForbidden());
         mvc.perform(get("/api/auctions/admin/status")).andExpect(status().isForbidden());
         mvc.perform(get("/api/auctions/admin/status").with(as("ADMIN")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.apibaraConfigured").value(false));
+            .andExpect(jsonPath("$.apibaraConfigured").value(false))
+            .andExpect(jsonPath("$.w8PriceList").value("W8-2025-26"))
+            .andExpect(jsonPath("$.w8TowingRows").value(725));
         verify(scheduler, never()).triggerManualSync();
     }
 

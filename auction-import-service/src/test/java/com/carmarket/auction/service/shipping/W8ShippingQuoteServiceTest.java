@@ -7,6 +7,7 @@ import com.carmarket.auction.entity.W8TowingRate;
 import com.carmarket.auction.repository.W8TowingRateRepository;
 import com.carmarket.auction.service.CurrencyExchangeService;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -14,6 +15,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class W8ShippingQuoteServiceTest {
@@ -175,6 +177,22 @@ public class W8ShippingQuoteServiceTest {
         assertThat(q.polandDeliveryPln()).isEqualByComparingTo("2500"); // 2,100 + 400
         assertThat(service.quote(new W8QuoteRequest(W8Auction.COPART, "SOMERVILLE - NJ", false, PolandZone.B,
             LengthClass.OVER_5M)).orElseThrow().polandDeliveryPln()).isEqualByComparingTo("2400"); // 2,200 + 200
+    }
+
+    @Test
+    void locationSearchGroupsPortsPerLocation() {
+        when(repo.searchByYardKeyPrefix(any(), any(), any(), any())).thenReturn(List.of(
+            rate(W8Auction.COPART, "BILLINGS", "MT", null, W8Port.HOUSTON, 1250),
+            rate(W8Auction.COPART, "BILLINGS", "MT", null, W8Port.SEATTLE, 850),
+            rate(W8Auction.IAAI, "BILLINGS", "MT", null, W8Port.SEATTLE, 850)));
+
+        List<W8ShippingQuoteService.W8Location> found = service.locations(null, "bill");
+
+        assertThat(found).extracting(W8ShippingQuoteService.W8Location::auction).containsExactly(W8Auction.COPART, W8Auction.IAAI);
+        assertThat(found.get(0).ports()).extracting(W8ShippingQuoteService.PortPrice::port)
+            .containsExactly(W8Port.HOUSTON, W8Port.SEATTLE);
+        verify(repo).searchByYardKeyPrefix(LIST, null, "BILL", PageRequest.of(0, 120));
+        assertThat(service.locations(null, " - ")).isEmpty();
     }
 
     @Test

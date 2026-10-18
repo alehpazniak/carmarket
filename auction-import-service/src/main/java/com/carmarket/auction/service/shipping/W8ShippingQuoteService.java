@@ -8,11 +8,14 @@ import com.carmarket.auction.repository.W8TowingRateRepository;
 import com.carmarket.auction.service.CurrencyExchangeService;
 import com.carmarket.auction.service.shipping.W8LocationKey.ParsedLocation;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -49,6 +52,31 @@ public class W8ShippingQuoteService {
     public Optional<W8ShippingQuote> quote(W8QuoteRequest req) {
         ParsedLocation parsed = W8LocationKey.parse(req.location());
         return match(req.auction(), parsed).map(m -> build(req, m));
+    }
+
+    /** Autocomplete item: one W8 location (yard or sublot) with its towing price per port. */
+    public record W8Location(W8Auction auction, String location, String state, List<PortPrice> ports) {}
+
+    public record PortPrice(W8Port port, BigDecimal towingUsd) {}
+
+    static final int MAX_LOCATIONS = 20;
+
+    /**
+     * Locations whose yard key starts with the normalized query, all auctions when {@code auction} is null; at
+     * most {@value #MAX_LOCATIONS}. A location has at most one row per port, so 6 × the limit rows always cover it.
+     */
+    public List<W8Location> locations(W8Auction auction, String query) {
+        String prefix = W8LocationKey.normalize(query);
+        if (prefix == null) return List.of();
+        Map<String, List<W8TowingRate>> byLocation = new LinkedHashMap<>();
+        rates.searchByYardKeyPrefix(config.getPriceList(), auction, prefix,
+                PageRequest.of(0, MAX_LOCATIONS * W8Port.values().length))
+            .forEach(r -> byLocation.computeIfAbsent(r.getAuction() + "|" + r.getLocation(), k -> new ArrayList<>()).add(r));
+        return byLocation.values().stream()
+            .limit(MAX_LOCATIONS)
+            .map(rows -> new W8Location(rows.get(0).getAuction(), rows.get(0).getLocation(), rows.get(0).getState(),
+                rows.stream().map(r -> new PortPrice(r.getPort(), r.getPriceUsd())).toList()))
+            .toList();
     }
 
     private record Match(W8MatchType type, String location, W8Auction auction, List<W8TowingRate> rows) {}

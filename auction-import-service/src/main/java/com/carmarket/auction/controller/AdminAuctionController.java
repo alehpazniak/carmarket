@@ -2,8 +2,10 @@ package com.carmarket.auction.controller;
 
 import com.carmarket.auction.audit.AdminAuditPublisher;
 import com.carmarket.auction.client.ApibaraClient;
+import com.carmarket.auction.config.W8ShippingConfig;
 import com.carmarket.auction.entity.SyncRun;
 import com.carmarket.auction.repository.SyncRunRepository;
+import com.carmarket.auction.repository.W8TowingRateRepository;
 import com.carmarket.auction.scheduler.LotSyncScheduler;
 import com.carmarket.auction.service.CurrencyExchangeService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -33,9 +35,12 @@ public class AdminAuctionController {
     private final LotSyncScheduler scheduler;
     private final CurrencyExchangeService currency;
     private final AdminAuditPublisher auditPublisher;
+    private final W8TowingRateRepository w8Rates;
+    private final W8ShippingConfig w8Config;
 
     public record AuctionStatus(boolean apibaraConfigured, JsonNode apibaraUsage, String apibaraUsageError,
-                                boolean syncRunning, List<SyncRun> lastRuns, CurrencyExchangeService.LastRate exchangeRate) {
+                                boolean syncRunning, List<SyncRun> lastRuns, CurrencyExchangeService.LastRate exchangeRate,
+                                String w8PriceList, long w8TowingRows) {
     }
 
     @GetMapping("/status")
@@ -53,7 +58,7 @@ public class AdminAuctionController {
             }
         }
         return new AuctionStatus(configured, usage, usageError, scheduler.isRunning(), runs.findLatestPerParser(),
-            currency.lastRate().orElse(null));
+            currency.lastRate().orElse(null), w8Config.getPriceList(), w8Rates.countByPriceList(w8Config.getPriceList()));
     }
 
     /** 202 when a background sync was started, 409 when one is already running. */
