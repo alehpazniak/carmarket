@@ -42,9 +42,13 @@ gateway:
   trusted-proxies: ${GATEWAY_TRUSTED_PROXIES:0}
   # Anonymous Apibara live lookups (quick check on /aukcje, vehicle preview): they spend the account's monthly
   # quota, so per IP and for all anonymous users together. Logged-in users keep the standard limiter.
+  # Defaults are the free package's values (100 requests a month); raise them after buying a bigger package.
   apibara-anonymous:
-    per-ip-per-hour: ${APIBARA_ANON_PER_IP_PER_HOUR:5}
-    global-per-day: ${APIBARA_ANON_GLOBAL_PER_DAY:30}
+    per-ip-per-second: ${APIBARA_ANON_PER_IP_PER_SECOND:1}
+    # The vehicle page sends 3 lookups at once
+    per-ip-burst: ${APIBARA_ANON_PER_IP_BURST:5}
+    # Rolling 30-day budget shared by all anonymous users (not a calendar month); half of the free 100
+    global-per-month: ${APIBARA_ANON_GLOBAL_PER_MONTH:50}
 
 # Resilience4j circuit breaker defaults
 resilience4j:

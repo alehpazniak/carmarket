@@ -19,6 +19,7 @@ public class ApibaraRateLimiter implements RateLimiter<RedisRateLimiter.Config> 
 
     static final String ANONYMOUS_PREFIX = "apibara-anon:";
     static final String GLOBAL_ANONYMOUS_KEY = "apibara-anon-global";
+    static final int THIRTY_DAYS_SECONDS = 30 * 24 * 3600;
 
     private final RateLimiter<RedisRateLimiter.Config> authenticated;
     private final RateLimiter<RedisRateLimiter.Config> anonymousPerIp;
@@ -61,6 +62,10 @@ public class ApibaraRateLimiter implements RateLimiter<RedisRateLimiter.Config> 
      * A RedisRateLimiter allowing {@code requests} per {@code periodSeconds}, all of them usable at once.
      * RedisRateLimiter refills at least 1 token per second, so slow rates are expressed through the token
      * cost of a request: cost = period / requests tokens, capacity = requests × cost.
+     * <p>
+     * For 30 days and 50 requests: cost 51,840, capacity 2,592,000 (well inside int and Redis' range).
+     * The Redis script expires the bucket keys after 2 × capacity / rate = 60 days, by which time an idle
+     * bucket would have refilled anyway (after 30 days), so the expiry never hands out extra requests.
      */
     static RedisRateLimiter perPeriod(int requests, int periodSeconds) {
         int perRequest = tokensPerRequest(requests, periodSeconds);
