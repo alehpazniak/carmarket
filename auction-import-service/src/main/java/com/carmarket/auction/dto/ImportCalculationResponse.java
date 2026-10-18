@@ -2,6 +2,7 @@ package com.carmarket.auction.dto;
 
 import com.carmarket.auction.entity.ImportCalculation;
 import com.carmarket.auction.entity.ImportCostBreakdown;
+import com.carmarket.auction.service.shipping.W8ShippingQuote;
 import lombok.Builder;
 import lombok.Data;
 
@@ -27,6 +28,8 @@ public class ImportCalculationResponse {
     private BigDecimal estimatedProfitPln;
     private BigDecimal profitMarginPercent;
     private String profitRating;
+    /** W8 Shipping's itemized quote behind the shipping lines; null when the flat rates were used. */
+    private W8ShippingQuote w8;
 
     public static ImportCalculationResponse from(ImportCalculation calc) {
         ImportCostBreakdown b = calc.getBreakdown();
@@ -48,6 +51,7 @@ public class ImportCalculationResponse {
             .estimatedProfitPln(calc.getEstimatedProfitPln())
             .profitMarginPercent(calc.getProfitMarginPercent())
             .profitRating(calc.getProfitRating().name())
+            .w8(calc.getShippingQuote())
             .build();
     }
 }

@@ -2,7 +2,19 @@ package com.carmarket.auction;
 
 import com.carmarket.auction.client.ApibaraResponse;
 import com.carmarket.auction.client.ApibaraShippingResponse;
+import com.carmarket.auction.dto.CalculationRequest;
 import com.carmarket.auction.dto.ImportCalculationResponse;
+import com.carmarket.auction.dto.MaxBidRequest;
+import com.carmarket.auction.dto.MaxBidResponse;
+import com.carmarket.auction.entity.W8Auction;
+import com.carmarket.auction.entity.W8Port;
+import com.carmarket.auction.service.shipping.ContainerShare;
+import com.carmarket.auction.service.shipping.LengthClass;
+import com.carmarket.auction.service.shipping.OceanFreightSource;
+import com.carmarket.auction.service.shipping.PolandZone;
+import com.carmarket.auction.service.shipping.W8MatchType;
+import com.carmarket.auction.service.shipping.W8PortOption;
+import com.carmarket.auction.service.shipping.W8ShippingQuote;
 import com.carmarket.auction.entity.AuctionLot;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -88,6 +100,47 @@ class FrontendJsonContractTest {
 
         assertThat(json.path("usDelivery").decimalValue()).isEqualByComparingTo("350");
         assertThat(json.has("us_delivery")).isFalse();
+    }
+
+    @Test
+    void w8QuoteIsCamelCaseOnBothCalculators() throws Exception {
+        W8PortOption option = new W8PortOption(W8Port.NEW_YORK, "New York (Linden, NJ)", new BigDecimal("175"),
+            new BigDecimal("525"), OceanFreightSource.W8_PRICE_LIST, 25, 30, new BigDecimal("700"));
+        W8ShippingQuote quote = new W8ShippingQuote("W8-2025-26", W8MatchType.EXACT, "SOMERVILLE - NJ", W8Auction.COPART,
+            ContainerShare.QUARTER, List.of(option), option, new BigDecimal("430"), new BigDecimal("100"),
+            new BigDecimal("50"), PolandZone.A, new BigDecimal("2300"), new BigDecimal("75"), new BigDecimal("125"),
+            new BigDecimal("700"), new BigDecimal("4794.00"), new BigDecimal("200"), new BigDecimal("4.00"),
+            new BigDecimal("4.30"));
+
+        JsonNode maxBid = toJson(MaxBidResponse.builder().w8(quote).build()).path("w8");
+        assertThat(maxBid.path("matchType").asText()).isEqualTo("EXACT");
+        assertThat(maxBid.path("chosen").path("portLabel").asText()).isEqualTo("New York (Linden, NJ)");
+        assertThat(maxBid.path("chosen").path("oceanFreightSource").asText()).isEqualTo("W8_PRICE_LIST");
+        assertThat(maxBid.path("options").get(0).path("toEuBorderUsd").decimalValue()).isEqualByComparingTo("700");
+        assertThat(maxBid.path("afterBorderPln").decimalValue()).isEqualByComparingTo("4794.00");
+        assertThat(maxBid.path("polandZone").asText()).isEqualTo("A");
+        assertThat(maxBid.has("match_type")).isFalse();
+
+        assertThat(toJson(ImportCalculationResponse.builder().w8(quote).build()).path("w8").path("containerShare").asText())
+            .isEqualTo("QUARTER");
+        assertThat(toJson(MaxBidResponse.builder().build()).path("w8").isNull()).isTrue();
+    }
+
+    @Test
+    void maxBidRequestReadsTheW8Fields() throws Exception {
+        MaxBidRequest request = objectMapper.readValue("""
+            {"budgetPln": 100000, "suv": true, "auction": "copart", "auctionLocation": "Somerville (NJ)",
+             "polandZone": "B", "lengthClass": "OVER_5_3M", "vin": "5UXCR6C5XL9B12345"}""", MaxBidRequest.class);
+
+        assertThat(request.getAuction()).isEqualTo("copart");
+        assertThat(request.getAuctionLocation()).isEqualTo("Somerville (NJ)");
+        assertThat(request.getPolandZone()).isEqualTo(PolandZone.B);
+        assertThat(request.getLengthClass()).isEqualTo(LengthClass.OVER_5_3M);
+
+        CalculationRequest calc = objectMapper.readValue("""
+            {"targetSalePricePln": 90000, "suv": false, "polandZone": "C", "lengthClass": "OVER_5M"}""", CalculationRequest.class);
+        assertThat(calc.getPolandZone()).isEqualTo(PolandZone.C);
+        assertThat(calc.getLengthClass()).isEqualTo(LengthClass.OVER_5M);
     }
 
     private JsonNode toJson(Object value) throws Exception {

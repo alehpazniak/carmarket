@@ -1,5 +1,6 @@
 package com.carmarket.auction.service.calculator;
 
+import com.carmarket.auction.service.shipping.W8ShippingQuote;
 import lombok.Builder;
 import lombok.Data;
 
@@ -30,4 +31,6 @@ public class MaxBidResult {
     private BigDecimal maxCarPriceUsd;
     /** false when the budget doesn't even cover shipping + repair for a free car. */
     private boolean budgetSufficient;
+    /** The W8 quote the shipping lines come from; null = Apibara quote + flat delivery cost. */
+    private W8ShippingQuote w8Quote;
 }

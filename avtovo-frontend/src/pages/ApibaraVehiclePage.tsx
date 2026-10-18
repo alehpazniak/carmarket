@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getApibaraVehicle, getVehicleHistory, getRelatedVehicles, calculateApibaraMaxBid, apibaraErrorMessage } from '../api/auctions';
-import type { ApibaraVehicleDetail, ApibaraHistoryEntry, ApibaraRelatedVehicle, MaxBidResult, FuelType } from '../types/auctions';
+import { getApibaraVehicle, getVehicleHistory, getRelatedVehicles, calculateApibaraMaxBid, apibaraErrorMessage, w8AuctionFromPlatform } from '../api/auctions';
+import type { ApibaraVehicleDetail, ApibaraHistoryEntry, ApibaraRelatedVehicle, MaxBidResult, FuelType, LengthClass, PolandZone } from '../types/auctions';
+import W8QuoteBreakdown from '../components/auctions/W8QuoteBreakdown';
+import W8ShippingFields from '../components/auctions/W8ShippingFields';
 import PhotoGallery, { type GalleryPhoto } from '../components/PhotoGallery';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -78,6 +80,8 @@ export default function ApibaraVehiclePage() {
     const [engineCapacityCm3, setEngineCapacityCm3] = useState('');
     const [fuelType, setFuelType] = useState<FuelType>('PETROL');
     const [suv, setSuv] = useState(false);
+    const [polandZone, setPolandZone] = useState<PolandZone>('A');
+    const [lengthClass, setLengthClass] = useState<LengthClass>('STANDARD');
     const [maxBidResult, setMaxBidResult] = useState<MaxBidResult | null>(null);
     const [maxBidCalculating, setMaxBidCalculating] = useState(false);
     const [maxBidError, setMaxBidError] = useState<string | null>(null);
@@ -141,6 +145,11 @@ export default function ApibaraVehiclePage() {
                 fuelType,
                 suv,
                 vin: vehicle?.vin || undefined,
+                // Lets the backend price transport from W8's table instead of spending an Apibara lookup
+                auction: w8AuctionFromPlatform(vehicle?.platform),
+                auctionLocation: vehicle?.location?.display || undefined,
+                polandZone,
+                lengthClass,
             });
             setMaxBidResult(result);
         } catch (err) {
@@ -302,7 +311,7 @@ export default function ApibaraVehiclePage() {
                             <TrendingUp size={18} className="text-avtovo-accent" /> Ile mogę zaoferować za auto?
                         </h2>
                         <p className="text-avtovo-text-secondary text-sm mb-3">
-                            Podaj budżet i szacowany koszt naprawy — reszta (transport z Apibara, cło, akcyza, VAT) jest liczona automatycznie,
+                            Podaj budżet i szacowany koszt naprawy — reszta (transport W8 lub Apibara, cło, akcyza, VAT) jest liczona automatycznie,
                             a wynikiem jest maksymalna cena, jaką możesz zapłacić za samo auto na aukcji.
                         </p>
                         <form onSubmit={handleCalculateMaxBid} className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
@@ -348,9 +357,10 @@ export default function ApibaraVehiclePage() {
                                     <option value="ELECTRIC">Elektryczny</option>
                                 </select>
                             </div>
+                            <W8ShippingFields zone={polandZone} length={lengthClass} onZoneChange={setPolandZone} onLengthChange={setLengthClass} />
                             <label className="flex items-center gap-2 text-sm text-avtovo-text-secondary">
                                 <input type="checkbox" checked={suv} onChange={e => setSuv(e.target.checked)} />
-                                To SUV (droższy transport morski)
+                                To SUV (droższy transport morski, 1/3 kontenera)
                             </label>
                             <button
                                 type="submit"
@@ -363,14 +373,22 @@ export default function ApibaraVehiclePage() {
                         {maxBidError && <p className="text-red-400 text-sm mt-2">{maxBidError}</p>}
                         {maxBidResult && (
                             <div className="mt-4 bg-avtovo-bg border border-avtovo-border rounded-lg p-4 space-y-1.5 text-sm">
-                                <div className="flex items-center justify-between text-avtovo-text-secondary">
-                                    <span>Transport (Apibara)</span>
-                                    <span>{USD(maxBidResult.shippingCostUsd)} ({PLN(maxBidResult.shippingCostPln)})</span>
-                                </div>
-                                <div className="flex items-center justify-between text-avtovo-text-secondary">
-                                    <span>Transport morski / dostawa</span>
-                                    <span>{USD(maxBidResult.shippingDeliveryUsd)} ({PLN(maxBidResult.shippingDeliveryPln)})</span>
-                                </div>
+                                {maxBidResult.w8 ? (
+                                    <div className="pb-1.5 mb-1.5 border-b border-avtovo-border">
+                                        <W8QuoteBreakdown quote={maxBidResult.w8} />
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="flex items-center justify-between text-avtovo-text-secondary">
+                                            <span>Transport (Apibara)</span>
+                                            <span>{USD(maxBidResult.shippingCostUsd)} ({PLN(maxBidResult.shippingCostPln)})</span>
+                                        </div>
+                                        <div className="flex items-center justify-between text-avtovo-text-secondary">
+                                            <span>Transport morski / dostawa</span>
+                                            <span>{USD(maxBidResult.shippingDeliveryUsd)} ({PLN(maxBidResult.shippingDeliveryPln)})</span>
+                                        </div>
+                                    </>
+                                )}
                                 <div className="flex items-center justify-between text-avtovo-text-secondary">
                                     <span>Akcyza ({(maxBidResult.exciseRate * 100).toFixed(2)}%)</span>
                                     <span>{PLN(maxBidResult.excise)}</span>

@@ -86,6 +86,14 @@ export default function AuctionsPage() {
                         </div>
                     ) : <p className="text-sm text-avtovo-text-secondary">Kurs nie był jeszcze pobierany od startu serwisu.</p>}
                 </section>
+                <section className={card}>
+                    <h2 className="font-semibold text-avtovo-text mb-3">Cennik W8 Shipping</h2>
+                    <div className="text-sm space-y-1">
+                        <div className="text-2xl font-bold text-avtovo-text">{data.w8PriceList}</div>
+                        <div className="text-avtovo-text-secondary">{data.w8TowingRows} cen holowania</div>
+                        {data.w8TowingRows === 0 && <Badge tone="yellow">Brak cen dla tego cennika — kalkulatory używają stawek ryczałtowych</Badge>}
+                    </div>
+                </section>
             </div>
             <h2 className="font-semibold text-avtovo-text mb-3">Ostatnie synchronizacje</h2>
             <DataTable columns={runColumns} rows={data.lastRuns} rowKey={r => r.id} loading={false} emptyText="Brak synchronizacji" />

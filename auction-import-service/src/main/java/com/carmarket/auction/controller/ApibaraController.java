@@ -8,6 +8,11 @@ import com.carmarket.auction.dto.MaxBidRequest;
 import com.carmarket.auction.dto.MaxBidResponse;
 import com.carmarket.auction.service.ApibaraVehicleResolver;
 import com.carmarket.auction.service.UsaShippingRateService;
+import com.carmarket.auction.entity.W8Auction;
+import com.carmarket.auction.service.shipping.W8QuoteRequest;
+import com.carmarket.auction.service.shipping.W8ShippingQuote;
+import com.carmarket.auction.service.shipping.W8ShippingQuoteService;
+import jakarta.validation.Valid;
 import com.carmarket.auction.service.calculator.MaxBidCalculator;
 import com.carmarket.auction.service.calculator.CustomsDutyResolver;
 import com.carmarket.auction.service.calculator.MaxBidInput;
@@ -42,6 +47,7 @@ public class ApibaraController {
     private static final Logger log = LoggerFactory.getLogger(ApibaraController.class);
     private final ApibaraClient client;
     private final MaxBidCalculator maxBidCalculator;
+    private final W8ShippingQuoteService w8QuoteService;
     private final UsaShippingRateService shippingRateService;
     private final ApibaraVehicleResolver vehicleResolver;
 
@@ -101,18 +107,25 @@ public class ApibaraController {
     @PostMapping("/vehicles/{slugVin}/max-bid")
     public ResponseEntity<MaxBidResponse> calculateMaxBid(
         @PathVariable String slugVin,
-        @RequestBody MaxBidRequest request) {
+        @Valid @RequestBody MaxBidRequest request) {
+
+        // W8's table first: it prices the yard for free, an Apibara shipping lookup spends the monthly quota
+        W8ShippingQuote w8 = w8QuoteService.quote(new W8QuoteRequest(W8Auction.from(request.getAuction()).orElse(null),
+            request.getAuctionLocation(), request.getSuv(), request.getPolandZone(), request.getLengthClass())).orElse(null);
 
         BigDecimal shippingCostUsd = null;
-        ApibaraShippingResponse shipping = shippingRateService.getShipping(null, () -> client.getVehicleShipping(slugVin, null));
-        if (shipping != null && shipping.data() != null && shipping.data().shipping() != null) {
-            shippingCostUsd = shipping.data().shipping().recommendedPriceUsd();
+        if (w8 == null) {
+            ApibaraShippingResponse shipping = shippingRateService.getShipping(null, () -> client.getVehicleShipping(slugVin, null));
+            if (shipping != null && shipping.data() != null && shipping.data().shipping() != null) {
+                shippingCostUsd = shipping.data().shipping().recommendedPriceUsd();
+            }
         }
 
         var result = maxBidCalculator.calculate(MaxBidInput.builder()
             .budgetPln(request.getBudgetPln())
             .estimatedRepairCostPln(request.getEstimatedRepairCostPln())
             .shippingCostUsd(shippingCostUsd)
+            .w8Quote(w8)
             .engineCapacityCm3(request.getEngineCapacityCm3())
             .fuelType(request.getFuelType())
             .suv(request.getSuv())

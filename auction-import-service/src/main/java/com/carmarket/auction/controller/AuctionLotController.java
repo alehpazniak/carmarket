@@ -1,5 +1,10 @@
 package com.carmarket.auction.controller;
 
+import com.carmarket.auction.entity.W8Auction;
+import com.carmarket.auction.service.shipping.W8QuoteRequest;
+import com.carmarket.auction.service.shipping.W8ShippingQuote;
+import com.carmarket.auction.service.shipping.W8ShippingQuoteService;
+import jakarta.validation.Valid;
 import com.carmarket.auction.client.ApibaraClient;
 import com.carmarket.auction.client.ApibaraShippingResponse;
 import com.carmarket.auction.dto.CalculationRequest;
@@ -35,6 +40,7 @@ public class AuctionLotController {
     private final AuctionLotService lotService;
     private final ImportCostCalculator costCalculator;
     private final MaxBidCalculator maxBidCalculator;
+    private final W8ShippingQuoteService w8QuoteService;
     private final AuctionLotRepository lotRepository;
     private final ApibaraClient apibaraClient;
     private final UsaShippingRateService shippingRateService;
@@ -82,6 +88,9 @@ public class AuctionLotController {
             .estimatedRepairCostPln(request.getEstimatedRepairCostPln())
             .targetSalePricePln(request.getTargetSalePricePln())
             .destinationCountry(request.getDestinationCountry())
+            .suv(request.getSuv())
+            .polandZone(request.getPolandZone())
+            .lengthClass(request.getLengthClass())
             .build());
 
         return ResponseEntity.ok(ImportCalculationResponse.from(calculation));
@@ -90,17 +99,21 @@ public class AuctionLotController {
     @PostMapping("/lots/{id}/max-bid")
     public ResponseEntity<MaxBidResponse> calculateMaxBid(
         @PathVariable UUID id,
-        @RequestBody MaxBidRequest request) {
+        @Valid @RequestBody MaxBidRequest request) {
 
         AuctionLot lot = lotRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Lot not found"));
 
-        BigDecimal shippingCostUsd = resolveShippingCostUsd(lot);
+        // W8's table first; the cached/Apibara auction-to-port quote only when W8 doesn't price this yard
+        W8ShippingQuote w8 = w8QuoteService.quote(new W8QuoteRequest(W8Auction.from(lot.getSource()).orElse(null),
+            lot.getAuctionLocation(), request.getSuv(), request.getPolandZone(), request.getLengthClass())).orElse(null);
+        BigDecimal shippingCostUsd = w8 == null ? resolveShippingCostUsd(lot) : null;
 
         var result = maxBidCalculator.calculate(MaxBidInput.builder()
             .budgetPln(request.getBudgetPln())
             .estimatedRepairCostPln(request.getEstimatedRepairCostPln())
             .shippingCostUsd(shippingCostUsd)
+            .w8Quote(w8)
             .engineCapacityCm3(request.getEngineCapacityCm3() != null ? request.getEngineCapacityCm3() : lot.getEngineCapacity())
             .fuelType(request.getFuelType() != null ? request.getFuelType() : lot.getFuelType())
             .suv(request.getSuv())

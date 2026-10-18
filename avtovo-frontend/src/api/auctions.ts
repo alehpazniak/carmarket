@@ -11,6 +11,11 @@ import type {
     ApibaraShippingResult,
     ApibaraHistoryResult,
     ApibaraRelatedResult,
+    LengthClass,
+    PolandZone,
+    W8Auction,
+    W8Location,
+    W8ShippingQuote,
 } from '../types/auctions';
 
 const toQuery = (params: object) =>
@@ -42,12 +47,40 @@ export const getLotsByVin = (vin: string) =>
 
 export const calculateImport = (
     id: string,
-    data: { targetSalePricePln: number; estimatedRepairCostPln?: number; destinationCountry?: string }
+    data: {
+        targetSalePricePln: number;
+        estimatedRepairCostPln?: number;
+        destinationCountry?: string;
+        suv?: boolean;
+        polandZone?: PolandZone;
+        lengthClass?: LengthClass;
+    }
 ) =>
     api.post<ImportCalculationResult>(`/api/auctions/lots/${id}/calculate`, data).then(r => r.data);
 
 export const calculateMaxBid = (id: string, data: MaxBidRequest) =>
     api.post<MaxBidResult>(`/api/auctions/lots/${id}/max-bid`, data).then(r => r.data);
+
+// ── W8 Shipping transport calculator (logged-in users; our own price table, no Apibara quota) ──
+
+export const getW8Locations = (q: string, auction?: W8Auction) =>
+    api.get<W8Location[]>(`/api/auctions/shipping/w8/locations?${toQuery({ q, auction })}`).then(r => r.data);
+
+/** Rejects with a 404 when W8 has no price for the location, not even for its state. */
+export const getW8Quote = (params: {
+    location: string;
+    auction?: W8Auction;
+    suv?: boolean;
+    zone?: PolandZone;
+    length?: LengthClass;
+}) =>
+    api.get<W8ShippingQuote>(`/api/auctions/shipping/w8/quote?${toQuery(params)}`).then(r => r.data);
+
+/** Apibara's `platform` as a W8 auction, or undefined when W8 doesn't know it (the backend would reject it). */
+export function w8AuctionFromPlatform(platform?: string): string | undefined {
+    const p = (platform ?? '').toLowerCase();
+    return ['copart', 'iaai', 'manheim', 'adesa'].includes(p) ? p : undefined;
+}
 
 export const getComparables = (id: string) =>
     api.get<AuctionLot[]>(`/api/auctions/lots/${id}/comparables`).then(r => r.data);
