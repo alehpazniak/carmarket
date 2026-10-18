@@ -35,6 +35,9 @@ import:
     eu-delivery-pln: 800
     vat-rate: 0.23
     customs-duty-rate: 0.10
+    # US-built cars (VIN starting with 1, 4 or 5): Regulation (EU) 2026/1455, standard rate again after the date
+    us-origin-duty-rate: 0.00
+    us-origin-preference-until: 2029-12-31
     shipping-delivery-usd: 1000
     shipping-delivery-suv-usd: 1500
 

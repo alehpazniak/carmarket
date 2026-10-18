@@ -19,6 +19,8 @@ public class MaxBidInput {
     private Integer engineCapacityCm3;
     /** Overrides the lot's own fuel type when the lot doesn't have it (usually the case). */
     private AuctionLot.FuelType fuelType;
+    /** Drives the customs duty (country of manufacture, see CustomsDutyResolver); may be masked or null. */
+    private String vin;
     /** SUVs cost more to ship than the standard rate — drives which flat shipping-delivery cost applies. */
     private Boolean suv;
 }

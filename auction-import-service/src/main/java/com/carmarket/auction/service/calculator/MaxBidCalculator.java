@@ -15,18 +15,20 @@ import java.math.RoundingMode;
  * varies per vehicle) plus a flat shipping-delivery cost covering the leg Apibara doesn't price
  * (US port → Poland) — $1500 for SUVs, $1000 otherwise, since SUVs cost more to ship.
  * <p>
- * Shipping, excise and customs duty are all levied on the "customs value" (car price + shipping),
- * and VAT is levied on top of that plus duty and excise — so growing the car price grows every
- * other cost too. Rather than guessing and iterating, this solves the linear system directly:
+ * Duty is levied on the "customs value" (car price + shipping), excise on the customs value plus the duty
+ * (Polish excise act: for imports the base includes the duty), and VAT on all three — so growing the car price
+ * grows every other cost too. Rather than guessing and iterating, this solves the linear system directly:
  * <pre>
- *   budget = carPrice + shipping + customsDuty + excise + vat + repair
- *   customsDuty = (carPrice + shipping) * dutyRate
- *   excise      = (carPrice + shipping) * exciseRate
- *   vat         = (carPrice + shipping + customsDuty + excise) * vatRate
+ *   budget      = carPrice + shipping + customsDuty + excise + vat + repair
+ *   customsValue = carPrice + shipping
+ *   customsDuty = customsValue * dutyRate
+ *   excise      = (customsValue + customsDuty) * exciseRate
+ *   vat         = (customsValue + customsDuty + excise) * vatRate
  * </pre>
- * Substituting and collecting terms in carPrice gives {@code carPrice * (1+C) + shipping * C + repair = budget}
- * where {@code C = dutyRate + exciseRate + (1 + dutyRate + exciseRate) * vatRate}, so
- * {@code carPrice = (budget - repair - shipping * C) / (1 + C)}.
+ * Each tax multiplies what came before, so {@code budget - repair = customsValue * M} with
+ * {@code M = (1 + dutyRate) * (1 + exciseRate) * (1 + vatRate)}, and
+ * {@code carPrice = (budget - repair) / M - shipping}. The duty rate depends on the country of manufacture
+ * (see {@link CustomsDutyResolver}).
  */
 @Component
 @RequiredArgsConstructor
@@ -34,6 +36,7 @@ public class MaxBidCalculator {
 
     private final ImportRatesConfig rates;
     private final CurrencyExchangeService exchangeService;
+    private final CustomsDutyResolver dutyResolver;
 
     public MaxBidResult calculate(MaxBidInput input) {
         BigDecimal repair = input.getEstimatedRepairCostPln() != null
@@ -51,27 +54,27 @@ public class MaxBidCalculator {
         BigDecimal shippingDeliveryPln = shippingDeliveryUsd.multiply(exchangeRate).setScale(2, RoundingMode.HALF_UP);
         BigDecimal totalShippingPln = shippingPln.add(shippingDeliveryPln);
 
-        BigDecimal dutyRate = rates.getCustomsDutyRate();
+        BigDecimal dutyRate = dutyResolver.resolve(input.getVin());
         BigDecimal vatRate = rates.getVatRate();
         BigDecimal exciseRate = ExciseRateResolver.resolve(input.getEngineCapacityCm3(), input.getFuelType());
 
-        // C = d + e + (1+d+e)*v
-        BigDecimal onePlusDutyPlusExcise = BigDecimal.ONE.add(dutyRate).add(exciseRate);
-        BigDecimal combinedRate = dutyRate.add(exciseRate).add(onePlusDutyPlusExcise.multiply(vatRate));
-        BigDecimal onePlusCombined = BigDecimal.ONE.add(combinedRate);
+        // M = (1+d)(1+e)(1+v): customs value → customs value + duty + excise + VAT
+        BigDecimal multiplier = BigDecimal.ONE.add(dutyRate)
+            .multiply(BigDecimal.ONE.add(exciseRate))
+            .multiply(BigDecimal.ONE.add(vatRate));
 
-        BigDecimal numerator = input.getBudgetPln()
-            .subtract(repair)
-            .subtract(totalShippingPln.multiply(combinedRate));
+        BigDecimal maxCustomsValue = input.getBudgetPln().subtract(repair)
+            .divide(multiplier, 10, RoundingMode.HALF_UP);
+        BigDecimal carPrice = maxCustomsValue.subtract(totalShippingPln);
 
-        boolean sufficient = numerator.compareTo(BigDecimal.ZERO) > 0;
+        boolean sufficient = carPrice.compareTo(BigDecimal.ZERO) > 0;
         BigDecimal maxCarPricePln = sufficient
-            ? numerator.divide(onePlusCombined, 2, RoundingMode.HALF_UP)
+            ? carPrice.setScale(2, RoundingMode.DOWN)
             : BigDecimal.ZERO;
 
         BigDecimal customsValue = maxCarPricePln.add(totalShippingPln);
         BigDecimal customsDuty = customsValue.multiply(dutyRate).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal excise = customsValue.multiply(exciseRate).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal excise = customsValue.add(customsDuty).multiply(exciseRate).setScale(2, RoundingMode.HALF_UP);
         BigDecimal vat = customsValue.add(customsDuty).add(excise)
             .multiply(vatRate).setScale(2, RoundingMode.HALF_UP);
 

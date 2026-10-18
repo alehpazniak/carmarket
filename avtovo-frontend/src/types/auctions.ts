@@ -63,6 +63,8 @@ export interface MaxBidRequest {
     engineCapacityCm3?: number;
     fuelType?: FuelType;
     suv?: boolean;
+    /** For the customs duty by country of manufacture (US-built cars pay 0%); may be masked. */
+    vin?: string;
 }
 
 export interface MaxBidResult {

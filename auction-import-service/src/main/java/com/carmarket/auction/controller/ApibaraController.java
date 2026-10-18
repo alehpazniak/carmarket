@@ -9,6 +9,7 @@ import com.carmarket.auction.dto.MaxBidResponse;
 import com.carmarket.auction.service.ApibaraVehicleResolver;
 import com.carmarket.auction.service.UsaShippingRateService;
 import com.carmarket.auction.service.calculator.MaxBidCalculator;
+import com.carmarket.auction.service.calculator.CustomsDutyResolver;
 import com.carmarket.auction.service.calculator.MaxBidInput;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
@@ -115,9 +116,20 @@ public class ApibaraController {
             .engineCapacityCm3(request.getEngineCapacityCm3())
             .fuelType(request.getFuelType())
             .suv(request.getSuv())
+            .vin(vinFor(slugVin, request.getVin()))
             .build());
 
         return ResponseEntity.ok(MaxBidResponse.from(result));
+    }
+
+    /**
+     * The identifier is a VIN, a lot number or Apibara's slug ("...-{vin}"), so the VIN is taken from it when it
+     * ends with one, else from the request body (the frontend sends the vehicle's VIN); null → standard duty.
+     */
+    static String vinFor(String slugVin, String requestVin) {
+        String last = slugVin.substring(slugVin.lastIndexOf('-') + 1);
+        if (CustomsDutyResolver.isVin(last)) return last;
+        return CustomsDutyResolver.isVin(requestVin) ? requestVin : null;
     }
 
     @GetMapping("/locations")
