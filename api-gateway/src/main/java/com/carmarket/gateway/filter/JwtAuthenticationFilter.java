@@ -138,7 +138,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                 pathMatcher.match("/api/auctions/lots/**", path))) {
             return true;
         }
-        // Public dealer pages (/dealer/{slug}) and their "Wyświetl numer"; the dealer's own page
+        // Public dealer pages (/dealer/{slug}), their "Wyświetl numer" and the dealer map (/nearby); the dealer's own page
         // (/api/users/me/dealer-page) stays behind the JWT
         if ("GET".equals(method) && pathMatcher.match("/api/users/dealers/**", path)) {
             return true;

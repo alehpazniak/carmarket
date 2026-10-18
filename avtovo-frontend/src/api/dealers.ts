@@ -1,7 +1,7 @@
 import axios from 'axios';
 import api from './client';
 import type { CarListing, Page } from '../types';
-import type { DealerCard, DealerPageOwner, DealerPageRequest, DealerPageView } from '../types/dealers';
+import type { DealerCard, DealerMapItem, DealerPageOwner, DealerPageRequest, DealerPageView } from '../types/dealers';
 
 /** A published dealer page; null when there is none (unknown slug, unpublished or blocked dealer). */
 export async function getDealerPage(slug: string): Promise<DealerPageView | null> {
@@ -33,6 +33,11 @@ export async function getDealerCard(userId: string): Promise<DealerCard | null> 
         throw err;
     }
 }
+
+/** Dealer map: visible pages within radiusKm (1–300) of a point, nearest first. Rate-limited per IP (429). */
+export const getNearbyDealers = (lat: number, lng: number, radiusKm: number, limit = 200, signal?: AbortSignal) =>
+    api.get<DealerMapItem[]>('/api/users/dealers/nearby', { params: { lat, lng, radiusKm, limit }, signal })
+        .then(r => r.data);
 
 /** The dealer's ACTIVE listings ("Oferta"); sort is "createdAt,desc", "price,asc", ... */
 export const getSellerListings = (sellerId: string, page: number, sort: string, size = 24) =>

@@ -154,6 +154,21 @@ class SecurityRulesTest {
     }
 
     @Test
+    @DisplayName("dealer map: /users/dealers/nearby is public and not taken for a slug; bad parameters are 400")
+    void dealerMap_public() throws Exception {
+        when(dealerPageService.findNearby(52.23, 21.01, 50, 100)).thenReturn(java.util.List.of());
+
+        mockMvc.perform(get("/users/dealers/nearby").param("lat", "52.23").param("lng", "21.01"))
+            .andExpect(status().isOk());
+        verify(dealerPageService).findNearby(52.23, 21.01, 50, 100);
+        verify(dealerPageService, never()).findPublic(any());
+
+        mockMvc.perform(get("/users/dealers/nearby").param("lng", "21.01")).andExpect(status().isBadRequest());
+        mockMvc.perform(get("/users/dealers/nearby").param("lat", "abc").param("lng", "21.01"))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("own dealer page: unsigned request (gateway bypassed) gets 403")
     void ownDealerPage_unsigned_forbidden() throws Exception {
         mockMvc.perform(get("/users/me/dealer-page").header("X-User-Id", UUID.randomUUID().toString()))

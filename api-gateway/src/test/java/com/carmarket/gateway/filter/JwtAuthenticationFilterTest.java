@@ -138,6 +138,7 @@ class JwtAuthenticationFilterTest {
     void dealerPagesArePublicButTheOwnersEditorIsNot() {
         assertThat(filter.isPublicRoute("/api/users/dealers/auto-kowalski", "GET")).isTrue();
         assertThat(filter.isPublicRoute("/api/users/dealers/auto-kowalski/phone", "GET")).isTrue();
+        assertThat(filter.isPublicRoute("/api/users/dealers/nearby", "GET")).isTrue();
         assertThat(filter.isPublicRoute("/api/users/dealers/auto-kowalski", "PUT")).isFalse();
         assertThat(filter.isPublicRoute("/api/users/me/dealer-page", "GET")).isFalse();
         assertThat(filter.isPublicRoute("/api/users/me/dealer-page", "PUT")).isFalse();

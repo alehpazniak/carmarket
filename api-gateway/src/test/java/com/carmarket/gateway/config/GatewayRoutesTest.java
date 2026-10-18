@@ -68,6 +68,26 @@ class GatewayRoutesTest {
     }
 
     @Test
+    void dealerMapHitsItsOwnRoute() {
+        List<Route> routes = routeLocator.getRoutes().collectList().block();
+        assertThat(routes).isNotNull();
+
+        assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/users/dealers/nearby?lat=52.2&lng=21.0")))
+            .isEqualTo("user-service-dealer-map");
+        assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/users/dealers/nearby-auto")))
+            .isEqualTo("user-service");
+    }
+
+    @Test
+    void dealerMapKeyResolverUsesItsOwnBucketPerIp() {
+        ServerWebExchange exchange = MockServerWebExchange.from(MockServerHttpRequest.get("/api/users/dealers/nearby")
+            .remoteAddress(new InetSocketAddress("203.0.113.9", 4000)));
+
+        assertThat(GatewayConfig.dealerMapKeyResolver(new ClientIpResolver(0)).resolve(exchange).block())
+            .isEqualTo("dealer-map:203.0.113.9");
+    }
+
+    @Test
     void importOrderPasswordChecksHitTheStrictRouteFirst() {
         List<Route> routes = routeLocator.getRoutes().collectList().block();
         assertThat(routes).isNotNull();

@@ -17,10 +17,11 @@ import java.util.UUID;
 /**
  * A dealer's public page (/dealer/{slug}), modeled on otomoto's dealer pages: "O nas", "Oferta"
  * (the dealer's ACTIVE listings from car-service) and "Kontakt". One per user; only shown while
- * {@code published}, the account is active and its role is DEALER or ADMIN.
+ * {@code published}, the account is active and its role is DEALER or ADMIN. Pages with coordinates
+ * also appear on the dealer map (GET /users/dealers/nearby).
  */
 @Entity
-@Table(name = "dealer_pages")
+@Table(name = "dealer_pages", indexes = @Index(name = "idx_dealer_pages_location", columnList = "latitude, longitude"))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -51,6 +52,11 @@ public class DealerPage {
 
     @Column(name = "postal_code", length = 10)
     private String postalCode;
+
+    /** WGS84, set from the dealer page editor (no server-side geocoding); both or neither. */
+    private Double latitude;
+
+    private Double longitude;
 
     /** Business number, shown only on "Wyświetl numer" (GET /users/dealers/{slug}/phone). */
     @Column(length = 30)

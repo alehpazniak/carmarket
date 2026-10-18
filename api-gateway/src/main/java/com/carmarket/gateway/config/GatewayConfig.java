@@ -111,6 +111,20 @@ public class GatewayConfig {
         return exchange -> Mono.just("dealer-phone:" + clientIp.resolve(exchange));
     }
 
+    /**
+     * The public dealer map (GET /api/users/dealers/nearby): anonymous, keyed by IP under its own prefix
+     * (see importAccessKeyResolver). With (1, 60, 2): burst 30, then one request per 2 s = 30 per minute,
+     * enough for panning and changing the radius with the frontend's 300 ms debounce.
+     */
+    @Bean
+    public RedisRateLimiter dealerMapRateLimiter() {
+        return new RedisRateLimiter(1, 60, 2);
+    }
+
+    static KeyResolver dealerMapKeyResolver(ClientIpResolver clientIp) {
+        return exchange -> Mono.just("dealer-map:" + clientIp.resolve(exchange));
+    }
+
     /*
      * Limiters are picked by @Qualifier: @Primary wins over a matching parameter name, so without it
      * every RedisRateLimiter parameter would get standardRateLimiter.
@@ -123,7 +137,8 @@ public class GatewayConfig {
                                @Qualifier("standardRateLimiter") RedisRateLimiter standardRateLimiter,
                                @Qualifier("phoneRateLimiter") RedisRateLimiter phoneRateLimiter,
                                @Qualifier("importOrderAccessRateLimiter") RedisRateLimiter importOrderAccessRateLimiter,
-                               @Qualifier("dealerPhoneRateLimiter") RedisRateLimiter dealerPhoneRateLimiter) {
+                               @Qualifier("dealerPhoneRateLimiter") RedisRateLimiter dealerPhoneRateLimiter,
+                               @Qualifier("dealerMapRateLimiter") RedisRateLimiter dealerMapRateLimiter) {
         return builder.routes()
 
             // ─── AUTH SERVICE ────────────────────────────────────────────
@@ -136,6 +151,17 @@ public class GatewayConfig {
                         .setKeyResolver(keyResolver))
                     .rewritePath("/api/auth/(?<segment>.*)", "/auth/${segment}"))
                 .uri("lb://auth-service"))
+
+            // ─── USER SERVICE — dealer map, public (must stay above the generic user routes) ───
+            .route("user-service-dealer-map", r -> r
+                .path("/api/users/dealers/nearby")
+                .filters(f -> f
+                    .circuitBreaker(c -> c.setName("user-cb").setFallbackUri("forward:/fallback/user"))
+                    .requestRateLimiter(rl -> rl
+                        .setRateLimiter(dealerMapRateLimiter)
+                        .setKeyResolver(dealerMapKeyResolver(clientIp)))
+                    .rewritePath("/api/users/(?<segment>.*)", "/users/${segment}"))
+                .uri("lb://user-service"))
 
             // ─── USER SERVICE — dealer page phone, public (must stay above the generic user routes) ───
             .route("user-service-dealer-phone", r -> r

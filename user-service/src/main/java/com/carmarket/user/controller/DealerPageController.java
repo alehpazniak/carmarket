@@ -1,6 +1,7 @@
 package com.carmarket.user.controller;
 
 import com.carmarket.user.dto.DealerPageDtos.DealerCard;
+import com.carmarket.user.dto.DealerPageDtos.DealerMapItem;
 import com.carmarket.user.dto.DealerPageDtos.DealerPageOwnerView;
 import com.carmarket.user.dto.DealerPageDtos.DealerPageRequest;
 import com.carmarket.user.dto.DealerPageDtos.DealerPageView;
@@ -12,11 +13,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
  * Public dealer pages (/dealer/{slug} in the frontend).
  * <p>
+ * GET /users/dealers/nearby?lat=&lng=&radiusKm=&limit= — visible pages with coordinates near a point, nearest
+ *                                   first (public, rate-limited per IP at the gateway; the literal path wins over {slug})
  * GET /users/dealers/{slug}        — the page (public, allow-listed fields, no phone)
  * GET /users/dealers/by-user/{id} — name, logo and slug of a seller's page, for the box on their listings (public)
  * GET /users/dealers/{slug}/phone  — the business phone for "Wyświetl numer" (public, rate-limited per IP at the gateway)
@@ -30,6 +34,14 @@ import java.util.UUID;
 public class DealerPageController {
 
     private final DealerPageService service;
+
+    @GetMapping("/dealers/nearby")
+    public List<DealerMapItem> nearby(@RequestParam double lat,
+                                      @RequestParam double lng,
+                                      @RequestParam(defaultValue = "50") int radiusKm,
+                                      @RequestParam(defaultValue = "100") int limit) {
+        return service.findNearby(lat, lng, radiusKm, limit);
+    }
 
     @GetMapping("/dealers/{slug}")
     public ResponseEntity<DealerPageView> getPage(@PathVariable String slug) {

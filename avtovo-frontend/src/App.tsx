@@ -26,6 +26,8 @@ import DealerPageEditor from './pages/dealer/DealerPageEditor';
 
 // Own chunk: admins only, and the main bundle is already large
 const AdminApp = lazy(() => import('./admin/AdminApp'));
+// Own chunk: Google Maps and the marker clusterer stay out of the main bundle
+const DealerMap = lazy(() => import('./pages/DealerMap'));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, isLoading } = useAuth();
@@ -108,6 +110,7 @@ function AppRoutes() {
                     <Route path="/panel-dealera/strona" element={
                         <DealerRoute><DealerPageEditor /></DealerRoute>
                     } />
+                    <Route path="/dealerzy" element={<Suspense fallback={spinner}><DealerMap /></Suspense>} />
                     {/* Public dealer pages, like otomoto's: O nas / Oferta / Kontakt */}
                     <Route path="/dealer/:slug" element={<DealerPage />} />
                     <Route path="/dealer/:slug/oferta" element={<DealerPage tab="offers" />} />
