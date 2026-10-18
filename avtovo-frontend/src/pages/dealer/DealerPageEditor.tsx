@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type FormEvent, lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { Building2, ExternalLink, ImagePlus, Loader2, Plus, Trash2, X } from 'lucide-react';
@@ -8,6 +8,9 @@ import { resizePhoto } from '../../utils/imageResize';
 import { slugify, toDealerPageRequest } from '../../utils/dealers';
 import type { DayHours, DealerPageRequest, TeamMember } from '../../types/dealers';
 
+// Own chunk: the Google Maps script and libraries load only when the editor is opened
+const DealerLocationPicker = lazy(() => import('../../components/maps/DealerLocationPicker'));
+
 const DAY_NAMES = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'];
 const MAX_GALLERY = 12;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -16,7 +19,7 @@ const inputClass = 'w-full bg-avtovo-bg border border-avtovo-border rounded-lg p
 
 const EMPTY: DealerPageRequest = {
     slug: '', companyName: '', headline: null, description: null, city: null, street: null, postalCode: null,
-    phone: null, website: null, facebookUrl: null, instagramUrl: null, youtubeUrl: null, logoUrl: null,
+    latitude: null, longitude: null, phone: null, website: null, facebookUrl: null, instagramUrl: null, youtubeUrl: null, logoUrl: null,
     bannerUrl: null, galleryUrls: [], openingHours: [], services: [], team: [], published: false,
 };
 
@@ -274,6 +277,28 @@ export default function DealerPageEditor() {
                             <input type="url" value={form.youtubeUrl ?? ''} onChange={text('youtubeUrl')} placeholder="https://youtube.com/…" className={inputClass} />
                         </Field>
                     </div>
+                </Section>
+
+                <Section title="Lokalizacja na mapie">
+                    <p className="text-sm text-avtovo-text-secondary">
+                        Pokaż firmę na <Link to="/dealerzy" target="_blank" className="text-avtovo-accent hover:underline">mapie dealerów</Link> i
+                        mini mapie w zakładce „Kontakt”. Wybrany adres uzupełni też ulicę, kod pocztowy i miasto.
+                    </p>
+                    <Suspense fallback={<div className="h-72 flex items-center justify-center"><Loader2 className="animate-spin text-avtovo-accent" /></div>}>
+                        <DealerLocationPicker
+                            position={form.latitude != null && form.longitude != null ? { lat: form.latitude, lng: form.longitude } : null}
+                            onChange={p => setForm(f => ({ ...f, latitude: p?.lat ?? null, longitude: p?.lng ?? null }))}
+                            onAddress={a => setForm(f => ({
+                                ...f,
+                                street: a.street?.slice(0, 150) ?? f.street,
+                                postalCode: a.postalCode?.slice(0, 10) ?? f.postalCode,
+                                city: a.city?.slice(0, 80) ?? f.city,
+                            }))}
+                        />
+                    </Suspense>
+                    {(fieldErrors.latitude || fieldErrors.longitude) && (
+                        <p className="text-xs text-red-400">{fieldErrors.latitude ?? fieldErrors.longitude}</p>
+                    )}
                 </Section>
 
                 <Section title="Godziny otwarcia">

@@ -4,6 +4,8 @@ import com.carmarket.user.entity.DealerPage;
 import com.carmarket.user.entity.DealerPage.DayHours;
 import com.carmarket.user.entity.DealerPage.TeamMember;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -48,6 +50,9 @@ public final class DealerPageDtos {
         @Size(max = 80) String city,
         @Size(max = 150) String street,
         @Size(max = 10) String postalCode,
+        // Both or neither (checked in DealerPageService); null = not on the dealer map
+        @DecimalMin("-90") @DecimalMax("90") Double latitude,
+        @DecimalMin("-180") @DecimalMax("180") Double longitude,
         @Pattern(regexp = "^\\+?[0-9 ()-]{6,30}$", message = "Nieprawidłowy numer telefonu") String phone,
         @Size(max = 255) @Pattern(regexp = HTTP_URL, message = "Adres musi zaczynać się od http:// lub https://") String website,
         @Size(max = 255) @Pattern(regexp = HTTP_URL, message = "Adres musi zaczynać się od http:// lub https://") String facebookUrl,
@@ -72,6 +77,8 @@ public final class DealerPageDtos {
         String city,
         String street,
         String postalCode,
+        Double latitude,
+        Double longitude,
         String phone,
         String website,
         String facebookUrl,
@@ -88,9 +95,9 @@ public final class DealerPageDtos {
     ) {
         public static DealerPageOwnerView from(DealerPage p) {
             return new DealerPageOwnerView(p.getSlug(), p.getCompanyName(), p.getHeadline(), p.getDescription(),
-                p.getCity(), p.getStreet(), p.getPostalCode(), p.getPhone(), p.getWebsite(), p.getFacebookUrl(),
-                p.getInstagramUrl(), p.getYoutubeUrl(), p.getLogoUrl(), p.getBannerUrl(), nn(p.getGalleryUrls()),
-                nn(p.getOpeningHours()), nn(p.getServices()), nn(p.getTeam()), p.isPublished(), p.getUpdatedAt());
+                p.getCity(), p.getStreet(), p.getPostalCode(), p.getLatitude(), p.getLongitude(), p.getPhone(),
+                p.getWebsite(), p.getFacebookUrl(), p.getInstagramUrl(), p.getYoutubeUrl(), p.getLogoUrl(),
+                p.getBannerUrl(), nn(p.getGalleryUrls()), nn(p.getOpeningHours()), nn(p.getServices()), nn(p.getTeam()), p.isPublished(), p.getUpdatedAt());
         }
     }
 
@@ -107,6 +114,8 @@ public final class DealerPageDtos {
         String city,
         String street,
         String postalCode,
+        Double latitude,
+        Double longitude,
         boolean hasPhone,
         String website,
         String facebookUrl,
@@ -122,7 +131,7 @@ public final class DealerPageDtos {
     ) {
         public static DealerPageView from(DealerPage p, LocalDateTime memberSince) {
             return new DealerPageView(p.getUserId(), p.getSlug(), p.getCompanyName(), p.getHeadline(),
-                p.getDescription(), p.getCity(), p.getStreet(), p.getPostalCode(),
+                p.getDescription(), p.getCity(), p.getStreet(), p.getPostalCode(), p.getLatitude(), p.getLongitude(),
                 p.getPhone() != null && !p.getPhone().isBlank(), p.getWebsite(), p.getFacebookUrl(),
                 p.getInstagramUrl(), p.getYoutubeUrl(), p.getLogoUrl(), p.getBannerUrl(), nn(p.getGalleryUrls()),
                 nn(p.getOpeningHours()), nn(p.getServices()), nn(p.getTeam()), memberSince);
@@ -133,6 +142,27 @@ public final class DealerPageDtos {
     public record DealerCard(String slug, String companyName, String logoUrl, String city) {
         public static DealerCard from(DealerPage p) {
             return new DealerCard(p.getSlug(), p.getCompanyName(), p.getLogoUrl(), p.getCity());
+        }
+    }
+
+    /**
+     * GET /users/dealers/nearby: one marker on the dealer map. Hand-built allow-list like {@link DealerCard}:
+     * no phone, no user id.
+     */
+    public record DealerMapItem(
+        String slug,
+        String companyName,
+        String logoUrl,
+        String city,
+        String street,
+        String postalCode,
+        double latitude,
+        double longitude,
+        double distanceKm
+    ) {
+        public static DealerMapItem from(DealerPage p, double distanceKm) {
+            return new DealerMapItem(p.getSlug(), p.getCompanyName(), p.getLogoUrl(), p.getCity(), p.getStreet(),
+                p.getPostalCode(), p.getLatitude(), p.getLongitude(), Math.round(distanceKm * 10) / 10.0);
         }
     }
 

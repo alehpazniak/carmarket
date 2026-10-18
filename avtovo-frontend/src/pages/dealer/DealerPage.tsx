@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { Building2, Clock, Pencil, ExternalLink, Facebook, Globe, Instagram, Loader2, MapPin, Navigation, Phone, Youtube } from 'lucide-react';
@@ -11,6 +11,9 @@ import type { DayHours, DealerPageView } from '../../types/dealers';
 import { offersLabel } from '../../utils/dealers';
 
 export type DealerTab = 'about' | 'offers' | 'contact';
+
+// Own chunk: the Google Maps script loads only on the "Kontakt" tab of a dealer with coordinates
+const DealerMiniMap = lazy(() => import('../../components/maps/DealerMiniMap'));
 
 const DAY_NAMES = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'];
 
@@ -290,6 +293,7 @@ function ContactTab({ dealer, offersHref }: { dealer: DealerPageView; offersHref
     const [phone, setPhone] = useState<string | null>(null);
     const [phoneState, setPhoneState] = useState<'idle' | 'loading' | 'none' | 'limited' | 'error'>('idle');
     const address = fullAddress(dealer);
+    const hasLocation = dealer.latitude != null && dealer.longitude != null;
 
     const showPhone = async () => {
         setPhoneState('loading');
@@ -310,11 +314,13 @@ function ContactTab({ dealer, offersHref }: { dealer: DealerPageView; offersHref
                         <MapPin size={18} className="mt-0.5 text-avtovo-text-secondary shrink-0" />
                         <div>
                             <p>{address}</p>
-                            <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`}
-                               target="_blank" rel="noopener noreferrer"
-                               className="inline-flex items-center gap-1 text-sm text-avtovo-accent hover:underline mt-1">
-                                <Navigation size={14} /> Pokaż trasę
-                            </a>
+                            {!hasLocation && (
+                                <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`}
+                                   target="_blank" rel="noopener noreferrer"
+                                   className="inline-flex items-center gap-1 text-sm text-avtovo-accent hover:underline mt-1">
+                                    <Navigation size={14} /> Pokaż trasę
+                                </a>
+                            )}
                         </div>
                     </div>
                 )}
@@ -364,6 +370,16 @@ function ContactTab({ dealer, offersHref }: { dealer: DealerPageView; offersHref
                     </ul>
                 )}
             </Section>
+
+            {hasLocation && (
+                <div className="lg:col-span-2">
+                    <Section title="Jak dojechać" subtitle={address ?? undefined}>
+                        <Suspense fallback={<div className="h-64 flex items-center justify-center"><Loader2 className="animate-spin text-avtovo-accent" /></div>}>
+                            <DealerMiniMap lat={dealer.latitude!} lng={dealer.longitude!} name={dealer.companyName} />
+                        </Suspense>
+                    </Section>
+                </div>
+            )}
         </div>
     );
 }

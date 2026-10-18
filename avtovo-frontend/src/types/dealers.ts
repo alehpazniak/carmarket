@@ -20,6 +20,9 @@ interface DealerPageContent {
     city: string | null;
     street: string | null;
     postalCode: string | null;
+    /** WGS84; both set or both null (null = not on the dealer map). */
+    latitude: number | null;
+    longitude: number | null;
     website: string | null;
     facebookUrl: string | null;
     instagramUrl: string | null;
@@ -54,4 +57,17 @@ export interface DealerCard {
     companyName: string;
     logoUrl: string | null;
     city: string | null;
+}
+
+/** GET /api/users/dealers/nearby: one marker on the dealer map (/dealerzy), nearest first. */
+export interface DealerMapItem {
+    slug: string;
+    companyName: string;
+    logoUrl: string | null;
+    city: string | null;
+    street: string | null;
+    postalCode: string | null;
+    latitude: number;
+    longitude: number;
+    distanceKm: number;
 }

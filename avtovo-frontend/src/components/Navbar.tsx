@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Car, Plus, User, LogOut, ChevronDown, Gavel, MessageSquare, ClipboardList, ShieldCheck, Building2 } from 'lucide-react';
+import { Car, Plus, User, LogOut, ChevronDown, Gavel, MessageSquare, ClipboardList, ShieldCheck, Building2, MapPin } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useChat } from '../context/ChatContext';
 import { getUnreadCount, UNREAD_CHANGED_EVENT } from '../api/chat';
@@ -64,6 +64,14 @@ export default function Navbar() {
                         >
                             <Gavel size={16} />
                             <span className="hidden sm:inline">Aukcje</span>
+                        </Link>
+                        <Link
+                            to="/dealerzy"
+                            aria-label="Dealerzy"
+                            className="flex items-center gap-2 text-avtovo-text-secondary hover:text-avtovo-text px-2 sm:px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                        >
+                            <MapPin size={16} />
+                            <span className="hidden sm:inline">Dealerzy</span>
                         </Link>
                         {isAuthenticated ? (
                             <>

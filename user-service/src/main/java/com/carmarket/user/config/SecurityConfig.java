@@ -37,7 +37,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/users/me").authenticated()
                 .requestMatchers(HttpMethod.PUT, "/users/me/contact").authenticated()
                 .requestMatchers(HttpMethod.DELETE, "/users/me").authenticated()
-                // Public dealer pages and their "Wyświetl numer"; above the seller phone rule, which
+                // Public dealer pages, their "Wyświetl numer" and the dealer map (/users/dealers/nearby
+                // matches /users/dealers/*); above the seller phone rule, which
                 // would otherwise match /users/dealers/phone
                 .requestMatchers(HttpMethod.GET, "/users/dealers/*", "/users/dealers/*/phone", "/users/dealers/by-user/*").permitAll()
                 // Must stay above GET /users/{id}: the phone is only for logged-in users
