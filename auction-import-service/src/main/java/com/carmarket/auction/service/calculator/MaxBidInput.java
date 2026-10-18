@@ -1,6 +1,7 @@
 package com.carmarket.auction.service.calculator;
 
 import com.carmarket.auction.entity.AuctionLot;
+import com.carmarket.auction.service.shipping.W8ShippingQuote;
 import lombok.Builder;
 import lombok.Data;
 
@@ -21,6 +22,8 @@ public class MaxBidInput {
     private AuctionLot.FuelType fuelType;
     /** Drives the customs duty (country of manufacture, see CustomsDutyResolver); may be masked or null. */
     private String vin;
+    /** W8 Shipping's quote for the lot's yard; when set it replaces shippingCostUsd and the flat delivery cost. */
+    private W8ShippingQuote w8Quote;
     /** SUVs cost more to ship than the standard rate — drives which flat shipping-delivery cost applies. */
     private Boolean suv;
 }

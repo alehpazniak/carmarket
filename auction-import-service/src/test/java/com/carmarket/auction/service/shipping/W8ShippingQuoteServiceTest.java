@@ -16,7 +16,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class W8ShippingQuoteServiceTest {
+public class W8ShippingQuoteServiceTest {
 
     static final String LIST = "W8-2025-26";
 
@@ -24,7 +24,7 @@ class W8ShippingQuoteServiceTest {
     private final W8ShippingConfig config = new W8ShippingConfig();
     private final W8ShippingQuoteService service = new W8ShippingQuoteService(repo, config, exchange());
 
-    static CurrencyExchangeService exchange() {
+    public static CurrencyExchangeService exchange() {
         CurrencyExchangeService exchange = mock(CurrencyExchangeService.class);
         when(exchange.getUsdToPlnRate()).thenReturn(new BigDecimal("4.00"));
         when(exchange.getEurToPlnRate()).thenReturn(new BigDecimal("4.30"));
@@ -32,7 +32,7 @@ class W8ShippingQuoteServiceTest {
         return exchange;
     }
 
-    static W8TowingRate rate(W8Auction auction, String yard, String state, String sublot, W8Port port, int price) {
+    public static W8TowingRate rate(W8Auction auction, String yard, String state, String sublot, W8Port port, int price) {
         String location = yard + (state != null ? " - " + state : "") + (sublot != null ? " (" + sublot + ")" : "");
         return W8TowingRate.builder().priceList(LIST).auction(auction).location(location).yard(yard).state(state)
             .sublot(sublot).yardKey(W8LocationKey.normalize(yard)).port(port).priceUsd(BigDecimal.valueOf(price)).build();

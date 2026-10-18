@@ -1,6 +1,7 @@
 package com.carmarket.auction.entity;
 
 import jakarta.persistence.*;
+import com.carmarket.auction.service.shipping.W8ShippingQuote;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -47,6 +48,10 @@ public class ImportCalculation {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    /** W8 Shipping quote the breakdown was priced with (null = flat import.rates); not stored. */
+    @Transient
+    private W8ShippingQuote shippingQuote;
 
     public enum ProfitRating { A_EXCELLENT, B_GOOD, C_MARGINAL, D_RISKY }
 }

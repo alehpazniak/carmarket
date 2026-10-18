@@ -4,7 +4,12 @@ import com.carmarket.auction.config.ImportRatesConfig;
 import com.carmarket.auction.entity.AuctionLot;
 import com.carmarket.auction.entity.ImportCalculation;
 import com.carmarket.auction.entity.ImportCostBreakdown;
+import com.carmarket.auction.entity.W8Auction;
 import com.carmarket.auction.service.CurrencyExchangeService;
+import com.carmarket.auction.service.shipping.W8LocationKey;
+import com.carmarket.auction.service.shipping.W8QuoteRequest;
+import com.carmarket.auction.service.shipping.W8ShippingQuote;
+import com.carmarket.auction.service.shipping.W8ShippingQuoteService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -20,6 +25,7 @@ public class ImportCostCalculator {
     private final ImportRatesConfig rates;
     private final CurrencyExchangeService exchangeService;
     private final CustomsDutyResolver dutyResolver;
+    private final W8ShippingQuoteService w8QuoteService;
 
     public ImportCalculation calculate(AuctionLot lot, CalculationInput input) {
         BigDecimal auctionPrice = lot.getAuctionPrice() != null
@@ -33,17 +39,33 @@ public class ImportCostCalculator {
         // 1. Auction fee (tiered)
         BigDecimal auctionFee = calculateAuctionFee(auctionPrice, lot.getSource());
 
-        // 2. US delivery (by state/zone)
-        BigDecimal usDelivery = estimateUsDelivery(lot.getAuctionLocation());
+        // 2–4, 7, 8: W8 Shipping's prices when the lot's yard is in W8's table, else the flat import.rates
+        W8ShippingQuote w8 = w8QuoteService.quote(new W8QuoteRequest(W8Auction.from(lot.getSource()).orElse(null),
+            lot.getAuctionLocation(), input.getSuv(), input.getPolandZone(), input.getLengthClass())).orElse(null);
+        BigDecimal usDelivery;          // 2. US towing to the port (USD)
+        BigDecimal oceanFreight;        // 3. Ocean freight to the EU port (USD)
+        BigDecimal euPortFee;           // 4. EU port: forwarder (USD)
+        BigDecimal customsClearance;    // 7. Customs broker + scan (PLN)
+        BigDecimal euDelivery;          // 8. Truck to Poland (PLN)
+        BigDecimal w8FeesUsd;           // W8 access + dealer fee (USD)
+        if (w8 != null) {
+            usDelivery = w8.chosen().towingUsd();
+            oceanFreight = w8.chosen().oceanFreightUsd();
+            euPortFee = w8.forwarderEur().multiply(exchangeService.getEurToUsdRate()).setScale(2, RoundingMode.HALF_UP);
+            customsClearance = w8.brokerEur().add(w8.scanEur()).multiply(w8.eurPlnRate()).setScale(2, RoundingMode.HALF_UP);
+            euDelivery = w8.polandDeliveryPln();
+            w8FeesUsd = w8.w8FeesUsd();
+        } else {
+            usDelivery = estimateUsDelivery(W8LocationKey.parse(lot.getAuctionLocation()).state());
+            oceanFreight = rates.getOceanFreightUsd();
+            euPortFee = rates.getEuPortFeeUsd();
+            customsClearance = rates.getCustomsClearancePln();
+            euDelivery = rates.getEuDeliveryPln();
+            w8FeesUsd = BigDecimal.ZERO;
+        }
 
-        // 3. Ocean freight (fixed or by vehicle type)
-        BigDecimal oceanFreight = rates.getOceanFreightUsd();
-
-        // 4. EU port fee
-        BigDecimal euPortFee = rates.getEuPortFeeUsd();
-
-        // Customs value = auction price + ocean freight (Polish customs rules)
-        BigDecimal customsValue = auctionPrice.add(oceanFreight);
+        // Customs value = transport costs up to the EU border included (W8's calculator, EU customs rules)
+        BigDecimal customsValue = customsValue(auctionPrice, auctionFee, usDelivery, oceanFreight);
 
         // 5. Customs duty ("cło") — by country of manufacture (VIN), see CustomsDutyResolver
         BigDecimal customsDuty = customsValue.multiply(dutyResolver.resolve(lot.getVin()))
@@ -60,18 +82,13 @@ public class ImportCostCalculator {
         BigDecimal vat = vatBase.multiply(rates.getVatRate())
             .setScale(2, RoundingMode.HALF_UP);
 
-        // 7. Customs clearance
-        BigDecimal customsClearance = rates.getCustomsClearancePln();
-
-        // 8. EU delivery to Poland
-        BigDecimal euDelivery = rates.getEuDeliveryPln();
-
         // Totals in USD
         BigDecimal totalUsd = auctionPrice
             .add(auctionFee)
             .add(usDelivery)
             .add(oceanFreight)
-            .add(euPortFee);
+            .add(euPortFee)
+            .add(w8FeesUsd);
 
         // Convert to PLN
         BigDecimal exchangeRate = exchangeService.getUsdToPlnRate();
@@ -127,7 +144,13 @@ public class ImportCostCalculator {
             .estimatedProfitPln(profit)
             .profitMarginPercent(marginPercent)
             .profitRating(rating)
+            .shippingQuote(w8)
             .build();
+    }
+
+    /** Auction price + auction fee + US towing + ocean freight: every cost up to the EU border. */
+    static BigDecimal customsValue(BigDecimal auctionPrice, BigDecimal auctionFee, BigDecimal usDelivery, BigDecimal oceanFreight) {
+        return auctionPrice.add(auctionFee).add(usDelivery).add(oceanFreight);
     }
 
     private BigDecimal calculateAuctionFee(BigDecimal price, AuctionLot.AuctionSource source) {
@@ -144,9 +167,9 @@ public class ImportCostCalculator {
         }
     }
 
-    private BigDecimal estimateUsDelivery(String auctionLocation) {
+    private BigDecimal estimateUsDelivery(String state) {
         // Map state to zone: East Coast, West Coast, Midwest, South
-        String zone = resolveStateZone(auctionLocation);
+        String zone = resolveStateZone(state);
         return switch (zone) {
             case "EAST" -> new BigDecimal("350");
             case "WEST" -> new BigDecimal("550");

@@ -1,6 +1,7 @@
 package com.carmarket.auction.dto;
 
 import com.carmarket.auction.service.calculator.MaxBidResult;
+import com.carmarket.auction.service.shipping.W8ShippingQuote;
 import lombok.Builder;
 import lombok.Data;
 
@@ -25,6 +26,11 @@ public class MaxBidResponse {
     private BigDecimal maxCarPricePln;
     private BigDecimal maxCarPriceUsd;
     private boolean budgetSufficient;
+    /**
+     * W8 Shipping's itemized quote; null when none. With a quote, shippingCost* = auction → EU border (towing +
+     * ocean freight) and shippingDelivery* = everything after the border including W8's fees.
+     */
+    private W8ShippingQuote w8;
 
     public static MaxBidResponse from(MaxBidResult r) {
         return MaxBidResponse.builder()
@@ -44,6 +50,7 @@ public class MaxBidResponse {
             .maxCarPricePln(r.getMaxCarPricePln())
             .maxCarPriceUsd(r.getMaxCarPriceUsd())
             .budgetSufficient(r.isBudgetSufficient())
+            .w8(r.getW8Quote())
             .build();
     }
 }
