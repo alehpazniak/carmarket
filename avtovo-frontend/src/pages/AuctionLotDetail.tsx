@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getLot, calculateImport, calculateMaxBid, getComparables } from '../api/auctions';
-import type { AuctionLot, ImportCalculationResult, MaxBidResult, FuelType } from '../types/auctions';
+import type { AuctionLot, ImportCalculationResult, MaxBidResult, FuelType, LengthClass, PolandZone } from '../types/auctions';
+import W8QuoteBreakdown from '../components/auctions/W8QuoteBreakdown';
+import W8ShippingFields from '../components/auctions/W8ShippingFields';
 import PhotoGallery from '../components/PhotoGallery';
 import { useAuth } from '../context/AuthContext';
 import { ChevronLeft, TrendingUp, Loader2, Gauge, MapPin, Gavel, Lock, ClipboardPlus } from 'lucide-react';
@@ -38,6 +40,9 @@ export default function AuctionLotDetail() {
     const [engineCapacityCm3, setEngineCapacityCm3] = useState('');
     const [fuelType, setFuelType] = useState<FuelType>('PETROL');
     const [suv, setSuv] = useState(false);
+    // W8 transport inputs, shared by both calculators on this page
+    const [polandZone, setPolandZone] = useState<PolandZone>('A');
+    const [lengthClass, setLengthClass] = useState<LengthClass>('STANDARD');
     const [maxBidResult, setMaxBidResult] = useState<MaxBidResult | null>(null);
     const [maxBidCalculating, setMaxBidCalculating] = useState(false);
     const [maxBidError, setMaxBidError] = useState<string | null>(null);
@@ -58,6 +63,9 @@ export default function AuctionLotDetail() {
                 targetSalePricePln: Number(targetSalePricePln),
                 estimatedRepairCostPln: estimatedRepairCostPln ? Number(estimatedRepairCostPln) : undefined,
                 destinationCountry: 'PL',
+                suv,
+                polandZone,
+                lengthClass,
             });
             setCalcResult(result);
         } catch {
@@ -79,6 +87,8 @@ export default function AuctionLotDetail() {
                 engineCapacityCm3: engineCapacityCm3 ? Number(engineCapacityCm3) : undefined,
                 fuelType,
                 suv,
+                polandZone,
+                lengthClass,
             });
             setMaxBidResult(result);
         } catch {
@@ -185,6 +195,11 @@ export default function AuctionLotDetail() {
                                         className="w-full mt-1 bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
                                     />
                                 </div>
+                                <W8ShippingFields zone={polandZone} length={lengthClass} onZoneChange={setPolandZone} onLengthChange={setLengthClass} />
+                                <label className="flex items-center gap-2 text-sm text-avtovo-text-secondary">
+                                    <input type="checkbox" checked={suv} onChange={e => setSuv(e.target.checked)} />
+                                    To SUV (1/3 kontenera)
+                                </label>
                                 <button
                                     type="submit"
                                     disabled={calculating}
@@ -198,14 +213,26 @@ export default function AuctionLotDetail() {
                                 <div className="mt-4 bg-avtovo-bg border border-avtovo-border rounded-lg p-4 space-y-1.5 text-sm">
                                     <Row label="Cena aukcji" value={USD(calcResult.auctionPrice)} />
                                     <Row label="Opłata aukcyjna" value={USD(calcResult.auctionFee)} />
-                                    <Row label="Transport w USA" value={USD(calcResult.usDelivery)} />
-                                    <Row label="Fracht morski" value={USD(calcResult.oceanFreight)} />
-                                    <Row label="Opłata portowa (EU)" value={USD(calcResult.euPortFee)} />
+                                    {calcResult.w8 ? (
+                                        <div className="py-1.5 my-1.5 border-y border-avtovo-border">
+                                            <W8QuoteBreakdown quote={calcResult.w8} />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <Row label="Transport w USA" value={USD(calcResult.usDelivery)} />
+                                            <Row label="Fracht morski" value={USD(calcResult.oceanFreight)} />
+                                            <Row label="Opłata portowa (EU)" value={USD(calcResult.euPortFee)} />
+                                        </>
+                                    )}
                                     <Row label="Akcyza" value={PLN(calcResult.excise)} />
                                     <Row label="Cło" value={PLN(calcResult.customsDuty)} />
                                     <Row label="VAT" value={PLN(calcResult.vat)} />
-                                    <Row label="Odprawa celna" value={PLN(calcResult.customsClearance)} />
-                                    <Row label="Dostawa w UE" value={PLN(calcResult.euDelivery)} />
+                                    {!calcResult.w8 && (
+                                        <>
+                                            <Row label="Odprawa celna" value={PLN(calcResult.customsClearance)} />
+                                            <Row label="Dostawa w UE" value={PLN(calcResult.euDelivery)} />
+                                        </>
+                                    )}
                                     <div className="border-t border-avtovo-border my-2" />
                                     <Row label="Suma (PLN)" value={PLN(calcResult.totalPln)} bold />
                                     <Row label="Suma (USD)" value={USD(calcResult.totalUsd)} bold />
@@ -238,7 +265,7 @@ export default function AuctionLotDetail() {
                             ) : (
                             <>
                             <p className="text-avtovo-text-secondary text-sm mb-3">
-                                Podaj budżet i szacowany koszt naprawy — reszta (transport z Apibara, cło, akcyza, VAT) jest liczona automatycznie,
+                                Podaj budżet i szacowany koszt naprawy — reszta (transport W8 lub Apibara, cło, akcyza, VAT) jest liczona automatycznie,
                                 a wynikiem jest maksymalna cena, jaką możesz zapłacić za samo auto na aukcji.
                             </p>
                             <form onSubmit={handleCalculateMaxBid} className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
@@ -285,9 +312,10 @@ export default function AuctionLotDetail() {
                                         <option value="ELECTRIC">Elektryczny</option>
                                     </select>
                                 </div>
+                                <W8ShippingFields zone={polandZone} length={lengthClass} onZoneChange={setPolandZone} onLengthChange={setLengthClass} />
                                 <label className="flex items-center gap-2 text-sm text-avtovo-text-secondary">
                                     <input type="checkbox" checked={suv} onChange={e => setSuv(e.target.checked)} />
-                                    To SUV (droższy transport morski)
+                                    To SUV (droższy transport morski, 1/3 kontenera)
                                 </label>
                                 <button
                                     type="submit"
@@ -300,8 +328,16 @@ export default function AuctionLotDetail() {
                             {maxBidError && <p className="text-red-400 text-sm mt-2">{maxBidError}</p>}
                             {maxBidResult && (
                                 <div className="mt-4 bg-avtovo-bg border border-avtovo-border rounded-lg p-4 space-y-1.5 text-sm">
-                                    <Row label="Transport (Apibara)" value={`${USD(maxBidResult.shippingCostUsd)} (${PLN(maxBidResult.shippingCostPln)})`} />
-                                    <Row label="Transport morski / dostawa" value={`${USD(maxBidResult.shippingDeliveryUsd)} (${PLN(maxBidResult.shippingDeliveryPln)})`} />
+                                    {maxBidResult.w8 ? (
+                                        <div className="pb-1.5 mb-1.5 border-b border-avtovo-border">
+                                            <W8QuoteBreakdown quote={maxBidResult.w8} />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <Row label="Transport (Apibara)" value={`${USD(maxBidResult.shippingCostUsd)} (${PLN(maxBidResult.shippingCostPln)})`} />
+                                            <Row label="Transport morski / dostawa" value={`${USD(maxBidResult.shippingDeliveryUsd)} (${PLN(maxBidResult.shippingDeliveryPln)})`} />
+                                        </>
+                                    )}
                                     <Row label={`Akcyza (${(maxBidResult.exciseRate * 100).toFixed(2)}%)`} value={PLN(maxBidResult.excise)} />
                                     <Row label={`Cło (${(maxBidResult.customsDutyRate * 100).toFixed(1)}%)`} value={PLN(maxBidResult.customsDuty)} />
                                     <Row label={`VAT (${(maxBidResult.vatRate * 100).toFixed(0)}%)`} value={PLN(maxBidResult.vat)} />

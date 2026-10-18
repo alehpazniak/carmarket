@@ -51,6 +51,8 @@ export interface ImportCalculationResult {
     estimatedProfitPln: number;
     profitMarginPercent: number;
     profitRating: string;
+    /** W8 Shipping's itemized quote behind the shipping lines; null when the flat rates were used. */
+    w8?: W8ShippingQuote | null;
 }
 
 // POST /api/auctions/lots/{id}/max-bid and /apibara/vehicles/{slugVin}/max-bid — auction-import-service's
@@ -65,6 +67,11 @@ export interface MaxBidRequest {
     suv?: boolean;
     /** For the customs duty by country of manufacture (US-built cars pay 0%); may be masked. */
     vin?: string;
+    /** W8 quote inputs: Apibara's `platform` and `location.display` (the vehicle page sends them). */
+    auction?: string;
+    auctionLocation?: string;
+    polandZone?: PolandZone;
+    lengthClass?: LengthClass;
 }
 
 export interface MaxBidResult {
@@ -84,6 +91,62 @@ export interface MaxBidResult {
     maxCarPricePln: number;
     maxCarPriceUsd: number;
     budgetSufficient: boolean;
+    /**
+     * W8 Shipping's itemized quote; with it shippingCost* = auction → EU border (towing + ocean freight) and
+     * shippingDelivery* = everything after the border including W8's fees.
+     */
+    w8?: W8ShippingQuote | null;
+}
+
+// W8 Shipping (our logistics partner) — auction-import-service's W8ShippingQuote and friends (camelCase).
+export type W8Auction = 'COPART' | 'IAAI' | 'MANHEIM' | 'ADESA';
+export type W8Port = 'SAVANNAH' | 'LOS_ANGELES' | 'NEW_YORK' | 'HOUSTON' | 'SEATTLE' | 'NORFOLK';
+export type PolandZone = 'A' | 'B' | 'C';
+export type LengthClass = 'STANDARD' | 'OVER_5M' | 'OVER_5_3M';
+export type W8MatchType = 'EXACT' | 'OTHER_AUCTION' | 'STATE_ESTIMATE';
+export type OceanFreightSource = 'W8_PRICE_LIST' | 'DERIVED' | 'ESTIMATE';
+
+export interface W8PortOption {
+    port: W8Port;
+    portLabel: string;
+    towingUsd: number;
+    oceanFreightUsd: number;
+    oceanFreightSource: OceanFreightSource;
+    transitDaysMin?: number | null;
+    transitDaysMax?: number | null;
+    toEuBorderUsd: number;
+}
+
+export interface W8ShippingQuote {
+    priceList: string;
+    matchType: W8MatchType;
+    /** W8's yard name, or the state for STATE_ESTIMATE. */
+    matchedLocation: string;
+    auction?: W8Auction | null;
+    containerShare: 'QUARTER' | 'THIRD';
+    /** Every port with a towing price, cheapest first; `chosen` is the first. */
+    options: W8PortOption[];
+    chosen: W8PortOption;
+    forwarderEur: number;
+    brokerEur: number;
+    scanEur: number;
+    polandZone: PolandZone;
+    polandDeliveryPln: number;
+    accessFeeUsd: number;
+    dealerFeeUsd: number;
+    toEuBorderUsd: number;
+    afterBorderPln: number;
+    w8FeesUsd: number;
+    usdPlnRate: number;
+    eurPlnRate: number;
+}
+
+// GET /api/auctions/shipping/w8/locations — autocomplete.
+export interface W8Location {
+    auction: W8Auction;
+    location: string;
+    state?: string | null;
+    ports: { port: W8Port; towingUsd: number }[];
 }
 
 // GET /api/auctions/apibara/vehicles (one entry) — auction-import-service's ApibaraResponse.Vehicle,

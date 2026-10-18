@@ -11,6 +11,7 @@ import {
 import type { AuctionLot, ApibaraShippingResult, ApibaraVehicle } from '../types/auctions';
 import AuctionLotCard from '../components/AuctionLotCard';
 import ApibaraVehicleBriefCard from '../components/ApibaraVehicleBriefCard';
+import W8TransportCalculator from '../components/auctions/W8TransportCalculator';
 import { useAuth } from '../context/AuthContext';
 import { Search, Ship, ScanSearch, Loader2, ClipboardList } from 'lucide-react';
 
@@ -147,6 +148,8 @@ export default function AuctionActions() {
                         )}
                     </>
                 )}
+
+                <W8TransportCalculator />
 
                 <ApibaraQuickTools />
             </div>

@@ -348,6 +348,9 @@ export interface AuctionStatus {
     syncRunning: boolean;
     lastRuns: SyncRun[];
     exchangeRate: { rate: number; fetchedAt: string; fallback: boolean } | null;
+    /** import.w8.price-list and its row count in w8_towing_rate (0 = the price list and the table don't match). */
+    w8PriceList: string;
+    w8TowingRows: number;
 }
 
 export const getAuctionStatus = () =>
