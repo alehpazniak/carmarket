@@ -1,3 +1,4 @@
+import axios from 'axios';
 import api from './client';
 import type { Page } from '../types';
 import type {
@@ -52,6 +53,17 @@ export const getComparables = (id: string) =>
     api.get<AuctionLot[]>(`/api/auctions/lots/${id}/comparables`).then(r => r.data);
 
 // ── Live Apibara lookups — each call spends the account's monthly quota ──
+// Open to anonymous users; the gateway limits them per IP and all together (429), logged-in users far less.
+
+/** Error text for a failed live lookup: a 429 gets its own message (log in when anonymous), else the fallback. */
+export function apibaraErrorMessage(err: unknown, isAuthenticated: boolean, fallback: string): string {
+    if (axios.isAxiosError(err) && err.response?.status === 429) {
+        return isAuthenticated
+            ? 'Zbyt wiele zapytań do Apibara. Spróbuj ponownie za chwilę.'
+            : 'Wyczerpano limit wyszukiwań dla niezalogowanych. Zaloguj się, aby kontynuować.';
+    }
+    return fallback;
+}
 export const searchApibaraVehicles = (params: Record<string, string | number> = {}) =>
     api.get<ApibaraSearchResult>(`/api/auctions/apibara/vehicles?${toQuery(params)}`).then(r => r.data);
 

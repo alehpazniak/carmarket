@@ -15,8 +15,10 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * Auction-import-service security.
  * JWT is validated by the gateway — this service trusts the X-User-Id / X-Gateway-Signature headers.
  * Mirrors car-service's SecurityConfig: GET on the synced lots is public (matches the gateway's
- * JwtAuthenticationFilter public-route list), everything else — including the Apibara live-lookup
- * proxy, which spends the account's monthly quota — requires a valid gateway signature.
+ * JwtAuthenticationFilter public-route list). The Apibara live lookups (quick check, vehicle preview,
+ * shipping, max bid) are open to anonymous users too: they spend the account's monthly quota, so the
+ * gateway gives anonymous callers a strict per-IP and global limiter (ApibaraRateLimiter). The account
+ * usage, the image proxy and everything else require a valid gateway signature.
  */
 @Configuration
 @EnableWebSecurity
@@ -35,6 +37,10 @@ public class SecurityConfig {
                 // Must stay above every broader rule: the first match wins
                 .requestMatchers("/api/auctions/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/auctions/lots", "/api/auctions/lots/**").permitAll()
+                // Above the public Apibara rules: account usage and the image proxy stay for logged-in users
+                .requestMatchers("/api/auctions/apibara/usage", "/api/auctions/apibara/image-proxy").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/auctions/apibara/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auctions/apibara/vehicles/*/max-bid").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .anyRequest().authenticated()
             );

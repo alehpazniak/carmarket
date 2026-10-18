@@ -88,6 +88,29 @@ class GatewayRoutesTest {
     }
 
     @Test
+    void apibaraLookupsHitTheirOwnRoute() {
+        List<Route> routes = routeLocator.getRoutes().collectList().block();
+        assertThat(routes).isNotNull();
+
+        assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/auctions/apibara/vehicles?make=BMW")))
+            .isEqualTo("auction-import-service-apibara");
+        assertThat(firstMatch(routes, MockServerHttpRequest.get("/api/auctions/lots")))
+            .isEqualTo("auction-import-service");
+    }
+
+    @Test
+    void apibaraKeyResolverSeparatesAnonymousCallersFromUsers() {
+        ClientIpResolver clientIp = new ClientIpResolver(0);
+        ServerWebExchange anonymous = MockServerWebExchange.from(MockServerHttpRequest.get("/api/auctions/apibara/vehicles")
+            .remoteAddress(new InetSocketAddress("203.0.113.9", 4000)));
+        ServerWebExchange user = MockServerWebExchange.from(MockServerHttpRequest.get("/api/auctions/apibara/vehicles")
+            .header("X-User-Id", "u1").remoteAddress(new InetSocketAddress("203.0.113.9", 4000)));
+
+        assertThat(GatewayConfig.apibaraKeyResolver(clientIp).resolve(anonymous).block()).isEqualTo("apibara-anon:203.0.113.9");
+        assertThat(GatewayConfig.apibaraKeyResolver(clientIp).resolve(user).block()).isEqualTo("u1");
+    }
+
+    @Test
     void importOrderPasswordChecksHitTheStrictRouteFirst() {
         List<Route> routes = routeLocator.getRoutes().collectList().block();
         assertThat(routes).isNotNull();
