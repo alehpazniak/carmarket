@@ -49,4 +49,5 @@ List what I should check by hand in the browser (`npm run dev`), for desktop and
 
 - [x] Stage 1. Home page
   - `FEATURES.homeCategoryTabs` (`src/config/features.ts`, off) hides the subtitle and tabs (h1 gets `mb-8` while off); Google login button removed; tab/category logic untouched, search still sends `category=PASSENGER`.
-- [ ] Stage 2. "Aukcje": only the lot list
+- [x] Stage 2. "Aukcje": only the lot list
+  - `/aukcje` renders header, filters, grid, pagination only; `ApibaraQuickTools` + `Row` moved unrendered to `src/components/auctions/ApibaraQuickTools.tsx`; new subtitle; empty state depends on the filters of the last loaded list; `auction-lots-sync.md` stage 4 bullet updated.

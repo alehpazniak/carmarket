@@ -93,7 +93,7 @@ Migration `V6__...` (don't touch V1–V5; `ddl-auto: validate`):
 - `searchLiveLots`: only `status = LIVE` and (`auction_date IS NULL` or `auction_date > now()`). Default sort `auction_date ASC NULLS LAST`. Allowed sorts, by whitelist: `auctionDate`, `createdAt`, `auctionPrice`, `year`.
 - `LotExpiryJob` (no API calls, every 15 minutes): LIVE with `auction_date < now() − 2h` → `EXPIRED`; LIVE with no date and `last_seen_at` older than 14 days → `EXPIRED`. Publish events for changed rows after commit, as in stage 1.
 - `GET /api/auctions/lots/meta` (public, like `/lots/**`): `{ lastSuccessfulSyncAt, liveLots }`.
-- Frontend `AuctionActions.tsx`: on page load call only `searchLots` and `meta`. Show "Zaktualizowano: …", the auction date on each card in Europe/Warsaw ("za 5 godz."), and a sort selector. Leave the "Szybkie sprawdzenie w Apibara" block alone.
+- Frontend `AuctionActions.tsx`: on page load call only `searchLots` and `meta`. Show "Zaktualizowano: …", the auction date on each card in Europe/Warsaw ("za 5 godz."), and a sort selector. The "Szybkie sprawdzenie w Apibara" block no longer renders on `/aukcje` (moved, unrendered, to `src/components/auctions/ApibaraQuickTools.tsx` by `docs/tasks/ui-cleanup.md`); don't bring it or `W8TransportCalculator` back to this page.
 
 ## Stage 5. Redis cache for the listing
 
