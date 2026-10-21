@@ -32,10 +32,12 @@ class LotSyncSchedulerTest {
     void everyParserRunIsRecordedWithCountsOrTheError() throws Exception {
         AuctionParser ok = mock(AuctionParser.class);
         AuctionParser broken = mock(AuctionParser.class);
-        List<AuctionLot> lots = List.of(new AuctionLot(), new AuctionLot(), new AuctionLot());
-        when(ok.parseLiveLots()).thenReturn(lots);
-        when(lotService.saveOrUpdateLots(lots)).thenReturn(new AuctionLotService.SyncCounts(2, 1));
-        when(broken.parseLiveLots()).thenThrow(new IllegalStateException("quota exceeded"));
+        List<AuctionLot> page1 = List.of(new AuctionLot(), new AuctionLot());
+        List<AuctionLot> page2 = List.of(new AuctionLot());
+        when(ok.parseLiveLotPages()).thenReturn(List.of(page1, page2));
+        when(lotService.saveOrUpdateLots(page1)).thenReturn(new AuctionLotService.SyncCounts(1, 1));
+        when(lotService.saveOrUpdateLots(page2)).thenReturn(new AuctionLotService.SyncCounts(1, 0));
+        when(broken.parseLiveLotPages()).thenThrow(new IllegalStateException("quota exceeded"));
 
         new LotSyncScheduler(List.of(ok, broken), lotService, runs).syncAllSources();
 
@@ -48,6 +50,9 @@ class LotSyncSchedulerTest {
         assertThat(finished.get(0).getLotsUpdated()).isEqualTo(1);
         assertThat(finished.get(0).getTrigger()).isEqualTo("SCHEDULED");
         assertThat(finished.get(1).getError()).isEqualTo("IllegalStateException: quota exceeded");
+        // each response page is its own call, i.e. its own transaction
+        verify(lotService).saveOrUpdateLots(page1);
+        verify(lotService).saveOrUpdateLots(page2);
     }
 
     @Test
@@ -55,7 +60,7 @@ class LotSyncSchedulerTest {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
         AuctionParser slow = mock(AuctionParser.class);
-        when(slow.parseLiveLots()).thenAnswer(inv -> {
+        when(slow.parseLiveLotPages()).thenAnswer(inv -> {
             started.countDown();
             release.await(5, TimeUnit.SECONDS);
             return List.of();

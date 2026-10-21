@@ -4,11 +4,14 @@ import com.carmarket.auction.client.ApibaraClient;
 import com.carmarket.auction.client.ApibaraResponse;
 import com.carmarket.auction.config.ParserTargetsConfig;
 import com.carmarket.auction.entity.AuctionLot;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -26,6 +29,7 @@ public class ApibaraAuctionParser implements AuctionParser {
 
     private final ApibaraClient client;
     private final ParserTargetsConfig config;
+    private final ObjectMapper objectMapper;
 
     @Override
     public boolean supports(AuctionSource source) {
@@ -34,32 +38,51 @@ public class ApibaraAuctionParser implements AuctionParser {
 
     @Override
     public List<AuctionLot> parseLiveLots() {
-        List<AuctionLot> result = new ArrayList<>();
+        return parseLiveLotPages().stream().flatMap(List::stream).toList();
+    }
+
+    /** One page per target response, so the scheduler upserts each in its own transaction. */
+    @Override
+    public List<List<AuctionLot>> parseLiveLotPages() {
+        List<List<AuctionLot>> pages = new ArrayList<>();
 
         if (config.getTargets().isEmpty()) {
             log.warn("No apibara.targets configured — nothing to fetch");
-            return result;
+            return pages;
         }
 
         for (ParserTargetsConfig.Target target : config.getTargets()) {
-            List<ApibaraResponse.Vehicle> vehicles =
+            List<JsonNode> vehicles =
                 client.fetchCopart(target.getMake(), target.getModel(), config.getPerPage());
 
-            int kept = 0;
-            for (ApibaraResponse.Vehicle v : vehicles) {
+            List<AuctionLot> page = new ArrayList<>();
+            for (JsonNode node : vehicles) {
+                ApibaraResponse.Vehicle v = toVehicle(node);
                 // API filters make/model; we enforce the year range here
-                if (!target.matchesYear(v.year())) continue;
+                if (v == null || !target.matchesYear(v.year())) continue;
                 AuctionLot lot = toLot(v);
                 if (lot != null) {
-                    result.add(lot);
-                    kept++;
+                    lot.setRawData(node.toString());
+                    page.add(lot);
                 }
+            }
+            if (!page.isEmpty()) {
+                pages.add(page);
             }
             log.info("Target {} {} [{}-{}]: {} fetched, {} kept after year filter",
                 target.getMake(), target.getModel(),
-                target.getYearFrom(), target.getYearTo(), vehicles.size(), kept);
+                target.getYearFrom(), target.getYearTo(), vehicles.size(), page.size());
         }
-        return result;
+        return pages;
+    }
+
+    private ApibaraResponse.Vehicle toVehicle(JsonNode node) {
+        try {
+            return objectMapper.treeToValue(node, ApibaraResponse.Vehicle.class);
+        } catch (JsonProcessingException | IllegalArgumentException e) {
+            log.debug("Skipping unmappable Apibara vehicle: {}", e.getMessage());
+            return null;
+        }
     }
 
     @Override
@@ -71,7 +94,7 @@ public class ApibaraAuctionParser implements AuctionParser {
     }
 
     /** Maps an Apibara vehicle to your AuctionLot entity, guarding every nullable field. */
-    private AuctionLot toLot(ApibaraResponse.Vehicle v) {
+    AuctionLot toLot(ApibaraResponse.Vehicle v) {
         if (v.lotNumber() == null || v.make() == null || v.model() == null || v.year() == null) {
             return null; // required columns — skip incomplete records
         }
@@ -123,10 +146,10 @@ public class ApibaraAuctionParser implements AuctionParser {
         };
     }
 
-    /** Parses ISO-8601 with offset (e.g. "2026-07-13T14:00:00+00:00") to LocalDateTime. */
-    private LocalDateTime parseDate(String iso) {
+    /** Parses ISO-8601 with offset (e.g. "2026-07-13T14:00:00+00:00") to the instant, keeping the offset. */
+    static Instant parseDate(String iso) {
         try {
-            return OffsetDateTime.parse(iso).toLocalDateTime();
+            return OffsetDateTime.parse(iso).toInstant();
         } catch (DateTimeParseException e) {
             log.debug("Unparseable auction date: {}", iso);
             return null;

@@ -18,7 +18,7 @@ public class ParserTargetsConfig {
 
     private String baseUrl = "https://apibara.tech";
     private String apiKey;
-    private int perPage = 50;
+    private int perPage = 40;
     private List<Target> targets = new ArrayList<>();
 
     @Data

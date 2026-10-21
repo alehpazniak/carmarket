@@ -93,7 +93,7 @@ eureka:
 apibara:
   base-url: https://apibara.tech
   api-key: ${APIBARA_API_KEY:}      # from .env / env var, NEVER commit
-  per-page: 50
+  per-page: 40                      # Apibara caps it by plan (20/30/40, X-Per-Page-Limit); the client uses the smaller
   targets: []
     # добавляй новые модели здесь — код не трогаешь:
     # - make: Toyota

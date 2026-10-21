@@ -18,10 +18,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * V4 round-trips every SyncRun column and the latest-run query picks one row per parser.
- * ddl-auto is off here instead of validate: on a fresh database V1's auction_lot_images.image_url
- * doesn't match the entity's image_urls (pre-existing, unrelated to sync_runs).
+ * Validates the whole schema on a fresh database (V6 renamed V1's auction_lot_images.image_url).
  */
-@DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=none")
+@DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=validate")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
 class SyncRunRepositoryTest {

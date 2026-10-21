@@ -13,8 +13,10 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Thin HTTP client for the Apibara vehicle-auction API.
@@ -40,8 +42,12 @@ public class ApibaraClient {
 
     private static final MultiValueMap<String, String> NO_PARAMS = new LinkedMultiValueMap<>();
 
+    private static final String PER_PAGE_LIMIT_HEADER = "X-Per-Page-Limit";
+
     private final ParserTargetsConfig config;
     private RestClient restClient;
+    /** Last X-Per-Page-Limit Apibara sent (the plan's maximum page size); 0 until the first response. */
+    private final AtomicInteger perPageLimit = new AtomicInteger();
 
     @PostConstruct
     void init() {
@@ -55,18 +61,63 @@ public class ApibaraClient {
     }
 
     /**
-     * Fetch one page of Copart vehicles for a given make/model.
-     * Year filtering is applied by the caller (API filters by make/model/platform).
+     * Fetch one page of Copart vehicles for a given make/model, as raw JSON nodes so the caller can keep
+     * each lot's JSON. Year filtering is applied by the caller (API filters by make/model/platform).
+     * The page size is the smaller of perPage and the plan's X-Per-Page-Limit seen so far.
      */
-    public List<ApibaraResponse.Vehicle> fetchCopart(String make, String model, int perPage) {
+    public List<JsonNode> fetchCopart(String make, String model, int perPage) {
+        if (apiKeyMissing()) {
+            return List.of();
+        }
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("platform", "copart");
         params.add("make", make);
         params.add("model", model);
-        params.add("per_page", String.valueOf(perPage));
+        params.add("per_page", String.valueOf(effectivePerPage(perPage)));
 
-        ApibaraResponse response = get(VEHICLES_PATH, params, ApibaraResponse.class);
-        return response == null || response.data() == null ? List.of() : response.data();
+        try {
+            JsonNode body = restClient.get()
+                .uri(uriBuilder -> uriBuilder.path(VEHICLES_PATH).queryParams(params).build())
+                .exchange((request, response) -> {
+                    // the header comes on error responses too, e.g. a 4xx for a per_page above the limit
+                    rememberPerPageLimit(response.getHeaders().getFirst(PER_PAGE_LIMIT_HEADER));
+                    if (!response.getStatusCode().is2xxSuccessful()) {
+                        log.error("Apibara request failed for {}: HTTP {}", VEHICLES_PATH, response.getStatusCode().value());
+                        return null;
+                    }
+                    return response.bodyTo(JsonNode.class);
+                });
+            JsonNode data = body == null ? null : body.get("data");
+            if (data == null || !data.isArray()) {
+                return List.of();
+            }
+            List<JsonNode> vehicles = new ArrayList<>(data.size());
+            data.forEach(vehicles::add);
+            return vehicles;
+        } catch (Exception e) {
+            log.error("Apibara request failed for {}: {}", VEHICLES_PATH, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /** The configured page size, capped by the plan's X-Per-Page-Limit once Apibara has sent it. */
+    int effectivePerPage(int configured) {
+        int limit = perPageLimit.get();
+        return limit > 0 ? Math.min(configured, limit) : configured;
+    }
+
+    void rememberPerPageLimit(String header) {
+        if (header == null || header.isBlank()) {
+            return;
+        }
+        try {
+            int limit = Integer.parseInt(header.trim());
+            if (limit > 0 && perPageLimit.getAndSet(limit) != limit) {
+                log.info("Apibara per-page limit is {}", limit);
+            }
+        } catch (NumberFormatException e) {
+            log.debug("Unparseable {} header: {}", PER_PAGE_LIMIT_HEADER, header);
+        }
     }
 
     /** GET /vehicles — search with arbitrary Apibara filters (make, model, platform, price_min, color[], ...). */

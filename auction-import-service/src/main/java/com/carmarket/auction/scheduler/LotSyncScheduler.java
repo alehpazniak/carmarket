@@ -82,12 +82,17 @@ public class LotSyncScheduler {
             SyncRun run = runs.save(SyncRun.start(name, trigger));
             try {
                 log.info("Starting {} sync for {}", trigger.toLowerCase(), name);
-                List<AuctionLot> lots = parser.parseLiveLots();
-                AuctionLotService.SyncCounts counts = lotService.saveOrUpdateLots(lots);
-                run.setLotsFetched(lots.size());
+                int fetched = 0;
+                AuctionLotService.SyncCounts counts = new AuctionLotService.SyncCounts(0, 0);
+                // one transaction per response page: a failing page doesn't undo the ones before it
+                for (List<AuctionLot> page : parser.parseLiveLotPages()) {
+                    counts = counts.plus(lotService.saveOrUpdateLots(page));
+                    fetched += page.size();
+                }
+                run.setLotsFetched(fetched);
                 run.setLotsAdded(counts.added());
                 run.setLotsUpdated(counts.updated());
-                log.info("Synced {} lots from {} ({} new, {} updated)", lots.size(), name, counts.added(), counts.updated());
+                log.info("Synced {} lots from {} ({} new, {} updated)", fetched, name, counts.added(), counts.updated());
             } catch (Exception e) {
                 log.error("Sync failed for {}", name, e);
                 String message = e.getClass().getSimpleName() + (e.getMessage() != null ? ": " + e.getMessage() : "");
