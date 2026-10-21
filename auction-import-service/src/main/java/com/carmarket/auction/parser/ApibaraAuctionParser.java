@@ -2,6 +2,7 @@ package com.carmarket.auction.parser;
 
 import com.carmarket.auction.client.ApibaraClient;
 import com.carmarket.auction.client.ApibaraResponse;
+import com.carmarket.auction.client.ApibaraVehiclesPage;
 import com.carmarket.auction.config.ParserTargetsConfig;
 import com.carmarket.auction.entity.AuctionLot;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -10,12 +11,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Pulls Copart lots from the Apibara API for each configured target
@@ -38,25 +42,36 @@ public class ApibaraAuctionParser implements AuctionParser {
 
     @Override
     public List<AuctionLot> parseLiveLots() {
-        return parseLiveLotPages().stream().flatMap(List::stream).toList();
+        List<AuctionLot> lots = new ArrayList<>();
+        forEachLiveLotPage(lots::addAll);
+        return lots;
     }
 
-    /** One page per target response, so the scheduler upserts each in its own transaction. */
+    /**
+     * One GET /vehicles per target. ApibaraQuotaExceededException (429) and ApibaraUnavailableException
+     * end the run: the pages handed over before stay, and no further request spends quota.
+     */
     @Override
-    public List<List<AuctionLot>> parseLiveLotPages() {
-        List<List<AuctionLot>> pages = new ArrayList<>();
-
+    public void forEachLiveLotPage(Consumer<List<AuctionLot>> pageConsumer) {
+        if (!client.isConfigured()) {
+            log.warn("apibara.api-key is not set — nothing to fetch");
+            return;
+        }
         if (config.getTargets().isEmpty()) {
             log.warn("No apibara.targets configured — nothing to fetch");
-            return pages;
+            return;
         }
 
         for (ParserTargetsConfig.Target target : config.getTargets()) {
-            List<JsonNode> vehicles =
-                client.fetchCopart(target.getMake(), target.getModel(), config.getPerPage());
+            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+            params.add("platform", "copart");
+            params.add("make", target.getMake());
+            params.add("model", target.getModel());
+            params.add("per_page", String.valueOf(client.effectivePerPage(config.getPerPage())));
+            ApibaraVehiclesPage response = client.searchVehiclesPage(params);
 
             List<AuctionLot> page = new ArrayList<>();
-            for (JsonNode node : vehicles) {
+            for (JsonNode node : response.vehicles()) {
                 ApibaraResponse.Vehicle v = toVehicle(node);
                 // API filters make/model; we enforce the year range here
                 if (v == null || !target.matchesYear(v.year())) continue;
@@ -66,14 +81,13 @@ public class ApibaraAuctionParser implements AuctionParser {
                     page.add(lot);
                 }
             }
-            if (!page.isEmpty()) {
-                pages.add(page);
-            }
             log.info("Target {} {} [{}-{}]: {} fetched, {} kept after year filter",
                 target.getMake(), target.getModel(),
-                target.getYearFrom(), target.getYearTo(), vehicles.size(), page.size());
+                target.getYearFrom(), target.getYearTo(), response.vehicles().size(), page.size());
+            if (!page.isEmpty()) {
+                pageConsumer.accept(page);
+            }
         }
-        return pages;
     }
 
     private ApibaraResponse.Vehicle toVehicle(JsonNode node) {

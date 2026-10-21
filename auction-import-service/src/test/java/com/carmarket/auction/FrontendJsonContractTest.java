@@ -82,6 +82,16 @@ class FrontendJsonContractTest {
     }
 
     @Test
+    void apibaraSearchMetaIsSnakeCase() throws Exception {
+        JsonNode meta = toJson(new ApibaraResponse(List.of(), new ApibaraResponse.Meta("eyJhIjoxfQ", 20))).path("meta");
+
+        assertThat(meta.path("next_cursor").asText()).isEqualTo("eyJhIjoxfQ");
+        assertThat(meta.path("per_page").asInt()).isEqualTo(20);
+        assertThat(objectMapper.readValue("{\"data\": [], \"meta\": {\"next_cursor\": \"c\", \"per_page\": 40, \"has_more\": true}}",
+            ApibaraResponse.class).meta().nextCursor()).isEqualTo("c");
+    }
+
+    @Test
     void apibaraShippingIsSnakeCase() throws Exception {
         ApibaraShippingResponse shipping = new ApibaraShippingResponse(true, new ApibaraShippingResponse.Data(
             new ApibaraShippingResponse.Vehicle("iaai", "45008746", "JTNABAAE4PA006723", "2023 TOYOTA", "AUTOMOBILE"),

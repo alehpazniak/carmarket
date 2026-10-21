@@ -10,7 +10,14 @@ import java.util.List;
  * Every nested object and field is source-dependent → treat as nullable.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record ApibaraResponse(List<Vehicle> data) {
+public record ApibaraResponse(List<Vehicle> data, Meta meta) {
+
+    /** Cursor pagination: next_cursor is opaque, passed back as-is; null on the last page. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Meta(
+        @JsonProperty("next_cursor") String nextCursor,
+        @JsonProperty("per_page") Integer perPage
+    ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Vehicle(

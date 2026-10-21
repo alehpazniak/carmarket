@@ -1,17 +1,28 @@
 package com.carmarket.auction.parser;
 
 import com.carmarket.auction.client.ApibaraClient;
+import com.carmarket.auction.client.ApibaraQuotaExceededException;
+import com.carmarket.auction.client.ApibaraVehiclesPage;
 import com.carmarket.auction.config.ParserTargetsConfig;
 import com.carmarket.auction.entity.AuctionLot;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.util.MultiValueMap;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ApibaraAuctionParserTest {
@@ -20,6 +31,27 @@ class ApibaraAuctionParserTest {
     private final ApibaraClient client = mock(ApibaraClient.class);
     private final ParserTargetsConfig config = new ParserTargetsConfig();
     private final ApibaraAuctionParser parser = new ApibaraAuctionParser(client, config, objectMapper);
+
+    @BeforeEach
+    void configured() {
+        when(client.isConfigured()).thenReturn(true);
+        when(client.effectivePerPage(anyInt())).thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    private static boolean forModel(MultiValueMap<String, String> params, String model) {
+        return params != null && model.equals(params.getFirst("model"));
+    }
+
+    private void respond(String model, JsonNode... vehicles) {
+        when(client.searchVehiclesPage(argThat(p -> forModel(p, model))))
+            .thenReturn(new ApibaraVehiclesPage(List.of(vehicles), null, null));
+    }
+
+    private List<List<AuctionLot>> pages() {
+        List<List<AuctionLot>> pages = new ArrayList<>();
+        parser.forEachLiveLotPage(pages::add);
+        return pages;
+    }
 
     private static ParserTargetsConfig.Target target(String make, String model) {
         ParserTargetsConfig.Target target = new ParserTargetsConfig.Target();
@@ -45,10 +77,10 @@ class ApibaraAuctionParserTest {
         config.setPerPage(40);
         config.setTargets(List.of(target("BMW", "X3"), target("Toyota", "RAV4")));
         JsonNode x3 = vehicle("58456596", 2019, "2026-08-07T16:00:00+02:00");
-        when(client.fetchCopart("BMW", "X3", 40)).thenReturn(List.of(x3, vehicle("1", 2010, "2026-08-07T14:00:00Z")));
-        when(client.fetchCopart("Toyota", "RAV4", 40)).thenReturn(List.of(vehicle("2", 2020, "2026-08-08T14:00:00Z")));
+        respond("X3", x3, vehicle("1", 2010, "2026-08-07T14:00:00Z"));
+        respond("RAV4", vehicle("2", 2020, "2026-08-08T14:00:00Z"));
 
-        List<List<AuctionLot>> pages = parser.parseLiveLotPages();
+        List<List<AuctionLot>> pages = pages();
 
         assertThat(pages).hasSize(2);
         AuctionLot lot = pages.get(0).get(0);
@@ -59,6 +91,32 @@ class ApibaraAuctionParserTest {
         assertThat(objectMapper.readTree(lot.getRawData())).isEqualTo(x3); // the whole lot, unmapped fields too
         assertThat(pages.get(1)).extracting(AuctionLot::getLotNumber).containsExactly("2");
         assertThat(parser.parseLiveLots()).hasSize(2);
+        verify(client, org.mockito.Mockito.atLeastOnce()).searchVehiclesPage(argThat(p -> p != null
+            && "copart".equals(p.getFirst("platform")) && "40".equals(p.getFirst("per_page"))));
+    }
+
+    @Test
+    void aQuotaErrorStopsTheRunAfterTheEarlierPagesWereHandedOver() throws Exception {
+        config.setTargets(List.of(target("BMW", "X3"), target("Toyota", "RAV4"), target("Audi", "A4")));
+        respond("X3", vehicle("1", 2019, "2026-08-07T14:00:00Z"));
+        when(client.searchVehiclesPage(argThat(p -> forModel(p, "RAV4"))))
+            .thenThrow(new ApibaraQuotaExceededException(null, null));
+        List<List<AuctionLot>> handedOver = new ArrayList<>();
+
+        assertThatThrownBy(() -> parser.forEachLiveLotPage(handedOver::add))
+            .isInstanceOf(ApibaraQuotaExceededException.class);
+
+        assertThat(handedOver).hasSize(1);
+        verify(client, never()).searchVehiclesPage(argThat(p -> forModel(p, "A4")));
+    }
+
+    @Test
+    void withoutAKeyNoRequest() {
+        when(client.isConfigured()).thenReturn(false);
+        config.setTargets(List.of(target("BMW", "X3")));
+
+        assertThat(pages()).isEmpty();
+        verify(client, never()).searchVehiclesPage(any());
     }
 
     @Test
