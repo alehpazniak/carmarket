@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
-import { RefreshCw, RotateCw, Search } from 'lucide-react';
-import { getAuctionStatus, reindexSearch, triggerAuctionSync, type SyncRun } from '../api';
+import { Gauge, RefreshCw, RotateCw, Search } from 'lucide-react';
+import { getAuctionStatus, reindexSearch, triggerAuctionSync, type AuctionStatus, type SyncRun } from '../api';
 import { Badge } from '../components/Badges';
 import ConfirmDialog from '../components/ConfirmDialog';
 import DataTable, { type Column } from '../components/DataTable';
@@ -22,6 +22,7 @@ const runColumns: Column<SyncRun>[] = [
             : !r.finishedAt ? <Badge tone="yellow">W toku</Badge>
                 : <span>{r.lotsFetched ?? 0} lotów · nowe {r.lotsAdded ?? 0} · zmienione {r.lotsUpdated ?? 0}</span>,
     },
+    { key: 'requests', header: 'Zapytania API', render: r => r.apiRequests ?? '—' },
     { key: 'error', header: 'Błąd', render: r => <span className="text-xs text-red-300 break-all">{r.error ?? ''}</span> },
 ];
 
@@ -34,12 +35,35 @@ function usageEntries(usage: Record<string, unknown> | null): [string, string][]
         .map(([k, v]) => [k, String(v)]);
 }
 
+function QuotaRow({ label, value }: { label: string; value: string | number | null }) {
+    return (
+        <div className="flex justify-between gap-3">
+            <dt className="text-avtovo-text-secondary">{label}</dt><dd className="text-avtovo-text">{value ?? '—'}</dd>
+        </div>
+    );
+}
+
 /** /admin/aukcje — Apibara, auction sync and the search index. */
 export default function AuctionsPage() {
     const toast = useToast();
     const loader = useCallback(() => getAuctionStatus(), []);
     const { data, error, loading, reload } = useLoader(loader);
     const [dialog, setDialog] = useState<'sync' | 'reindex' | null>(null);
+    // GET /usage is fetched only on request: Apibara doesn't say it's free of the monthly quota
+    const [usage, setUsage] = useState<Pick<AuctionStatus, 'apibaraUsage' | 'apibaraUsageError'> | null>(null);
+    const [usageLoading, setUsageLoading] = useState(false);
+
+    const loadUsage = async () => {
+        setUsageLoading(true);
+        try {
+            const status = await getAuctionStatus(true);
+            setUsage({ apibaraUsage: status.apibaraUsage, apibaraUsageError: status.apibaraUsageError });
+        } catch {
+            setUsage({ apibaraUsage: null, apibaraUsageError: 'auction-import-service nie odpowiada' });
+        } finally {
+            setUsageLoading(false);
+        }
+    };
 
     if (loading && !data) return <LoadingState />;
     if (error || !data) return <ErrorState label="Dane niedostępne (auction-import-service)." onRetry={reload} />;
@@ -64,16 +88,39 @@ export default function AuctionsPage() {
                     <h2 className="font-semibold text-avtovo-text mb-3">Apibara</h2>
                     {!data.apibaraConfigured ? (
                         <p className="text-sm text-yellow-300">Brak klucza APIBARA_API_KEY — synchronizacja jest wyłączona.</p>
-                    ) : data.apibaraUsageError ? (
-                        <p className="text-sm text-red-300">Nie udało się pobrać zużycia API ({data.apibaraUsageError}).</p>
                     ) : (
-                        <dl className="text-sm space-y-1.5">
-                            {usageEntries(data.apibaraUsage).map(([k, v]) => (
-                                <div key={k} className="flex justify-between gap-3">
-                                    <dt className="text-avtovo-text-secondary">{k}</dt><dd className="text-avtovo-text">{v}</dd>
+                        <div className="space-y-4">
+                            {data.apibaraQuota ? (
+                                <div className="space-y-1.5">
+                                    <dl className="text-sm space-y-1.5">
+                                        <QuotaRow label="Pozostało zapytań" value={data.apibaraQuota.remaining != null && data.apibaraQuota.limit != null
+                                            ? `${data.apibaraQuota.remaining} z ${data.apibaraQuota.limit}` : data.apibaraQuota.remaining} />
+                                        <QuotaRow label="Zużyto" value={data.apibaraQuota.used} />
+                                        <QuotaRow label="Okres" value={data.apibaraQuota.periodStart && data.apibaraQuota.periodEnd
+                                            ? `${formatDateTime(data.apibaraQuota.periodStart)} – ${formatDateTime(data.apibaraQuota.periodEnd)}` : null} />
+                                        <QuotaRow label="Maks. lotów na stronę" value={data.apibaraQuota.perPageLimit} />
+                                    </dl>
+                                    <p className="text-xs text-avtovo-text-secondary">
+                                        Stan z ostatniej odpowiedzi synchronizacji ({formatDateTime(data.apibaraQuota.observedAt)}); zapytania na żywo mogły go już zmniejszyć.
+                                    </p>
                                 </div>
-                            ))}
-                        </dl>
+                            ) : <p className="text-sm text-avtovo-text-secondary">Synchronizacja nie dostała jeszcze odpowiedzi z limitem zapytań.</p>}
+                            {usage?.apibaraUsageError ? (
+                                <p className="text-sm text-red-300">Nie udało się pobrać zużycia API ({usage.apibaraUsageError}).</p>
+                            ) : usage ? (
+                                <dl className="text-sm space-y-1.5 border-t border-avtovo-border pt-3">
+                                    {usageEntries(usage.apibaraUsage).map(([k, v]) => (
+                                        <div key={k} className="flex justify-between gap-3">
+                                            <dt className="text-avtovo-text-secondary">{k}</dt><dd className="text-avtovo-text">{v}</dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                            ) : (
+                                <button className={actionButton} disabled={usageLoading} onClick={loadUsage}>
+                                    <Gauge size={15} /> {usageLoading ? 'Pobieranie…' : 'Pobierz zużycie z Apibary (może zużyć 1 zapytanie)'}
+                                </button>
+                            )}
+                        </div>
                     )}
                 </section>
                 <section className={card}>

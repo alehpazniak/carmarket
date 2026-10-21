@@ -47,6 +47,29 @@ public class SyncRun {
     @Column(length = 1000)
     private String error;
 
+    /** Requests this run sent to Apibara, failed ones included (V7) */
+    @Column(name = "api_requests")
+    private Integer apiRequests;
+
+    /** The last quota headers this run saw (ApibaraQuota); null when it got no answer */
+    @Column(name = "quota_limit")
+    private Integer quotaLimit;
+
+    @Column(name = "quota_used")
+    private Integer quotaUsed;
+
+    @Column(name = "quota_remaining")
+    private Integer quotaRemaining;
+
+    @Column(name = "quota_period_start")
+    private Instant quotaPeriodStart;
+
+    @Column(name = "quota_period_end")
+    private Instant quotaPeriodEnd;
+
+    @Column(name = "quota_observed_at")
+    private Instant quotaObservedAt;
+
     public static SyncRun start(String parser, String trigger) {
         SyncRun run = new SyncRun();
         run.id = UUID.randomUUID();

@@ -2,17 +2,24 @@ package com.carmarket.auction.parser;
 
 import com.carmarket.auction.client.ApibaraClient;
 import com.carmarket.auction.client.ApibaraResponse;
+import com.carmarket.auction.client.ApibaraVehiclesPage;
 import com.carmarket.auction.config.ParserTargetsConfig;
 import com.carmarket.auction.entity.AuctionLot;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Pulls Copart lots from the Apibara API for each configured target
@@ -26,6 +33,7 @@ public class ApibaraAuctionParser implements AuctionParser {
 
     private final ApibaraClient client;
     private final ParserTargetsConfig config;
+    private final ObjectMapper objectMapper;
 
     @Override
     public boolean supports(AuctionSource source) {
@@ -34,32 +42,61 @@ public class ApibaraAuctionParser implements AuctionParser {
 
     @Override
     public List<AuctionLot> parseLiveLots() {
-        List<AuctionLot> result = new ArrayList<>();
+        List<AuctionLot> lots = new ArrayList<>();
+        forEachLiveLotPage(lots::addAll);
+        return lots;
+    }
 
+    /**
+     * One GET /vehicles per target. ApibaraQuotaExceededException (429) and ApibaraUnavailableException
+     * end the run: the pages handed over before stay, and no further request spends quota.
+     */
+    @Override
+    public void forEachLiveLotPage(Consumer<List<AuctionLot>> pageConsumer) {
+        if (!client.isConfigured()) {
+            log.warn("apibara.api-key is not set — nothing to fetch");
+            return;
+        }
         if (config.getTargets().isEmpty()) {
             log.warn("No apibara.targets configured — nothing to fetch");
-            return result;
+            return;
         }
 
         for (ParserTargetsConfig.Target target : config.getTargets()) {
-            List<ApibaraResponse.Vehicle> vehicles =
-                client.fetchCopart(target.getMake(), target.getModel(), config.getPerPage());
+            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+            params.add("platform", "copart");
+            params.add("make", target.getMake());
+            params.add("model", target.getModel());
+            params.add("per_page", String.valueOf(client.effectivePerPage(config.getPerPage())));
+            ApibaraVehiclesPage response = client.searchVehiclesPage(params);
 
-            int kept = 0;
-            for (ApibaraResponse.Vehicle v : vehicles) {
+            List<AuctionLot> page = new ArrayList<>();
+            for (JsonNode node : response.vehicles()) {
+                ApibaraResponse.Vehicle v = toVehicle(node);
                 // API filters make/model; we enforce the year range here
-                if (!target.matchesYear(v.year())) continue;
+                if (v == null || !target.matchesYear(v.year())) continue;
                 AuctionLot lot = toLot(v);
                 if (lot != null) {
-                    result.add(lot);
-                    kept++;
+                    lot.setRawData(node.toString());
+                    page.add(lot);
                 }
             }
             log.info("Target {} {} [{}-{}]: {} fetched, {} kept after year filter",
                 target.getMake(), target.getModel(),
-                target.getYearFrom(), target.getYearTo(), vehicles.size(), kept);
+                target.getYearFrom(), target.getYearTo(), response.vehicles().size(), page.size());
+            if (!page.isEmpty()) {
+                pageConsumer.accept(page);
+            }
         }
-        return result;
+    }
+
+    private ApibaraResponse.Vehicle toVehicle(JsonNode node) {
+        try {
+            return objectMapper.treeToValue(node, ApibaraResponse.Vehicle.class);
+        } catch (JsonProcessingException | IllegalArgumentException e) {
+            log.debug("Skipping unmappable Apibara vehicle: {}", e.getMessage());
+            return null;
+        }
     }
 
     @Override
@@ -71,7 +108,7 @@ public class ApibaraAuctionParser implements AuctionParser {
     }
 
     /** Maps an Apibara vehicle to your AuctionLot entity, guarding every nullable field. */
-    private AuctionLot toLot(ApibaraResponse.Vehicle v) {
+    AuctionLot toLot(ApibaraResponse.Vehicle v) {
         if (v.lotNumber() == null || v.make() == null || v.model() == null || v.year() == null) {
             return null; // required columns — skip incomplete records
         }
@@ -123,10 +160,10 @@ public class ApibaraAuctionParser implements AuctionParser {
         };
     }
 
-    /** Parses ISO-8601 with offset (e.g. "2026-07-13T14:00:00+00:00") to LocalDateTime. */
-    private LocalDateTime parseDate(String iso) {
+    /** Parses ISO-8601 with offset (e.g. "2026-07-13T14:00:00+00:00") to the instant, keeping the offset. */
+    static Instant parseDate(String iso) {
         try {
-            return OffsetDateTime.parse(iso).toLocalDateTime();
+            return OffsetDateTime.parse(iso).toInstant();
         } catch (DateTimeParseException e) {
             log.debug("Unparseable auction date: {}", iso);
             return null;

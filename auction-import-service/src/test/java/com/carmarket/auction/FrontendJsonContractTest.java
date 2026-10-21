@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.json.JsonTest;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -45,6 +46,8 @@ class FrontendJsonContractTest {
             .vin("JTNABAAE4PA006723").make("TOYOTA").model("COROLLA").year(2023)
             .source(AuctionLot.AuctionSource.IAAI).lotNumber("45008746")
             .auctionLocation("CA").saleDate(LocalDateTime.of(2026, 10, 1, 12, 0))
+            .auctionDate(Instant.parse("2026-10-01T14:00:00Z"))
+            .rawData("{\"lot_number\":\"45008746\"}").contentHash("abc")
             .build();
 
         JsonNode json = toJson(lot);
@@ -53,6 +56,10 @@ class FrontendJsonContractTest {
         assertThat(json.path("auctionLocation").asText()).isEqualTo("CA");
         assertThat(json.path("saleDate").asText()).startsWith("2026-10-01T12:00");
         assertThat(json.has("lot_number")).isFalse();
+        // ISO in UTC; the frontend converts to Europe/Warsaw
+        assertThat(json.path("auctionDate").asText()).isEqualTo("2026-10-01T14:00:00Z");
+        assertThat(json.has("rawData")).isFalse();
+        assertThat(json.has("contentHash")).isFalse();
     }
 
     @Test
@@ -72,6 +79,16 @@ class FrontendJsonContractTest {
         assertThat(json.path("pricing").path("current_bid_usd").decimalValue()).isEqualByComparingTo("1500");
         assertThat(json.path("media").path("thumbs_count").asInt()).isEqualTo(12);
         assertThat(json.has("lotNumber")).isFalse();
+    }
+
+    @Test
+    void apibaraSearchMetaIsSnakeCase() throws Exception {
+        JsonNode meta = toJson(new ApibaraResponse(List.of(), new ApibaraResponse.Meta("eyJhIjoxfQ", 20))).path("meta");
+
+        assertThat(meta.path("next_cursor").asText()).isEqualTo("eyJhIjoxfQ");
+        assertThat(meta.path("per_page").asInt()).isEqualTo(20);
+        assertThat(objectMapper.readValue("{\"data\": [], \"meta\": {\"next_cursor\": \"c\", \"per_page\": 40, \"has_more\": true}}",
+            ApibaraResponse.class).meta().nextCursor()).isEqualTo("c");
     }
 
     @Test

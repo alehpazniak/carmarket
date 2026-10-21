@@ -2,6 +2,8 @@ package com.carmarket.auction.controller;
 
 import com.carmarket.auction.audit.AdminAuditPublisher;
 import com.carmarket.auction.client.ApibaraClient;
+import com.carmarket.auction.client.ApibaraQuota;
+import com.carmarket.auction.client.ApibaraQuotaTracker;
 import com.carmarket.auction.config.W8ShippingConfig;
 import com.carmarket.auction.entity.SyncRun;
 import com.carmarket.auction.repository.SyncRunRepository;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -37,18 +40,23 @@ public class AdminAuctionController {
     private final AdminAuditPublisher auditPublisher;
     private final W8TowingRateRepository w8Rates;
     private final W8ShippingConfig w8Config;
+    private final ApibaraQuotaTracker quotaTracker;
 
-    public record AuctionStatus(boolean apibaraConfigured, JsonNode apibaraUsage, String apibaraUsageError,
-                                boolean syncRunning, List<SyncRun> lastRuns, CurrencyExchangeService.LastRate exchangeRate,
+    /**
+     * apibaraQuota: the sync's latest quota headers (free). apibaraUsage: GET /usage, only on ?refresh=true,
+     * because Apibara doesn't document that /usage is exempt from the monthly quota.
+     */
+    public record AuctionStatus(boolean apibaraConfigured, ApibaraQuota apibaraQuota, JsonNode apibaraUsage,
+                                String apibaraUsageError, boolean syncRunning, List<SyncRun> lastRuns, CurrencyExchangeService.LastRate exchangeRate,
                                 String w8PriceList, long w8TowingRows) {
     }
 
     @GetMapping("/status")
-    public AuctionStatus status() {
+    public AuctionStatus status(@RequestParam(defaultValue = "false") boolean refresh) {
         boolean configured = apibaraClient.isConfigured();
         JsonNode usage = null;
         String usageError = null;
-        if (configured) {
+        if (configured && refresh) {
             try {
                 usage = apibaraClient.getUsage();
                 if (usage == null) usageError = "Apibara did not answer";
@@ -57,7 +65,7 @@ public class AdminAuctionController {
                 usageError = "Apibara did not answer";
             }
         }
-        return new AuctionStatus(configured, usage, usageError, scheduler.isRunning(), runs.findLatestPerParser(),
+        return new AuctionStatus(configured, quotaTracker.latest().orElse(null), usage, usageError, scheduler.isRunning(), runs.findLatestPerParser(),
             currency.lastRate().orElse(null), w8Config.getPriceList(), w8Rates.countByPriceList(w8Config.getPriceList()));
     }
 

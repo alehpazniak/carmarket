@@ -1,16 +1,21 @@
 package com.carmarket.auction.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "auction_lots", indexes = {
+@Table(name = "auction_lots", uniqueConstraints = {
+    // Copart and IAAI lot numbers can collide, so a lot is identified by both (V6)
+    @UniqueConstraint(name = "uk_auction_lots_source_lot_number", columnNames = {"source", "lot_number"})
+}, indexes = {
     @Index(name = "idx_auction_lots_vin", columnList = "vin"),
     @Index(name = "idx_auction_lots_source", columnList = "source"),
     @Index(name = "idx_auction_lots_status", columnList = "status"),
@@ -43,7 +48,7 @@ public class AuctionLot {
     @Column(nullable = false)
     private AuctionSource source;
 
-    @Column(name = "lot_number", nullable = false, unique = true)
+    @Column(name = "lot_number", nullable = false)
     private String lotNumber;
 
     @Column(name = "auction_price", precision = 12, scale = 2)
@@ -85,7 +90,7 @@ public class AuctionLot {
     private String auctionLocation; // State, e.g. "CA", "TX"
 
     @Column(name = "auction_date")
-    private LocalDateTime auctionDate;
+    private Instant auctionDate; // TIMESTAMPTZ (V6); the frontend shows it in Europe/Warsaw
 
     @Column(name = "sale_date")
     private LocalDateTime saleDate;
@@ -96,12 +101,19 @@ public class AuctionLot {
     private LotStatus status = LotStatus.LIVE;
 
     @Column(name = "image_urls")
+    @Builder.Default
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(name = "auction_lot_images", joinColumns = @JoinColumn(name = "lot_id"))
     private java.util.List<String> imageUrls = new java.util.ArrayList<>();
 
+    @JsonIgnore
     @Column(name = "raw_data", columnDefinition = "TEXT")
-    private String rawData; // JSON snapshot from parser
+    private String rawData; // the lot's JSON as the API returned it; internal, never in responses
+
+    /** LotContentHash of the mapped fields; a sync rewrites the lot only when it differs. */
+    @JsonIgnore
+    @Column(name = "content_hash", length = 64)
+    private String contentHash;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

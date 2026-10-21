@@ -2,6 +2,8 @@ package com.carmarket.auction.controller;
 
 import com.carmarket.auction.audit.AdminAuditPublisher;
 import com.carmarket.auction.client.ApibaraClient;
+import com.carmarket.auction.client.ApibaraQuota;
+import com.carmarket.auction.client.ApibaraQuotaTracker;
 import com.carmarket.auction.config.SecurityConfig;
 import com.carmarket.auction.config.W8ShippingConfig;
 import com.carmarket.auction.repository.SyncRunRepository;
@@ -20,7 +22,10 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
@@ -56,6 +61,8 @@ class AdminAuctionSecurityTest {
     private AdminAuditPublisher audit;
     @MockBean
     private W8TowingRateRepository w8Rates;
+    @MockBean
+    private ApibaraQuotaTracker quotaTracker;
 
     @Test
     void statusAndSyncAreAdminOnly() throws Exception {
@@ -70,6 +77,28 @@ class AdminAuctionSecurityTest {
             .andExpect(jsonPath("$.w8PriceList").value("W8-2025-26"))
             .andExpect(jsonPath("$.w8TowingRows").value(725));
         verify(scheduler, never()).triggerManualSync();
+    }
+
+    @Test
+    void statusShowsTheSyncQuotaAndCallsUsageOnlyOnRefresh() throws Exception {
+        when(currency.lastRate()).thenReturn(Optional.empty());
+        when(apibara.isConfigured()).thenReturn(true);
+        when(apibara.getUsage()).thenReturn(new ObjectMapper().readTree("{\"data\": {\"plan\": \"free\"}}"));
+        when(quotaTracker.latest()).thenReturn(Optional.of(new ApibaraQuota(100, 58, 42,
+            Instant.parse("2026-10-01T00:00:00Z"), Instant.parse("2026-10-31T23:59:59Z"), 9, 20,
+            Instant.parse("2026-10-21T10:00:00Z"))));
+
+        mvc.perform(get("/api/auctions/admin/status").with(as("ADMIN")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.apibaraQuota.remaining").value(42))
+            .andExpect(jsonPath("$.apibaraQuota.periodEnd").value("2026-10-31T23:59:59Z"))
+            .andExpect(jsonPath("$.apibaraUsage").isEmpty());
+        verify(apibara, never()).getUsage();
+
+        mvc.perform(get("/api/auctions/admin/status").param("refresh", "true").with(as("ADMIN")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.apibaraUsage.data.plan").value("free"));
+        verify(apibara).getUsage();
     }
 
     @Test

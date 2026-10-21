@@ -339,10 +339,27 @@ export interface SyncRun {
     lotsAdded: number | null;
     lotsUpdated: number | null;
     error: string | null;
+    /** Requests the run sent to Apibara (null for runs before V7). */
+    apiRequests: number | null;
+    quotaRemaining: number | null;
+}
+
+/** The quota headers of the sync's latest Apibara answer; any field may be null. */
+export interface ApibaraQuota {
+    limit: number | null;
+    used: number | null;
+    remaining: number | null;
+    periodStart: string | null;
+    periodEnd: string | null;
+    rateLimitRemaining: number | null;
+    perPageLimit: number | null;
+    observedAt: string;
 }
 
 export interface AuctionStatus {
     apibaraConfigured: boolean;
+    apibaraQuota: ApibaraQuota | null;
+    /** GET /usage, only filled with refresh=true (it may spend a request of the quota). */
     apibaraUsage: Record<string, unknown> | null;
     apibaraUsageError: string | null;
     syncRunning: boolean;
@@ -353,8 +370,9 @@ export interface AuctionStatus {
     w8TowingRows: number;
 }
 
-export const getAuctionStatus = () =>
-    api.get<AuctionStatus>('/api/auctions/admin/status').then(r => r.data);
+export const getAuctionStatus = (refreshUsage = false) =>
+    api.get<AuctionStatus>('/api/auctions/admin/status', { params: refreshUsage ? { refresh: true } : undefined })
+        .then(r => r.data);
 
 export const triggerAuctionSync = () =>
     api.post('/api/auctions/admin/sync').then(r => r.data);
