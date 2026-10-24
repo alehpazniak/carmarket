@@ -113,11 +113,12 @@ class LotSyncSchedulerTest {
     void manualRunsIgnoreTheScheduleAndOnlyOneRunsAtATime() throws Exception {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        when(feedSync.run("MANUAL")).thenAnswer(inv -> {
+        when(feedSync.run(eq("MANUAL"), any())).thenAnswer(inv -> {
             started.countDown();
             release.await(5, TimeUnit.SECONDS);
             return new SyncRun();
         });
+        props.setEnabled(false); // the schedule only
         LotSyncScheduler scheduler = at("23:30"); // outside the active hours
 
         assertThat(scheduler.triggerManualSync()).isTrue();
@@ -126,12 +127,32 @@ class LotSyncSchedulerTest {
         assertThat(scheduler.triggerManualSync()).isFalse();
         release.countDown();
 
-        verify(feedSync, timeout(5000)).run(eq("MANUAL"));
+        verify(feedSync, timeout(5000)).run("MANUAL", null);
         verify(feedSync, never()).run("SCHEDULED");
         for (int i = 0; i < 50 && scheduler.isRunning(); i++) {
             Thread.sleep(100);
         }
         assertThat(scheduler.isRunning()).isFalse();
         verify(runs, never()).save(any());
+    }
+
+    @Test
+    void theNextScheduledRun() {
+        assertThat(at("06:30").nextScheduledRun()).contains(warsaw("08:00"));
+        // today's run is due and hasn't happened: it starts now
+        assertThat(at("13:17").nextScheduledRun()).contains(warsaw("13:17"));
+
+        when(runs.existsByParserAndTriggerAndStartedAtGreaterThanEqual(FeedSyncService.PARSER, "SCHEDULED", warsaw("08:00")))
+            .thenReturn(true);
+        // done for today: tomorrow 08:00 (25 Oct is winter time, UTC+1)
+        assertThat(at("13:17").nextScheduledRun()).contains(Instant.parse("2026-10-25T07:00:00Z"));
+
+        props.setRunEveryMinutes(30);
+        when(runs.existsByParserAndTriggerAndStartedAtGreaterThanEqual(FeedSyncService.PARSER, "SCHEDULED", warsaw("13:00")))
+            .thenReturn(true);
+        assertThat(at("13:17").nextScheduledRun()).contains(warsaw("13:30"));
+
+        props.setEnabled(false);
+        assertThat(at("13:17").nextScheduledRun()).isEmpty();
     }
 }

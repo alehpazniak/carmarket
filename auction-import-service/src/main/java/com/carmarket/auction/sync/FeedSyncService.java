@@ -100,22 +100,31 @@ public class FeedSyncService {
             ? (props.getDaysAhead() == 0 ? "Dziś aktualne" : props.getDaysAhead() == 1 ? "Dziś i jutro aktualne"
                 : "Aktualne na " + (props.getDaysAhead() + 1) + " dni")
             : "Budżet nie wystarcza na " + stale + (stale == 1 ? " dzień" : " dni");
+        String hours = props.activeFrom() + "–" + props.activeTo();
         String schedule = props.getRunEveryMinutes() > 0
-            ? "od " + props.getDailyStart() + " co " + props.getRunEveryMinutes() + " min, " + props.getActiveHours()
-            : "raz dziennie o " + props.getDailyStart();
+            ? "od " + props.getDailyStart() + " co " + props.getRunEveryMinutes() + " min (" + hours + ")"
+            : "raz dziennie o " + props.getDailyStart() + " (" + hours + ")";
         return new FeedStatus(props.isEnabled(), schedule, budget.today(), days,
             outcomes == null ? null : outcomes.getSequence(), outcomes == null ? null : outcomes.getBacklogEstimate(),
             outcomes == null ? null : outcomes.getLastRunAt(), verdict);
     }
 
-    /** Runs the sync now. The caller decides whether it's due (LotSyncScheduler); the budget is checked here. */
+    /** A scheduled run: today's allowance. */
     public SyncRun run(String trigger) {
+        return run(trigger, null);
+    }
+
+    /**
+     * Runs the sync now. The caller decides whether it's due: apibara.sync.enabled only gates the schedule
+     * (LotSyncScheduler), an admin's manual run works without it. The budget is always checked here.
+     *
+     * @param maxRequests an admin's manual limit, up to what the period still allows ({@link SyncBudget.Allowance#manualMax()},
+     *                    so it may exceed today's share); null = today's allowance
+     */
+    public SyncRun run(String trigger, Integer maxRequests) {
         SyncRun run = SyncRun.start(PARSER, trigger);
         run.setStartedAt(clock.instant());
         run.setMode("FEED");
-        if (!props.isEnabled()) {
-            return finish(run, StopReason.DISABLED, null, 0);
-        }
         if (!client.isConfigured()) {
             return finish(run, StopReason.ERROR, "apibara.api-key is not set", 0);
         }
@@ -130,7 +139,8 @@ public class FeedSyncService {
         try (SyncLock.Held ignored = held.get()) {
             runs.save(run); // visible at once: a restart in the meantime must not start today's run again
             long requestsBefore = quotaTracker.requestsSent();
-            Work work = new Work(budget.today().available());
+            SyncBudget.Allowance allowance = budget.today();
+            Work work = new Work(maxRequests == null ? allowance.available() : Math.min(maxRequests, allowance.manualMax()));
             StopReason reason;
             String error = null;
             try {

@@ -342,6 +342,42 @@ export interface SyncRun {
     /** Requests the run sent to Apibara (null for runs before V7). */
     apiRequests: number | null;
     quotaRemaining: number | null;
+    /** Why a feed sync run stopped; null for older runs. */
+    stopReason: SyncStopReason | null;
+    /** Records the feed sync dropped for their vehicle type, run condition or title (null before V10). */
+    skippedType: number | null;
+    skippedCondition: number | null;
+    skippedTitle: number | null;
+}
+
+export type SyncStopReason = 'DONE' | 'BUDGET' | 'QUOTA_EXHAUSTED' | 'OUTSIDE_HOURS' | 'DISABLED' | 'LOCKED' | 'ERROR';
+
+/** auction-import-service SyncBudget.Allowance: what the sync may spend today and in the subscription period. */
+export interface SyncAllowance {
+    periodStart: string;
+    periodEnd: string;
+    daysLeft: number;
+    spentInPeriod: number;
+    spentToday: number;
+    /** Today's share by the pacing alone. */
+    dayAllowance: number;
+    /** remaining − keep-remaining from the last quota headers; null until the sync saw them. */
+    quotaCap: number | null;
+    /** What a scheduled run may spend now (the default of a manual run). */
+    available: number;
+    /** monthly-budget − spent in the period. */
+    periodLeft: number;
+    /** The most a manual run may spend: periodLeft, capped by quotaCap. */
+    manualMax: number;
+}
+
+export interface FeedSyncStatus {
+    /** APIBARA_SYNC_ENABLED: the automatic schedule only. */
+    enabled: boolean;
+    /** e.g. "raz dziennie o 08:00 (07:00–23:00)" */
+    schedule: string;
+    allowance: SyncAllowance;
+    verdict: string;
 }
 
 /** The quota headers of the sync's latest Apibara answer; any field may be null. */
@@ -368,14 +404,18 @@ export interface AuctionStatus {
     /** import.w8.price-list and its row count in w8_towing_rate (0 = the price list and the table don't match). */
     w8PriceList: string;
     w8TowingRows: number;
+    feed: FeedSyncStatus;
+    /** Null while the automatic schedule is disabled. */
+    nextScheduledRun: string | null;
 }
 
 export const getAuctionStatus = (refreshUsage = false) =>
     api.get<AuctionStatus>('/api/auctions/admin/status', { params: refreshUsage ? { refresh: true } : undefined })
         .then(r => r.data);
 
-export const triggerAuctionSync = () =>
-    api.post('/api/auctions/admin/sync').then(r => r.data);
+/** maxRequests: 1 … feed.allowance.manualMax (else 400); without it, today's allowance. */
+export const triggerAuctionSync = (maxRequests?: number) =>
+    api.post('/api/auctions/admin/sync', null, { params: maxRequests != null ? { maxRequests } : undefined }).then(r => r.data);
 
 /** car-service: re-publishes every listing so search-service rebuilds the index. */
 export const reindexSearch = () =>

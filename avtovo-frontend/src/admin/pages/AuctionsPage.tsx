@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Gauge, RefreshCw, RotateCw, Search } from 'lucide-react';
-import { getAuctionStatus, reindexSearch, triggerAuctionSync, type AuctionStatus, type SyncRun } from '../api';
+import { getAuctionStatus, reindexSearch, triggerAuctionSync, type AuctionStatus, type SyncRun, type SyncStopReason } from '../api';
 import { Badge } from '../components/Badges';
 import ConfirmDialog from '../components/ConfirmDialog';
 import DataTable, { type Column } from '../components/DataTable';
@@ -23,8 +23,29 @@ const runColumns: Column<SyncRun>[] = [
                 : <span>{r.lotsFetched ?? 0} lotów · nowe {r.lotsAdded ?? 0} · zmienione {r.lotsUpdated ?? 0}</span>,
     },
     { key: 'requests', header: 'Zapytania API', render: r => r.apiRequests ?? '—' },
+    {
+        key: 'stop', header: 'Zakończenie', render: r => {
+            const reason = r.stopReason ? STOP_REASONS[r.stopReason] : null;
+            return reason ? <Badge tone={reason.tone}>{reason.label}</Badge> : '—';
+        },
+    },
+    {
+        key: 'skipped', header: 'Pominięte (typ / stan / tytuł)', render: r =>
+            r.skippedType == null && r.skippedCondition == null && r.skippedTitle == null ? '—'
+                : `${r.skippedType ?? 0} / ${r.skippedCondition ?? 0} / ${r.skippedTitle ?? 0}`,
+    },
     { key: 'error', header: 'Błąd', render: r => <span className="text-xs text-red-300 break-all">{r.error ?? ''}</span> },
 ];
+
+const STOP_REASONS: Record<SyncStopReason, { label: string; tone: 'red' | 'yellow' | 'green' | 'gray' }> = {
+    DONE: { label: 'Zakończona', tone: 'green' },
+    BUDGET: { label: 'Limit budżetu', tone: 'yellow' },
+    QUOTA_EXHAUSTED: { label: 'Limit Apibary', tone: 'yellow' },
+    OUTSIDE_HOURS: { label: 'Poza godzinami', tone: 'gray' },
+    DISABLED: { label: 'Wyłączona', tone: 'gray' },
+    LOCKED: { label: 'Zablokowana', tone: 'gray' },
+    ERROR: { label: 'Błąd', tone: 'red' },
+};
 
 /** Plain values of the Apibara usage response (plan, limits, counters); nested objects are skipped. */
 function usageEntries(usage: Record<string, unknown> | null): [string, string][] {
@@ -52,6 +73,7 @@ export default function AuctionsPage() {
     // GET /usage is fetched only on request: Apibara doesn't say it's free of the monthly quota
     const [usage, setUsage] = useState<Pick<AuctionStatus, 'apibaraUsage' | 'apibaraUsageError'> | null>(null);
     const [usageLoading, setUsageLoading] = useState(false);
+    const [maxRequests, setMaxRequests] = useState('');
 
     const loadUsage = async () => {
         setUsageLoading(true);
@@ -68,6 +90,15 @@ export default function AuctionsPage() {
     if (loading && !data) return <LoadingState />;
     if (error || !data) return <ErrorState label="Dane niedostępne (auction-import-service)." onRetry={reload} />;
 
+    const allowance = data.feed.allowance;
+    const requested = Number(maxRequests);
+    const requestsValid = Number.isInteger(requested) && requested >= 1 && requested <= allowance.manualMax;
+    const openSyncDialog = () => {
+        // today's allowance; at least 1 when the period still allows it
+        setMaxRequests(String(Math.min(Math.max(allowance.available, 1), allowance.manualMax)));
+        setDialog('sync');
+    };
+
     return (
         <>
             <PageHeader
@@ -75,7 +106,7 @@ export default function AuctionsPage() {
                 actions={
                     <>
                         <button className={actionButton} onClick={reload}><RotateCw size={15} /> Odśwież</button>
-                        <button className={actionButton} disabled={!data.apibaraConfigured || data.syncRunning} onClick={() => setDialog('sync')}>
+                        <button className={actionButton} disabled={!data.apibaraConfigured || data.syncRunning} onClick={openSyncDialog}>
                             <RefreshCw size={15} className={data.syncRunning ? 'animate-spin' : ''} />
                             {data.syncRunning ? 'Synchronizacja trwa…' : 'Synchronizuj teraz'}
                         </button>
@@ -124,6 +155,20 @@ export default function AuctionsPage() {
                     )}
                 </section>
                 <section className={card}>
+                    <h2 className="font-semibold text-avtovo-text mb-3">Synchronizacja lotów</h2>
+                    <dl className="text-sm space-y-1.5">
+                        <QuotaRow label="Synchronizacja automatyczna"
+                                  value={data.feed.enabled ? data.feed.schedule : 'wyłączona (APIBARA_SYNC_ENABLED=false)'} />
+                        {data.feed.enabled && (
+                            <QuotaRow label="Następna" value={data.nextScheduledRun ? formatDateTime(data.nextScheduledRun) : null} />
+                        )}
+                        <QuotaRow label="Budżet na dziś" value={allowance.available} />
+                        <QuotaRow label="Wykorzystano dziś" value={allowance.spentToday} />
+                        <QuotaRow label="Zostało w okresie" value={`${allowance.periodLeft} (do ${formatDateTime(allowance.periodEnd)})`} />
+                    </dl>
+                    <p className="text-xs text-avtovo-text-secondary mt-3">{data.feed.verdict}</p>
+                </section>
+                <section className={card}>
                     <h2 className="font-semibold text-avtovo-text mb-3">Kurs USD/PLN</h2>
                     {data.exchangeRate ? (
                         <div className="text-sm space-y-1">
@@ -151,13 +196,34 @@ export default function AuctionsPage() {
                     message="Pobranie lotów z Apibary zużywa limit zapytań konta. Synchronizacja działa w tle."
                     confirmLabel="Synchronizuj"
                     requireReason={false}
+                    confirmDisabled={!requestsValid}
                     onClose={() => setDialog(null)}
                     onConfirm={async () => {
-                        await triggerAuctionSync();
+                        await triggerAuctionSync(requested);
                         toast.success('Synchronizacja została uruchomiona.');
                         reload();
                     }}
-                />
+                >
+                    {allowance.manualMax < 1 ? (
+                        <p className="text-sm text-yellow-300">Budżet synchronizacji na ten okres jest wykorzystany.</p>
+                    ) : (
+                        <label className="block space-y-1.5">
+                            <span className="text-sm text-avtovo-text">Ile zapytań wykorzystać</span>
+                            <input
+                                type="number"
+                                min={1}
+                                max={allowance.manualMax}
+                                step={1}
+                                value={maxRequests}
+                                onChange={e => setMaxRequests(e.target.value)}
+                                className="w-full bg-avtovo-bg border border-avtovo-border rounded-lg px-3 py-2 text-sm text-avtovo-text focus:outline-none focus:border-avtovo-accent"
+                            />
+                            <span className={`block text-xs ${requestsValid ? 'text-avtovo-text-secondary' : 'text-red-300'}`}>
+                                Od 1 do {allowance.manualMax} (budżet na dziś: {allowance.available}). Więcej niż dziś obniży budżet kolejnych dni.
+                            </span>
+                        </label>
+                    )}
+                </ConfirmDialog>
             )}
             {dialog === 'reindex' && (
                 <ConfirmDialog

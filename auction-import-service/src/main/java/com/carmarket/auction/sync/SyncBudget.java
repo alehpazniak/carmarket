@@ -33,10 +33,14 @@ public class SyncBudget {
     /**
      * @param dayAllowance requests left for today by the pacing alone
      * @param quotaCap     remaining − keep-remaining from the last quota headers; null when none were seen yet
-     * @param available    what a run may spend now: the smaller of the two, never negative
+     * @param available    what a scheduled run may spend now: the smaller of the two, never negative
+     * @param periodLeft   monthly-budget − spent in the period, never negative
+     * @param manualMax    the most an admin's manual run may spend: periodLeft, capped by quotaCap when known.
+     *                     It may exceed today's share; the following days' pacing then lowers by itself.
      */
     public record Allowance(Instant periodStart, Instant periodEnd, long daysLeft, long spentInPeriod,
-                            long spentToday, int dayAllowance, Integer quotaCap, int available) {
+                            long spentToday, int dayAllowance, Integer quotaCap, int available,
+                            int periodLeft, int manualMax) {
     }
 
     public Allowance today() {
@@ -68,7 +72,10 @@ public class SyncBudget {
         Integer quotaCap = quota == null || quota.remaining() == null ? null
             : Math.max(0, quota.remaining() - props.getKeepRemaining());
         int available = quotaCap == null ? dayAllowance : Math.min(dayAllowance, quotaCap);
-        return new Allowance(periodStart, periodEnd, daysLeft, spentInPeriod, spentToday, dayAllowance, quotaCap, available);
+        int periodLeft = (int) Math.max(0, props.getMonthlyBudget() - spentInPeriod);
+        int manualMax = quotaCap == null ? periodLeft : Math.min(periodLeft, quotaCap);
+        return new Allowance(periodStart, periodEnd, daysLeft, spentInPeriod, spentToday, dayAllowance, quotaCap, available,
+            periodLeft, manualMax);
     }
 
     /** The start of today in the sync's zone. */
