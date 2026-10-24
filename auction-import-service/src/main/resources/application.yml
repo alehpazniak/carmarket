@@ -115,7 +115,8 @@ apibara:
   # Basic (30,000/month from 1 Nov): monthly-budget 22000 (≈ 730/day), keep-remaining 1000, run-every-minutes 30,
   # days-ahead 1, year-from 2012 → one pass per auction day the day before (Sizing).
   sync:
-    enabled: ${APIBARA_SYNC_ENABLED:false}        # off by default: IntelliJ restarts must not spend quota
+    enabled: ${APIBARA_SYNC_ENABLED:false}        # the automatic schedule only (off by default: IntelliJ restarts must
+                                                  # not spend quota); "Synchronizuj teraz" works either way, within the budget
     zone: Europe/Warsaw
     active-hours: "07:00-23:00"                   # no scheduled run starts outside; a manual run ignores it
     daily-start: "08:00"                          # first (and with run-every-minutes 0 the only) run of the day

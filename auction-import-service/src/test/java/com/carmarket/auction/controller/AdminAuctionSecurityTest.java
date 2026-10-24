@@ -32,6 +32,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -65,6 +66,8 @@ class AdminAuctionSecurityTest {
     private ApibaraQuotaTracker quotaTracker;
     @MockBean
     private com.carmarket.auction.sync.FeedSyncService feedSync;
+    @MockBean
+    private com.carmarket.auction.sync.SyncBudget budget;
 
     @Test
     void statusAndSyncAreAdminOnly() throws Exception {
@@ -78,7 +81,7 @@ class AdminAuctionSecurityTest {
             .andExpect(jsonPath("$.apibaraConfigured").value(false))
             .andExpect(jsonPath("$.w8PriceList").value("W8-2025-26"))
             .andExpect(jsonPath("$.w8TowingRows").value(725));
-        verify(scheduler, never()).triggerManualSync();
+        verify(scheduler, never()).triggerManualSync(any());
     }
 
     @Test
@@ -105,11 +108,26 @@ class AdminAuctionSecurityTest {
 
     @Test
     void syncIsStartedOnceAndConflictsWhileRunning() throws Exception {
-        when(scheduler.triggerManualSync()).thenReturn(true, false);
+        when(scheduler.triggerManualSync(isNull())).thenReturn(true, false);
 
         mvc.perform(post("/api/auctions/admin/sync").with(as("ADMIN"))).andExpect(status().isAccepted());
         mvc.perform(post("/api/auctions/admin/sync").with(as("ADMIN"))).andExpect(status().isConflict());
         verify(audit).publish(any(), eq("AUCTION_SYNC_TRIGGERED"), eq("AUCTION_SYNC"), any(), any(), any());
+    }
+
+    /** 1 … what the period still allows (here 23), even beyond today's allowance of 7 */
+    @Test
+    void aManualLimitMustFitThePeriod() throws Exception {
+        when(budget.today()).thenReturn(new com.carmarket.auction.sync.SyncBudget.Allowance(null, null, 8, 37, 0, 7, 23, 7, 23, 23));
+        when(scheduler.triggerManualSync(23)).thenReturn(true);
+
+        mvc.perform(post("/api/auctions/admin/sync").param("maxRequests", "24").with(as("ADMIN"))).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error").value("Liczba zapytań musi być od 1 do 23"));
+        mvc.perform(post("/api/auctions/admin/sync").param("maxRequests", "0").with(as("ADMIN"))).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/auctions/admin/sync").param("maxRequests", "23").with(as("ADMIN"))).andExpect(status().isAccepted());
+
+        verify(scheduler).triggerManualSync(23);
+        verify(audit).publish(any(), eq("AUCTION_SYNC_TRIGGERED"), eq("AUCTION_SYNC"), any(), any(), eq(java.util.Map.of("maxRequests", 23)));
     }
 
     private static RequestPostProcessor as(String roles) {

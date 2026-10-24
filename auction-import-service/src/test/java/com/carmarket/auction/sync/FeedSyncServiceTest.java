@@ -89,7 +89,12 @@ class FeedSyncServiceTest {
     }
 
     private void allowance(int requests) {
-        when(budget.today()).thenReturn(new SyncBudget.Allowance(null, null, 6, 0, 0, requests, null, requests));
+        allowance(requests, 60);
+    }
+
+    /** today's allowance, and what the period still allows a manual run */
+    private void allowance(int requests, int manualMax) {
+        when(budget.today()).thenReturn(new SyncBudget.Allowance(null, null, 6, 0, 0, requests, null, requests, manualMax, manualMax));
     }
 
     private SyncStream outcomesAt(long sequence) {
@@ -253,18 +258,44 @@ class FeedSyncServiceTest {
         verify(client, never()).searchVehiclesPage(any());
     }
 
+    /** apibara.sync.enabled gates only the schedule: an admin's run works without it, within the budget */
     @Test
-    void disabledOrAtKeepRemainingNothingIsSent() {
+    void aManualRunWorksWhileTheScheduleIsDisabled() {
         props.setEnabled(false);
-        assertThat(service.run("MANUAL").getStopReason()).isEqualTo("DISABLED");
+        outcomesAt(100);
+        when(client.terminalChangesPage(100, 500)).thenReturn(changes(List.of(), 100, false));
+        when(client.searchVehiclesPage(any())).thenReturn(vehicles(List.of(), null, 0));
 
-        props.setEnabled(true);
+        assertThat(service.run("MANUAL").getStopReason()).isEqualTo("DONE");
+    }
+
+    @Test
+    void atKeepRemainingOrWithoutAKeyNothingIsSent() {
         outcomesAt(100);
         when(tracker.latest()).thenReturn(Optional.of(new ApibaraQuota(100, 90, 10, null, null, null, null, NOW)));
-        assertThat(service.run("MANUAL").getStopReason()).isEqualTo("QUOTA_EXHAUSTED");
+        assertThat(service.run("MANUAL", 5).getStopReason()).isEqualTo("QUOTA_EXHAUSTED");
+
+        when(client.isConfigured()).thenReturn(false);
+        assertThat(service.run("MANUAL").getStopReason()).isEqualTo("ERROR");
 
         verify(client, never()).terminalChangesPage(anyLong(), anyInt());
         verify(client, never()).searchVehiclesPage(any());
+    }
+
+    /** A manual limit may go beyond today's share, but never beyond what the period still allows */
+    @Test
+    void aManualLimitReplacesTodaysAllowanceUpToThePeriodCap() throws Exception {
+        outcomesAt(100);
+        when(client.terminalChangesPage(100, 500)).thenReturn(changes(List.of(), 100, false));
+        when(client.searchVehiclesPage(firstPage())).thenReturn(vehicles(List.of(vehicle("1")), "c1", 200));
+        when(client.searchVehiclesPage(withCursor("c1"))).thenReturn(vehicles(List.of(vehicle("2")), "c1", null));
+        allowance(2, 4); // today 2, the period 4
+
+        assertThat(service.run("MANUAL", 10).getStopReason()).isEqualTo("BUDGET");
+
+        // 1 outcomes request + 3 pages = the period's 4, not today's 2 and not the asked 10
+        verify(client).searchVehiclesPage(firstPage());
+        verify(client, org.mockito.Mockito.times(2)).searchVehiclesPage(withCursor("c1"));
     }
 
     @Test
