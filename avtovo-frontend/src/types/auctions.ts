@@ -32,6 +32,23 @@ export interface AuctionLot {
     updatedAt?: string;
 }
 
+// GET /api/auctions/lots/facets — auction-import-service's LotFacetsResponse. Values are upper case and trimmed
+// ("TOYOTA", "RAV4"), the form /lots matches exactly; makes and models are sorted alphabetically.
+export interface LotModelFacet {
+    model: string;
+    count: number;
+}
+
+export interface LotMakeFacet {
+    make: string;
+    count: number;
+    models: LotModelFacet[];
+}
+
+export interface LotFacets {
+    makes: LotMakeFacet[];
+}
+
 // POST /api/auctions/lots/{id}/calculate — auction-import-service's ImportCalculationResponse (camelCase).
 export interface ImportCalculationResult {
     auctionPrice: number;

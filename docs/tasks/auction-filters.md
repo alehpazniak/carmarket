@@ -78,4 +78,5 @@ List what I should check by hand in the browser (`npm run dev`) on desktop and m
   - `src/utils/years.ts` (`yearOptions`, pure, next year → oldest); "Rok od"/"Rok do" are `<select>`s on Home (1900, string state, request unchanged) and `/aukcje` (1990), each list limited by the other so an inverted range can't be picked.
 - [x] Stage 2. Facets endpoint and exact make/model filter
   - `GET /api/auctions/lots/facets` (`LotFacetsResponse`, one grouped JPQL query, blank models count towards the make but get no facet); `/lots` make/model are exact `UPPER(TRIM())` matches, normalized in the controller; visibility in `AuctionLotRepository.LISTED`; tests `AuctionLotFacetsRepositoryTest`, `AuctionLotControllerTest`, `FrontendJsonContractTest`; `auction-lots-sync.md` stages 4 and 5 updated.
-- [ ] Stage 3. Make/model dropdowns on `/aukcje`
+- [x] Stage 3. Make/model dropdowns on `/aukcje`
+  - `getLotFacets()` + `LotFacets` types; "Marka"/"Model" are selects fed by the facets (loaded once on mount next to the first page; failure → only the empty option; no lots → both disabled; make change resets the model); `src/utils/auctionNames.ts` shows catalog spellings (also ignores accents) in the dropdowns only.
