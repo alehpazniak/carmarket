@@ -46,7 +46,11 @@ public final class LotContentHash {
             Objects.toString(lot.getAuctionDate(), NULL), // Instant.toString() is always UTC
             Objects.toString(lot.getSaleDate(), NULL),
             Objects.toString(lot.getStatus(), NULL),
-            lot.getImageUrls() == null ? NULL : String.join("\n", lot.getImageUrls())
+            lot.getImageUrls() == null ? NULL : String.join("\n", lot.getImageUrls()),
+            Objects.toString(lot.getVehicleType(), NULL),
+            Objects.toString(lot.getBodyStyle(), NULL),
+            decimal(lot.getSoldPrice()),
+            Objects.toString(lot.getEndedAt(), NULL)
         );
         StringBuilder text = new StringBuilder();
         for (Object field : fields) {

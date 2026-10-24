@@ -100,6 +100,11 @@ apibara:
     #   model: RAV4
     #   year-from: 2019
     #   year-to: 2022
+  vehicle-types:
+    # Apibara Vehicle.type values the sync keeps (docs/tasks/auction-feed-sync.md, Findings F2): cars, SUVs, vans,
+    # motorcycles and pickups. Everything else is skipped (ATV, DIRT BIKE, TRUCK = IAAI commercial trucks, trailers,
+    # RVs, buses, boats, equipment, OTHER, ...). Records without a type are kept.
+    include: [SEDAN, AUTOMOBILE, COUPE, SUV, VAN, MOTORCYCLE, PICKUP]
 
 parser:
   sync:

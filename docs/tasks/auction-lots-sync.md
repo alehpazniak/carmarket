@@ -55,7 +55,7 @@ Important: with the current 1 h interval, any non-empty `apibara.targets` spends
 - Keep the latest quota snapshot in memory (`ApibaraQuotaTracker`) and persist it in `sync_runs`. `GET /api/auctions/admin/status` shows that snapshot. Check in the docs whether `GET /usage` spends quota; if it does, call it only on `?refresh=true`.
 - Never log the API key.
 
-## Stage 3. Incremental sync within a budget
+## Stage 3. Incremental sync within a budget (superseded by docs/tasks/auction-feed-sync.md)
 
 Config in `application.yml`, with comments explaining the math. Remove `parser.sync.interval` and the commented-out `parser:` block.
 
@@ -91,7 +91,7 @@ Migration `V6__...` (don't touch V1–V5; `ddl-auto: validate`):
 ## Stage 4. The listing never calls the API
 
 - `searchLiveLots`: only `status = LIVE` and (`auction_date IS NULL` or `auction_date > now()`). Put the date rule into `AuctionLotRepository.LISTED`, the fragment `searchLiveLots` and `findFacetRows` (`GET /lots/facets`) share, so the dropdown counts keep matching the listing (`AuctionLotFacetsRepositoryTest`); `now()` must be the same in both. Default sort `auction_date ASC NULLS LAST`. Allowed sorts, by whitelist: `auctionDate`, `createdAt`, `auctionPrice`, `year`.
-- `LotExpiryJob` (no API calls, every 15 minutes): LIVE with `auction_date < now() − 2h` → `EXPIRED`; LIVE with no date and `last_seen_at` older than 14 days → `EXPIRED`. Publish events for changed rows after commit, as in stage 1.
+- `LotExpiryJob` (no API calls, every 15 minutes): LIVE with `auction_date < now() − 2h` → `EXPIRED`; LIVE with no date and `last_seen_at` older than 14 days → `EXPIRED`. Publish events for changed rows after commit, as in stage 1. It's only a fallback for lots Apibara never reported as ended: touch only `status = 'LIVE' AND ended_at IS NULL`, never SOLD/UNSOLD/REMOVED, and any status from the feed replaces `EXPIRED` later (`AuctionLotService.saveOrUpdateLots`, `docs/tasks/auction-feed-sync.md` Stage 1).
 - `GET /api/auctions/lots/meta` (public, like `/lots/**`): `{ lastSuccessfulSyncAt, liveLots }`.
 - Frontend `AuctionActions.tsx`: on page load call only `searchLots` and `meta`. Show "Zaktualizowano: …", the auction date on each card in Europe/Warsaw ("za 5 godz."), and a sort selector. The "Szybkie sprawdzenie w Apibara" block no longer renders on `/aukcje` (moved, unrendered, to `src/components/auctions/ApibaraQuickTools.tsx` by `docs/tasks/ui-cleanup.md`); don't bring it or `W8TransportCalculator` back to this page.
 
@@ -119,7 +119,7 @@ Migration `V6__...` (don't touch V1–V5; `ddl-auto: validate`):
 
 - [x] Stage 1. Bugs in the current sync — upsert @Transactional per page (`AuctionParser.parseLiveLotPages`), `AuctionLotChangedEvent` after commit (`AuctionLotEventPublisher`), `LotContentHash` + full field copy, migration **V6** (unique `(source, lot_number)`, `content_hash`, `auction_date` → TIMESTAMPTZ/`Instant`, V1 `image_url` → `image_urls`), `raw_data` filled + `@JsonIgnore`, per-page = min(config 40, `X-Per-Page-Limit`). Stage 3's migration is therefore **V7**, and only needs `last_seen_at`, the `(status, auction_date)` index and the `sync_runs` columns.
 - [x] Stage 2. Quota-aware client — `ApibaraClient.searchVehiclesPage` (sync only; `ApibaraVehiclesPage` = raw vehicles + `meta` + `ApibaraQuota`; throws `ApibaraQuotaExceededException(retryAfter)` / `ApibaraUnavailableException`), `ApibaraResponse.meta`, `ApibaraQuotaTracker` (in memory, falls back to the last snapshot in `sync_runs`; keeps `retryNotBefore` from the last 429 for stage 3), **V7** adds `api_requests` + `quota_*` to `sync_runs`. The parser now hands pages over as they arrive (`AuctionParser.forEachLiveLotPage`), so a 429 mid-run keeps the saved pages. `/admin/status` returns `apibaraQuota` and calls `/usage` only on `?refresh=true` (Apibara does not document that `/usage` is free); the admin page has a button for it. Stage 3 migration: **V8** (`last_seen_at`, index, `mode`, `stop_reason`, `window_minutes`).
-- [ ] Stage 3. Incremental sync within a budget
+- [ ] Stage 3. Incremental sync within a budget — superseded by docs/tasks/auction-feed-sync.md (its budget rules are reused there)
 - [ ] Stage 4. Listing without API calls
 - [ ] Stage 5. Redis cache for the listing
 - [ ] `CLAUDE.md` updated, list for `../avtovo`

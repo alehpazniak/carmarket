@@ -5,11 +5,14 @@ import com.carmarket.auction.entity.AuctionLot;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,6 +21,11 @@ import java.util.UUID;
 public interface  AuctionLotRepository extends JpaRepository<AuctionLot, UUID> {
 
     Optional<AuctionLot> findByLotNumberAndSource(String lotNumber, AuctionLot.AuctionSource source);
+
+    /** last_seen_at for every lot of a sync page, changed or not: one UPDATE per page instead of one per row. */
+    @Modifying(flushAutomatically = true)
+    @Query("UPDATE AuctionLot a SET a.lastSeenAt = :now WHERE a.id IN :ids")
+    int markSeen(@Param("ids") Collection<UUID> ids, @Param("now") Instant now);
 
     List<AuctionLot> findByVin(String vin);
 

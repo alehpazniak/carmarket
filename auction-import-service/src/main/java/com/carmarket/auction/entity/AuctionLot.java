@@ -19,7 +19,8 @@ import java.util.UUID;
     @Index(name = "idx_auction_lots_vin", columnList = "vin"),
     @Index(name = "idx_auction_lots_source", columnList = "source"),
     @Index(name = "idx_auction_lots_status", columnList = "status"),
-    @Index(name = "idx_auction_lots_make_model", columnList = "make, model, year")
+    @Index(name = "idx_auction_lots_make_model", columnList = "make, model, year"),
+    @Index(name = "idx_auction_lots_vehicle_type", columnList = "vehicle_type")
 })
 @Getter
 @Setter
@@ -93,7 +94,28 @@ public class AuctionLot {
     private Instant auctionDate; // TIMESTAMPTZ (V6); the frontend shows it in Europe/Warsaw
 
     @Column(name = "sale_date")
-    private LocalDateTime saleDate;
+    private LocalDateTime saleDate; // UTC; set for SOLD lots from the feed
+
+    /** Apibara's Vehicle.type as sent, e.g. "AUTOMOBILE", "PICKUP" (V8) */
+    @Column(name = "vehicle_type", length = 50)
+    private String vehicleType;
+
+    /** Apibara's vehicle_specs.body_style as sent (free text: Copart Body Style / IAAI VehicleClass) */
+    @Column(name = "body_style", length = 50)
+    private String bodyStyle;
+
+    /** Final price of a SOLD lot (Apibara sale_price_usd) */
+    @Column(name = "sold_price", precision = 12, scale = 2)
+    private BigDecimal soldPrice;
+
+    /** When the auction ended, for SOLD / UNSOLD / ended-without-result lots */
+    @Column(name = "ended_at")
+    private Instant endedAt;
+
+    /** The last sync that returned this lot, changed or not; internal */
+    @JsonIgnore
+    @Column(name = "last_seen_at")
+    private Instant lastSeenAt;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

@@ -15,10 +15,15 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -71,19 +76,25 @@ public class ApibaraAuctionParser implements AuctionParser {
             ApibaraVehiclesPage response = client.searchVehiclesPage(params);
 
             List<AuctionLot> page = new ArrayList<>();
+            int skippedType = 0;
             for (JsonNode node : response.vehicles()) {
                 ApibaraResponse.Vehicle v = toVehicle(node);
                 // API filters make/model; we enforce the year range here
                 if (v == null || !target.matchesYear(v.year())) continue;
+                // Trucks, trailers, ATVs, ... even if the request's filter let them through
+                if (!config.getVehicleTypes().includes(v.type())) {
+                    skippedType++;
+                    continue;
+                }
                 AuctionLot lot = toLot(v);
                 if (lot != null) {
                     lot.setRawData(node.toString());
                     page.add(lot);
                 }
             }
-            log.info("Target {} {} [{}-{}]: {} fetched, {} kept after year filter",
+            log.info("Target {} {} [{}-{}]: {} fetched, {} kept after year filter, skipped_type={}",
                 target.getMake(), target.getModel(),
-                target.getYearFrom(), target.getYearTo(), response.vehicles().size(), page.size());
+                target.getYearFrom(), target.getYearTo(), response.vehicles().size(), page.size(), skippedType);
             if (!page.isEmpty()) {
                 pageConsumer.accept(page);
             }
@@ -109,7 +120,8 @@ public class ApibaraAuctionParser implements AuctionParser {
 
     /** Maps an Apibara vehicle to your AuctionLot entity, guarding every nullable field. */
     AuctionLot toLot(ApibaraResponse.Vehicle v) {
-        if (v.lotNumber() == null || v.make() == null || v.model() == null || v.year() == null) {
+        AuctionLot.AuctionSource source = mapSource(v.platform());
+        if (source == null || v.lotNumber() == null || v.make() == null || v.model() == null || v.year() == null) {
             return null; // required columns — skip incomplete records
         }
 
@@ -118,10 +130,12 @@ public class ApibaraAuctionParser implements AuctionParser {
             .make(v.make())
             .model(v.model())
             .year(v.year())
-            .source(AuctionLot.AuctionSource.COPART)
+            .source(source)
             .lotNumber(v.lotNumber())
             .currency("USD")
-            .status(mapStatus(v.auction()));
+            .vehicleType(truncate(v.type()))
+            .bodyStyle(v.vehicleSpecs() == null ? null : truncate(v.vehicleSpecs().bodyStyle()));
+        applyOutcome(b, v);
 
         if (v.pricing() != null) {
             b.auctionPrice(v.pricing().currentBidUsd());
@@ -147,17 +161,91 @@ public class ApibaraAuctionParser implements AuctionParser {
         return b.build();
     }
 
-    /** Maps Apibara auction state → your LotStatus enum. */
-    private AuctionLot.LotStatus mapStatus(ApibaraResponse.Auction auction) {
-        if (auction == null || auction.state() == null) {
-            return AuctionLot.LotStatus.LIVE;
-        }
-        return switch (auction.state().toLowerCase()) {
-            case "sold" -> AuctionLot.LotStatus.SOLD;
-            case "finished", "timed" -> AuctionLot.LotStatus.UNSOLD;
-            case "removed" -> AuctionLot.LotStatus.REMOVED;
-            default -> AuctionLot.LotStatus.LIVE; // open, upcoming, live
+    private static AuctionLot.AuctionSource mapSource(String platform) {
+        if (platform == null) return null;
+        return switch (platform.toLowerCase(Locale.ROOT)) {
+            case "copart" -> AuctionLot.AuctionSource.COPART;
+            case "iaai" -> AuctionLot.AuctionSource.IAAI;
+            default -> null;
         };
+    }
+
+    /**
+     * Status, end time, sale date and final price from the auction's outcome, not from {@code state}: state is
+     * "open" or "finished" whether the car sold or not, and "timed" is an auction mode, not a result.
+     * <ul>
+     *   <li>{@code lot_removed} → REMOVED;</li>
+     *   <li>not ended → LIVE (an open lot's {@code last_sold_status} may belong to an earlier listing);</li>
+     *   <li>ended: {@code outcome_status} (older records: {@code last_sold_status}) Sold → SOLD with
+     *   {@code sale_price_usd}, Not Sold → UNSOLD, Removed → REMOVED; anything else, "Sold on Approval" included
+     *   (the seller can still refuse), → EXPIRED, i.e. ended without a final result, until the result comes.</li>
+     * </ul>
+     */
+    private void applyOutcome(AuctionLot.AuctionLotBuilder b, ApibaraResponse.Vehicle v) {
+        ApibaraResponse.Auction auction = v.auction();
+        if (auction == null) {
+            b.status(AuctionLot.LotStatus.LIVE);
+            return;
+        }
+        if (Boolean.TRUE.equals(auction.lotRemoved())) {
+            b.status(AuctionLot.LotStatus.REMOVED);
+            return;
+        }
+        if (!isEnded(auction)) {
+            b.status(AuctionLot.LotStatus.LIVE);
+            return;
+        }
+        b.endedAt(firstDate(auction.auctionEndedAt(), auction.lastSoldAt(), auction.auctionAt()));
+        String outcome = auction.outcomeStatus() != null ? auction.outcomeStatus() : auction.lastSoldStatus();
+        switch (outcome == null ? "" : outcome.trim().toLowerCase(Locale.ROOT)) {
+            case "sold" -> {
+                b.status(AuctionLot.LotStatus.SOLD);
+                if (v.pricing() != null) {
+                    b.soldPrice(v.pricing().salePriceUsd() != null ? v.pricing().salePriceUsd() : v.pricing().lastSoldPriceUsd());
+                }
+                b.saleDate(saleDate(auction));
+            }
+            case "not sold" -> b.status(AuctionLot.LotStatus.UNSOLD);
+            case "removed" -> b.status(AuctionLot.LotStatus.REMOVED);
+            default -> b.status(AuctionLot.LotStatus.EXPIRED);
+        }
+    }
+
+    /** auction_ended_at is set only for a past auction; older records only say "finished" */
+    private static boolean isEnded(ApibaraResponse.Auction auction) {
+        if (auction.auctionEndedAt() != null) return true;
+        String state = auction.state() == null ? "" : auction.state().toLowerCase(Locale.ROOT);
+        return ENDED_STATES.contains(state);
+    }
+
+    private static final Set<String> ENDED_STATES = Set.of("finished", "ended", "closed", "sold");
+
+    /** The exact sale time when Apibara has it, else the end of the auction, else the sale day (UTC). */
+    private static LocalDateTime saleDate(ApibaraResponse.Auction auction) {
+        Instant exact = firstDate(auction.lastSoldAt(), auction.auctionEndedAt());
+        if (exact != null) return LocalDateTime.ofInstant(exact, ZoneOffset.UTC);
+        if (auction.lastSoldDay() == null) return null;
+        try {
+            return LocalDate.parse(auction.lastSoldDay()).atStartOfDay();
+        } catch (DateTimeParseException e) {
+            log.debug("Unparseable sale day: {}", auction.lastSoldDay());
+            return null;
+        }
+    }
+
+    private static Instant firstDate(String... isoDates) {
+        for (String iso : isoDates) {
+            Instant instant = iso == null ? null : parseDate(iso);
+            if (instant != null) return instant;
+        }
+        return null;
+    }
+
+    /** vehicle_type / body_style are VARCHAR(50); body_style is free text */
+    private static String truncate(String value) {
+        if (value == null || value.isBlank()) return null;
+        String trimmed = value.trim();
+        return trimmed.length() <= 50 ? trimmed : trimmed.substring(0, 50);
     }
 
     /** Parses ISO-8601 with offset (e.g. "2026-07-13T14:00:00+00:00") to the instant, keeping the offset. */

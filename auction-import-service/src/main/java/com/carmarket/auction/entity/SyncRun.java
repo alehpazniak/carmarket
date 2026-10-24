@@ -70,6 +70,22 @@ public class SyncRun {
     @Column(name = "quota_observed_at")
     private Instant quotaObservedAt;
 
+    /** Feed sync bookkeeping (V8): BACKFILL / INCREMENTAL, why the run stopped (e.g. BUDGET), the window it read */
+    @Column(length = 20)
+    private String mode;
+
+    @Column(name = "stop_reason", length = 30)
+    private String stopReason;
+
+    @Column(name = "window_minutes")
+    private Integer windowMinutes;
+
+    @Column(name = "streams_done")
+    private Integer streamsDone;
+
+    @Column(name = "streams_with_backlog")
+    private Integer streamsWithBacklog;
+
     public static SyncRun start(String parser, String trigger) {
         SyncRun run = new SyncRun();
         run.id = UUID.randomUUID();
