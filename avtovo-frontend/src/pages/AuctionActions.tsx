@@ -5,6 +5,7 @@ import { searchLots, type LotSearchParams } from '../api/auctions';
 import type { AuctionLot } from '../types/auctions';
 import AuctionLotCard from '../components/AuctionLotCard';
 import { useAuth } from '../context/AuthContext';
+import { OLDEST_YEAR_AUCTIONS, yearOptions } from '../utils/years';
 import { Search, ClipboardList } from 'lucide-react';
 
 const hasFilters = (params: LotSearchParams) =>
@@ -21,6 +22,7 @@ export default function AuctionActions() {
     const navigate = useNavigate();
     const { hasRole } = useAuth();
     const isDealer = hasRole('DEALER') || hasRole('ADMIN');
+    const years = yearOptions(OLDEST_YEAR_AUCTIONS);
 
     // `loading` starts as true, so the initial load doesn't need to set it
     const loadLots = (params: LotSearchParams, targetPage = 0) => {
@@ -79,20 +81,22 @@ export default function AuctionActions() {
                         onChange={e => setFilters(f => ({ ...f, model: e.target.value || undefined }))}
                         className="bg-avtovo-bg border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
                     />
-                    <input
-                        type="number"
-                        placeholder="Rok od"
+                    <select
                         value={filters.yearFrom ?? ''}
                         onChange={e => setFilters(f => ({ ...f, yearFrom: e.target.value ? Number(e.target.value) : undefined }))}
-                        className="bg-avtovo-bg border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
-                    />
-                    <input
-                        type="number"
-                        placeholder="Rok do"
+                        className="bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
+                    >
+                        <option value="">Rok od</option>
+                        {years.filter(y => filters.yearTo == null || y <= filters.yearTo).map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                    <select
                         value={filters.yearTo ?? ''}
                         onChange={e => setFilters(f => ({ ...f, yearTo: e.target.value ? Number(e.target.value) : undefined }))}
-                        className="bg-avtovo-bg border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
-                    />
+                        className="bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
+                    >
+                        <option value="">Rok do</option>
+                        {years.filter(y => filters.yearFrom == null || y >= filters.yearFrom).map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
                     <button
                         type="submit"
                         className="flex items-center justify-center gap-2 bg-avtovo-accent hover:bg-avtovo-accent-hover text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"
