@@ -94,6 +94,56 @@ class ApibaraClientSyncTest {
     }
 
     @Test
+    void totalIsReadWhenSent() {
+        server.expect(requestTo(any(String.class)))
+            .andRespond(withSuccess("{\"data\": [], \"meta\": {\"per_page\": 1, \"next_cursor\": null, \"total\": 18437}}",
+                MediaType.APPLICATION_JSON));
+
+        assertThat(client.searchVehiclesPage(params()).total()).isEqualTo(18437);
+    }
+
+    @Test
+    void terminalChangesSendTerminalOneAndReadTheSequences() {
+        server.expect(requestTo(startsWith("https://apibara.tech/api/v1/vehicle-auction/changes")))
+            .andExpect(queryParam("terminal", "1")) // "true" gets a 422
+            .andExpect(queryParam("after", "11818114"))
+            .andExpect(queryParam("limit", "500"))
+            .andRespond(withSuccess("""
+                {"ok": true, "data": [{"sequence": 11818394, "event": "lot.sold"}],
+                 "meta": {"after": 11818114, "next_cursor": 11818394, "has_more": true,
+                          "latest_available_sequence": 34414178, "retention_days": 14}}""",
+                MediaType.APPLICATION_JSON).headers(quotaHeaders(70)));
+
+        ApibaraChangesPage page = client.terminalChangesPage(11818114, 500);
+
+        assertThat(page.events()).hasSize(1);
+        assertThat(page.nextCursor()).isEqualTo(11818394);
+        assertThat(page.hasMore()).isTrue();
+        assertThat(page.latestAvailableSequence()).isEqualTo(34414178);
+        assertThat(page.quota().remaining()).isEqualTo(70);
+        assertThat(tracker.requestsSent()).isEqualTo(1);
+    }
+
+    @Test
+    void anExpiredChangesCursorNamesTheLatestSequence() {
+        server.expect(requestTo(any(String.class)))
+            .andRespond(withStatus(HttpStatus.GONE).contentType(MediaType.APPLICATION_JSON).body("""
+                {"ok": false, "error": "cursor_expired", "meta": {"latest_available_sequence": 34414178}}"""));
+
+        assertThatThrownBy(() -> client.terminalChangesPage(5, 500))
+            .isInstanceOfSatisfying(ApibaraCursorExpiredException.class,
+                e -> assertThat(e.getLatestAvailableSequence()).isEqualTo(34414178));
+    }
+
+    @Test
+    void aRejectedRequestIsItsOwnException() {
+        server.expect(requestTo(any(String.class))).andRespond(withStatus(HttpStatus.UNPROCESSABLE_ENTITY));
+
+        assertThatThrownBy(() -> client.searchVehiclesPage(params()))
+            .isInstanceOfSatisfying(ApibaraRejectedException.class, e -> assertThat(e.getStatus()).isEqualTo(422));
+    }
+
+    @Test
     void lastPageHasNoCursor() {
         server.expect(requestTo(any(String.class)))
             .andRespond(withSuccess("{\"data\": [], \"meta\": {\"per_page\": 20, \"next_cursor\": null}}",

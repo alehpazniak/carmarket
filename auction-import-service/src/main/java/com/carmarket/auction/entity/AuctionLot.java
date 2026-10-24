@@ -104,7 +104,10 @@ public class AuctionLot {
     @Column(name = "body_style", length = 50)
     private String bodyStyle;
 
-    /** Final price of a SOLD lot (Apibara sale_price_usd) */
+    /**
+     * Final price of a SOLD lot (Apibara sale_price_usd). On an EXPIRED lot "Sold on Approval", the approval price,
+     * kept until /changes confirms the sale (its lot.sold event usually carries no price).
+     */
     @Column(name = "sold_price", precision = 12, scale = 2)
     private BigDecimal soldPrice;
 

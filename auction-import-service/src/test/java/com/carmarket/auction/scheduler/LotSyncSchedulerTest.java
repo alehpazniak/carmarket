@@ -1,149 +1,137 @@
 package com.carmarket.auction.scheduler;
 
-import com.carmarket.auction.client.ApibaraQuota;
-import com.carmarket.auction.client.ApibaraQuotaExceededException;
 import com.carmarket.auction.client.ApibaraQuotaTracker;
-import com.carmarket.auction.entity.AuctionLot;
+import com.carmarket.auction.config.ApibaraSyncProperties;
 import com.carmarket.auction.entity.SyncRun;
-import com.carmarket.auction.parser.AuctionParser;
 import com.carmarket.auction.repository.SyncRunRepository;
-import com.carmarket.auction.service.AuctionLotService;
+import com.carmarket.auction.sync.FeedSyncService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
-import java.time.Duration;
+import java.time.Clock;
 import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Consumer;
+import java.time.ZoneId;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+/** One scheduled run a day at 08:00 Warsaw (free plan); restarts don't repeat it, a late start catches it up. */
 class LotSyncSchedulerTest {
 
+    private static final ZoneId WARSAW = ZoneId.of("Europe/Warsaw");
+
+    private final FeedSyncService feedSync = mock(FeedSyncService.class);
     private final SyncRunRepository runs = mock(SyncRunRepository.class);
-    private final AuctionLotService lotService = mock(AuctionLotService.class);
     private final ApibaraQuotaTracker tracker = mock(ApibaraQuotaTracker.class);
+    private final ApibaraSyncProperties props = new ApibaraSyncProperties();
 
-    {
-        when(runs.save(any(SyncRun.class))).thenAnswer(inv -> inv.getArgument(0));
+    @BeforeEach
+    void enabled() {
+        props.setEnabled(true);
+        when(feedSync.run(anyString())).thenReturn(new SyncRun());
+    }
+
+    private LotSyncScheduler at(String warsawTime) {
+        return new LotSyncScheduler(feedSync, runs, props, tracker, Clock.fixed(warsaw(warsawTime), WARSAW));
+    }
+
+    /** 24 Oct 2026 is still summer time in Warsaw: UTC+2 */
+    private static Instant warsaw(String time) {
+        return Instant.parse("2026-10-24T" + time + ":00Z").minusSeconds(2 * 3600);
     }
 
     @Test
-    void everyParserRunIsRecordedWithCountsOrTheError() throws Exception {
-        AuctionParser ok = mock(AuctionParser.class);
-        AuctionParser broken = mock(AuctionParser.class);
-        List<AuctionLot> page1 = List.of(new AuctionLot(), new AuctionLot());
-        List<AuctionLot> page2 = List.of(new AuctionLot());
-        handsOver(ok, page1, page2);
-        when(lotService.saveOrUpdateLots(page1)).thenReturn(new AuctionLotService.SyncCounts(1, 1));
-        when(lotService.saveOrUpdateLots(page2)).thenReturn(new AuctionLotService.SyncCounts(1, 0));
-        doAnswer(inv -> {
-            throw new IllegalStateException("quota exceeded");
-        }).when(broken).forEachLiveLotPage(any());
-        when(tracker.latest()).thenReturn(Optional.empty());
+    void theDailyRunStartsFromEightOnce() {
+        at("07:59").tick();
+        verify(feedSync, never()).run(anyString());
 
-        new LotSyncScheduler(List.of(ok, broken), lotService, runs, tracker).syncAllSources();
-
-        ArgumentCaptor<SyncRun> saved = ArgumentCaptor.forClass(SyncRun.class);
-        verify(runs, atLeastOnce()).save(saved.capture());
-        List<SyncRun> finished = saved.getAllValues().stream().filter(r -> r.getFinishedAt() != null).distinct().toList();
-        assertThat(finished).hasSize(2);
-        assertThat(finished.get(0).getLotsFetched()).isEqualTo(3);
-        assertThat(finished.get(0).getLotsAdded()).isEqualTo(2);
-        assertThat(finished.get(0).getLotsUpdated()).isEqualTo(1);
-        assertThat(finished.get(0).getTrigger()).isEqualTo("SCHEDULED");
-        assertThat(finished.get(1).getError()).isEqualTo("IllegalStateException: quota exceeded");
-        // each response page is its own call, i.e. its own transaction
-        verify(lotService).saveOrUpdateLots(page1);
-        verify(lotService).saveOrUpdateLots(page2);
-    }
-
-    @SafeVarargs
-    private static void handsOver(AuctionParser parser, List<AuctionLot>... pages) {
-        doAnswer(inv -> {
-            Consumer<List<AuctionLot>> consumer = inv.getArgument(0);
-            for (List<AuctionLot> page : pages) consumer.accept(page);
-            return null;
-        }).when(parser).forEachLiveLotPage(any());
-    }
-
-    private SyncRun lastSaved() {
-        ArgumentCaptor<SyncRun> saved = ArgumentCaptor.forClass(SyncRun.class);
-        verify(runs, atLeastOnce()).save(saved.capture());
-        return saved.getAllValues().get(saved.getAllValues().size() - 1);
+        at("08:00").tick();
+        verify(feedSync).run("SCHEDULED");
+        verify(runs).existsByParserAndTriggerAndStartedAtGreaterThanEqual(FeedSyncService.PARSER, "SCHEDULED", warsaw("08:00"));
     }
 
     @Test
-    void aQuotaErrorKeepsTheSavedPagesAndRecordsRequestsAndQuota() {
-        AuctionParser apibara = mock(AuctionParser.class);
-        List<AuctionLot> page = List.of(new AuctionLot());
-        ApibaraQuota quota = new ApibaraQuota(100, 100, 0, null, null, null, null, Instant.now().plusSeconds(1));
-        doAnswer(inv -> {
-            Consumer<List<AuctionLot>> consumer = inv.getArgument(0);
-            consumer.accept(page);
-            throw new ApibaraQuotaExceededException(Duration.ofMinutes(5), quota);
-        }).when(apibara).forEachLiveLotPage(any());
-        when(lotService.saveOrUpdateLots(page)).thenReturn(new AuctionLotService.SyncCounts(1, 0));
-        when(tracker.requestsSent()).thenReturn(7L, 9L); // before and after the run
-        when(tracker.latest()).thenReturn(Optional.of(quota));
+    void aRestartTheSameDayDoesntRunItAgain() {
+        when(runs.existsByParserAndTriggerAndStartedAtGreaterThanEqual(FeedSyncService.PARSER, "SCHEDULED", warsaw("08:00")))
+            .thenReturn(true);
 
-        new LotSyncScheduler(List.of(apibara), lotService, runs, tracker).syncAllSources();
+        at("08:05").tick();
+        at("15:30").tick();
 
-        SyncRun run = lastSaved();
-        assertThat(run.getLotsAdded()).isEqualTo(1);
-        assertThat(run.getLotsFetched()).isEqualTo(1);
-        assertThat(run.getError()).isEqualTo("ApibaraQuotaExceededException: Apibara quota exhausted, retry after 300 s");
-        assertThat(run.getApiRequests()).isEqualTo(2);
-        assertThat(run.getQuotaRemaining()).isZero();
-        assertThat(run.getQuotaLimit()).isEqualTo(100);
-        assertThat(run.getQuotaObservedAt()).isEqualTo(quota.observedAt());
+        verify(feedSync, never()).run(anyString());
     }
 
     @Test
-    void aQuotaSnapshotFromBeforeTheRunIsNotStoredAgain() {
-        AuctionParser parser = mock(AuctionParser.class);
-        when(tracker.latest()).thenReturn(Optional.of(
-            new ApibaraQuota(100, 50, 50, null, null, null, null, Instant.now().minusSeconds(3600))));
+    void aStartAfterEightCatchesUpTodaysRun() {
+        at("13:17").tick();
 
-        new LotSyncScheduler(List.of(parser), lotService, runs, tracker).syncAllSources();
-
-        SyncRun run = lastSaved();
-        assertThat(run.getQuotaRemaining()).isNull();
-        assertThat(run.getApiRequests()).isZero();
+        verify(feedSync).run("SCHEDULED");
     }
 
     @Test
-    void onlyOneSyncAtATime() throws Exception {
+    void nothingOutsideTheActiveHoursOrWhileDisabledOrWaitingForRetryAfter() {
+        at("23:30").tick();
+
+        props.setEnabled(false);
+        at("09:00").tick();
+
+        props.setEnabled(true);
+        when(tracker.retryNotBefore()).thenReturn(warsaw("09:30"));
+        at("09:00").tick();
+
+        verify(feedSync, never()).run(anyString());
+    }
+
+    @Test
+    void withAnIntervalTheSlotIsTheLatestOneStarted() {
+        props.setRunEveryMinutes(30);
+
+        at("10:47").tick();
+
+        verify(runs).existsByParserAndTriggerAndStartedAtGreaterThanEqual(FeedSyncService.PARSER, "SCHEDULED", warsaw("10:30"));
+        verify(feedSync).run("SCHEDULED");
+    }
+
+    @Test
+    void aDisabledSchedulerDoesntEvenAsk() {
+        props.setEnabled(false);
+        at("09:00").tick();
+        verifyNoInteractions(runs);
+    }
+
+    @Test
+    void manualRunsIgnoreTheScheduleAndOnlyOneRunsAtATime() throws Exception {
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        AuctionParser slow = mock(AuctionParser.class);
-        doAnswer(inv -> {
+        when(feedSync.run("MANUAL")).thenAnswer(inv -> {
             started.countDown();
             release.await(5, TimeUnit.SECONDS);
-            return null;
-        }).when(slow).forEachLiveLotPage(any());
-        when(tracker.latest()).thenReturn(Optional.empty());
-        when(lotService.saveOrUpdateLots(any())).thenReturn(new AuctionLotService.SyncCounts(0, 0));
-        LotSyncScheduler scheduler = new LotSyncScheduler(List.of(slow), lotService, runs, tracker);
+            return new SyncRun();
+        });
+        LotSyncScheduler scheduler = at("23:30"); // outside the active hours
 
         assertThat(scheduler.triggerManualSync()).isTrue();
         assertThat(started.await(5, TimeUnit.SECONDS)).isTrue();
         assertThat(scheduler.isRunning()).isTrue();
         assertThat(scheduler.triggerManualSync()).isFalse();
-        scheduler.syncAllSources(); // the scheduled run is skipped, not queued
-
         release.countDown();
-        for (int i = 0; i < 50 && scheduler.isRunning(); i++) Thread.sleep(20);
+
+        verify(feedSync, timeout(5000)).run(eq("MANUAL"));
+        verify(feedSync, never()).run("SCHEDULED");
+        for (int i = 0; i < 50 && scheduler.isRunning(); i++) {
+            Thread.sleep(100);
+        }
         assertThat(scheduler.isRunning()).isFalse();
-        assertThat(scheduler.triggerManualSync()).isTrue();
+        verify(runs, never()).save(any());
     }
 }

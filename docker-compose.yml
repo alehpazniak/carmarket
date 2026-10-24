@@ -518,6 +518,10 @@ services:
       DB_PASS: postgres
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       APIBARA_API_KEY: ${APIBARA_API_KEY:?APIBARA_API_KEY must be set}
+      # Feed sync (auction-import-service application.yml, apibara.sync); off unless .env turns it on
+      APIBARA_SYNC_ENABLED: ${APIBARA_SYNC_ENABLED:-false}
+      APIBARA_SYNC_MONTHLY_BUDGET: ${APIBARA_SYNC_MONTHLY_BUDGET:-30}
+      APIBARA_KEEP_REMAINING: ${APIBARA_KEEP_REMAINING:-15}
     restart: on-failure
 
   # ─── PAYMENT DATABASE ───────────────────────────────────────────────────────

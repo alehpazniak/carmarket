@@ -1,8 +1,6 @@
 package com.carmarket.auction.parser;
 
-import com.carmarket.auction.client.ApibaraClient;
 import com.carmarket.auction.client.ApibaraResponse;
-import com.carmarket.auction.client.ApibaraVehiclesPage;
 import com.carmarket.auction.config.ParserTargetsConfig;
 import com.carmarket.auction.entity.AuctionLot;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -11,8 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -24,81 +20,41 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.function.Consumer;
 
 /**
- * Pulls Copart lots from the Apibara API for each configured target
- * (see apibara.targets in application.yml) and maps them to AuctionLot entities.
- * Replaces the Playwright-based CopartParser — no browser, no scraping.
+ * Maps Apibara /vehicles records to AuctionLot entities for the feed sync (FeedSyncService), one response page at
+ * a time, and drops the vehicle types outside apibara.vehicle-types.include.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ApibaraAuctionParser implements AuctionParser {
+public class ApibaraAuctionParser {
 
-    private final ApibaraClient client;
     private final ParserTargetsConfig config;
     private final ObjectMapper objectMapper;
 
-    @Override
-    public boolean supports(AuctionSource source) {
-        return source == AuctionSource.COPART;
+    /** The lots of one page, each with its raw JSON, and how many records were dropped for their type. */
+    public record MappedPage(List<AuctionLot> lots, int skippedType) {
     }
 
-    @Override
-    public List<AuctionLot> parseLiveLots() {
+    public MappedPage map(List<JsonNode> vehicles) {
         List<AuctionLot> lots = new ArrayList<>();
-        forEachLiveLotPage(lots::addAll);
-        return lots;
-    }
-
-    /**
-     * One GET /vehicles per target. ApibaraQuotaExceededException (429) and ApibaraUnavailableException
-     * end the run: the pages handed over before stay, and no further request spends quota.
-     */
-    @Override
-    public void forEachLiveLotPage(Consumer<List<AuctionLot>> pageConsumer) {
-        if (!client.isConfigured()) {
-            log.warn("apibara.api-key is not set — nothing to fetch");
-            return;
-        }
-        if (config.getTargets().isEmpty()) {
-            log.warn("No apibara.targets configured — nothing to fetch");
-            return;
-        }
-
-        for (ParserTargetsConfig.Target target : config.getTargets()) {
-            MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
-            params.add("platform", "copart");
-            params.add("make", target.getMake());
-            params.add("model", target.getModel());
-            params.add("per_page", String.valueOf(client.effectivePerPage(config.getPerPage())));
-            ApibaraVehiclesPage response = client.searchVehiclesPage(params);
-
-            List<AuctionLot> page = new ArrayList<>();
-            int skippedType = 0;
-            for (JsonNode node : response.vehicles()) {
-                ApibaraResponse.Vehicle v = toVehicle(node);
-                // API filters make/model; we enforce the year range here
-                if (v == null || !target.matchesYear(v.year())) continue;
-                // Trucks, trailers, ATVs, ... even if the request's filter let them through
-                if (!config.getVehicleTypes().includes(v.type())) {
-                    skippedType++;
-                    continue;
-                }
-                AuctionLot lot = toLot(v);
-                if (lot != null) {
-                    lot.setRawData(node.toString());
-                    page.add(lot);
-                }
+        int skippedType = 0;
+        for (JsonNode node : vehicles) {
+            ApibaraResponse.Vehicle v = toVehicle(node);
+            if (v == null) continue;
+            // Trucks, trailers, ATVs, ... even if the request's filter let them through
+            if (!config.getVehicleTypes().includes(v.type())) {
+                skippedType++;
+                continue;
             }
-            log.info("Target {} {} [{}-{}]: {} fetched, {} kept after year filter, skipped_type={}",
-                target.getMake(), target.getModel(),
-                target.getYearFrom(), target.getYearTo(), response.vehicles().size(), page.size(), skippedType);
-            if (!page.isEmpty()) {
-                pageConsumer.accept(page);
+            AuctionLot lot = toLot(v);
+            if (lot != null) {
+                lot.setRawData(node.toString());
+                lots.add(lot);
             }
         }
+        return new MappedPage(lots, skippedType);
     }
 
     private ApibaraResponse.Vehicle toVehicle(JsonNode node) {
@@ -108,14 +64,6 @@ public class ApibaraAuctionParser implements AuctionParser {
             log.debug("Skipping unmappable Apibara vehicle: {}", e.getMessage());
             return null;
         }
-    }
-
-    @Override
-    public AuctionLot parseLotDetail(String lotNumber) {
-        // Optional: implement a by-lot lookup if you need single-lot refresh.
-        // Apibara supports lookup by lot_number; add a client method when needed.
-        log.debug("parseLotDetail not implemented for Apibara parser (lot {})", lotNumber);
-        return null;
     }
 
     /** Maps an Apibara vehicle to your AuctionLot entity, guarding every nullable field. */
@@ -174,11 +122,12 @@ public class ApibaraAuctionParser implements AuctionParser {
      * Status, end time, sale date and final price from the auction's outcome, not from {@code state}: state is
      * "open" or "finished" whether the car sold or not, and "timed" is an auction mode, not a result.
      * <ul>
-     *   <li>{@code lot_removed} → REMOVED;</li>
+     *   <li>{@code lot_removed} → REMOVED, unless the outcome is Sold: a Buy Now sale also removes the lot;</li>
      *   <li>not ended → LIVE (an open lot's {@code last_sold_status} may belong to an earlier listing);</li>
      *   <li>ended: {@code outcome_status} (older records: {@code last_sold_status}) Sold → SOLD with
-     *   {@code sale_price_usd}, Not Sold → UNSOLD, Removed → REMOVED; anything else, "Sold on Approval" included
-     *   (the seller can still refuse), → EXPIRED, i.e. ended without a final result, until the result comes.</li>
+     *   {@code sale_price_usd}, Not Sold → UNSOLD, Removed → REMOVED; "Sold on Approval" (the seller can still
+     *   refuse) → EXPIRED with the approval price in sold_price, because the confirming /changes event usually
+     *   carries no price; anything else → EXPIRED, i.e. ended without a final result, until the result comes.</li>
      * </ul>
      */
     private void applyOutcome(AuctionLot.AuctionLotBuilder b, ApibaraResponse.Vehicle v) {
@@ -187,28 +136,37 @@ public class ApibaraAuctionParser implements AuctionParser {
             b.status(AuctionLot.LotStatus.LIVE);
             return;
         }
-        if (Boolean.TRUE.equals(auction.lotRemoved())) {
+        String outcome = auction.outcomeStatus() != null ? auction.outcomeStatus() : auction.lastSoldStatus();
+        outcome = outcome == null ? "" : outcome.trim().toLowerCase(Locale.ROOT);
+        boolean removed = Boolean.TRUE.equals(auction.lotRemoved());
+        if (removed && !outcome.equals("sold")) {
             b.status(AuctionLot.LotStatus.REMOVED);
             return;
         }
-        if (!isEnded(auction)) {
+        if (!removed && !isEnded(auction)) {
             b.status(AuctionLot.LotStatus.LIVE);
             return;
         }
         b.endedAt(firstDate(auction.auctionEndedAt(), auction.lastSoldAt(), auction.auctionAt()));
-        String outcome = auction.outcomeStatus() != null ? auction.outcomeStatus() : auction.lastSoldStatus();
-        switch (outcome == null ? "" : outcome.trim().toLowerCase(Locale.ROOT)) {
+        switch (outcome) {
             case "sold" -> {
                 b.status(AuctionLot.LotStatus.SOLD);
-                if (v.pricing() != null) {
-                    b.soldPrice(v.pricing().salePriceUsd() != null ? v.pricing().salePriceUsd() : v.pricing().lastSoldPriceUsd());
-                }
+                b.soldPrice(salePrice(v.pricing()));
                 b.saleDate(saleDate(auction));
             }
             case "not sold" -> b.status(AuctionLot.LotStatus.UNSOLD);
             case "removed" -> b.status(AuctionLot.LotStatus.REMOVED);
+            case "sold on approval" -> {
+                b.status(AuctionLot.LotStatus.EXPIRED);
+                b.soldPrice(salePrice(v.pricing()));
+            }
             default -> b.status(AuctionLot.LotStatus.EXPIRED);
         }
+    }
+
+    private static java.math.BigDecimal salePrice(ApibaraResponse.Pricing pricing) {
+        if (pricing == null) return null;
+        return pricing.salePriceUsd() != null ? pricing.salePriceUsd() : pricing.lastSoldPriceUsd();
     }
 
     /** auction_ended_at is set only for a past auction; older records only say "finished" */

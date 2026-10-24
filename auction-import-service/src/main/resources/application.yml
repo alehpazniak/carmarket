@@ -93,22 +93,31 @@ eureka:
 apibara:
   base-url: https://apibara.tech
   api-key: ${APIBARA_API_KEY:}      # from .env / env var, NEVER commit
-  per-page: 40                      # Apibara caps it by plan (20/30/40, X-Per-Page-Limit); the client uses the smaller
-  targets: []
-    # добавляй новые модели здесь — код не трогаешь:
-    # - make: Toyota
-    #   model: RAV4
-    #   year-from: 2019
-    #   year-to: 2022
+  per-page: 20                      # Test…Pro plans: 20 (Basic too); the client also caps it by X-Per-Page-Limit
   vehicle-types:
     # Apibara Vehicle.type values the sync keeps (docs/tasks/auction-feed-sync.md, Findings F2): cars, SUVs, vans,
     # motorcycles and pickups. Everything else is skipped (ATV, DIRT BIKE, TRUCK = IAAI commercial trucks, trailers,
     # RVs, buses, boats, equipment, OTHER, ...). Records without a type are kept.
     include: [SEDAN, AUTOMOBILE, COUPE, SUV, VAN, MOTORCYCLE, PICKUP]
-
-parser:
+  # Feed sync (docs/tasks/auction-feed-rollout.md, Sizing). Every run: outcomes (GET /changes?terminal=1, 500 events
+  # per request) first, then the auction days today … today+days-ahead (GET /vehicles, 20 lots per request, soonest
+  # auction first; an unfinished pass resumes from its cursor in the next run).
+  # Free plan (100 requests/month, until 31 Oct 2026): one run a day at 08:00, budget 60 → 60/8 ≈ 7 requests on
+  # 24 Oct, i.e. 1–2 outcome pages + ~120 lots of today. A weekday has 12,000–18,500 lots (~600–925 requests).
+  # Basic (30,000/month from 1 Nov): monthly-budget 22000 (≈ 730/day), keep-remaining 1000, run-every-minutes 30,
+  # days-ahead 1, year-from 2012 → one pass per auction day the day before (Sizing).
   sync:
-    interval: 3600000   # 1 hour — free tier = 100 req/month, so DON'T poll every 5 min
+    enabled: ${APIBARA_SYNC_ENABLED:false}        # off by default: IntelliJ restarts must not spend quota
+    zone: Europe/Warsaw
+    active-hours: "07:00-23:00"                   # no scheduled run starts outside; a manual run ignores it
+    daily-start: "08:00"                          # first (and with run-every-minutes 0 the only) run of the day
+    run-every-minutes: 0                          # 0 = one scheduled run a day
+    monthly-budget: ${APIBARA_SYNC_MONTHLY_BUDGET:30}
+    keep-remaining: ${APIBARA_KEEP_REMAINING:15}
+    days-ahead: 0                                 # today only for now
+    refresh-hours: { today: 4, tomorrow: 12, later: 24 }
+    year-from:                                    # empty = no year filter (Basic: 2012, Sizing)
+    changes-limit: 500
 
 management:
   endpoints:

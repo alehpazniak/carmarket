@@ -234,6 +234,47 @@ class AuctionLotServiceTest {
             Integer.class)).isEqualTo(2);
     }
 
+    private static com.carmarket.auction.sync.LotOutcome outcome(String lotNumber, AuctionLot.LotStatus status, String price) {
+        return new com.carmarket.auction.sync.LotOutcome(AuctionLot.AuctionSource.COPART, lotNumber, status,
+            price == null ? null : new BigDecimal(price), null, null);
+    }
+
+    @Test
+    void aConfirmedSaleKeepsTheApprovalPriceAndOtherLotsAreIgnored() {
+        AuctionLot onApproval = lot(AuctionLot.AuctionSource.COPART, "1");
+        onApproval.setStatus(AuctionLot.LotStatus.EXPIRED);
+        onApproval.setSoldPrice(new BigDecimal("6500"));
+        service.saveOrUpdateLots(List.of(onApproval));
+        clearInvocations(kafkaTemplate);
+
+        int changed = service.applyOutcomes(List.of(
+            outcome("1", AuctionLot.LotStatus.SOLD, null),
+            outcome("not-stored", AuctionLot.LotStatus.SOLD, "900")));
+
+        assertThat(changed).isEqualTo(1);
+        assertThat(repository.count()).isEqualTo(1);
+        assertThat(stored("1").getStatus()).isEqualTo(AuctionLot.LotStatus.SOLD);
+        assertThat(stored("1").getSoldPrice()).isEqualByComparingTo("6500");
+        assertThat(stored("1").getEndedAt()).isEqualTo(Instant.parse("2026-08-07T14:00:00Z")); // the auction, as nothing better came
+        verify(kafkaTemplate, times(1)).send(eq("auction.lot.updated"), anyString(), any());
+
+        // the same event again changes nothing
+        assertThat(service.applyOutcomes(List.of(outcome("1", AuctionLot.LotStatus.SOLD, null)))).isZero();
+    }
+
+    @Test
+    void removedNeverReplacesAResultAndNotSoldDropsThePrice() {
+        service.saveOrUpdateLots(List.of(sold("1"), lot(AuctionLot.AuctionSource.COPART, "2")));
+
+        service.applyOutcomes(List.of(
+            outcome("1", AuctionLot.LotStatus.REMOVED, null),
+            outcome("2", AuctionLot.LotStatus.UNSOLD, null)));
+
+        assertThat(stored("1").getStatus()).isEqualTo(AuctionLot.LotStatus.SOLD);
+        assertThat(stored("2").getStatus()).isEqualTo(AuctionLot.LotStatus.UNSOLD);
+        assertThat(stored("2").getSoldPrice()).isNull();
+    }
+
     @Test
     void auctionDateIsStoredAsAnInstant() {
         AuctionLot warsaw = lot(AuctionLot.AuctionSource.COPART, "1");

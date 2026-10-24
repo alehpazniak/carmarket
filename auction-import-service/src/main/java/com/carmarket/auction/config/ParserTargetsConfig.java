@@ -8,8 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Which vehicles to pull from the auction API. Add entries under
- * apibara.targets in application.yaml to expand coverage — no code changes.
+ * The Apibara connection and which vehicle types the sync keeps (apibara.* in application.yml).
+ * The sync's schedule and budget are in {@link ApibaraSyncProperties} (apibara.sync.*).
  */
 @Component
 @ConfigurationProperties(prefix = "apibara")
@@ -18,8 +18,7 @@ public class ParserTargetsConfig {
 
     private String baseUrl = "https://apibara.tech";
     private String apiKey;
-    private int perPage = 40;
-    private List<Target> targets = new ArrayList<>();
+    private int perPage = 20;
     private VehicleTypes vehicleTypes = new VehicleTypes();
 
     /** Apibara Vehicle.type values the sync keeps (apibara.vehicle-types.include); see application.yml. */
@@ -34,18 +33,6 @@ public class ParserTargetsConfig {
         public boolean includes(String type) {
             return include.isEmpty() || type == null || type.isBlank()
                 || include.stream().anyMatch(t -> t.equalsIgnoreCase(type.trim()));
-        }
-    }
-
-    @Data
-    public static class Target {
-        private String make;
-        private String model;
-        private int yearFrom;
-        private int yearTo;
-
-        public boolean matchesYear(Integer year) {
-            return year != null && year >= yearFrom && year <= yearTo;
         }
     }
 }

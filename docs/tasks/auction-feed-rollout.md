@@ -200,8 +200,9 @@ Update `LotSyncSchedulerTest`, keep `FrontendJsonContractTest` green, and run `m
 
 ## Progress
 
-- [x] Stage A. Measure and size: see **Sizing** below; 6 counted requests (24 → 30). **Waiting for your OK** on days-ahead 1, `year-from: 2012`, the work order and the Stage B consequences.
-- [ ] Stage B. Feed sync within the active window
+- [x] Stage A. Measure and size: see **Sizing** below; 6 counted requests (24 → 30). Not waited for: on 24 Oct you asked to start syncing on the free plan at once (one run a day at 08:00, days-ahead 0); the Basic proposals (days-ahead 1, `year-from: 2012`, tomorrow before today) are still open.
+- [x] Stage B. Feed sync within the active window
+  - `FeedSyncService` (outcomes via `/changes?terminal=1` from the newest event, then today … days-ahead by cursor passes, resumable), `SyncBudget` (pacing), `SyncLock` (`pg_try_advisory_lock`), `LotSyncScheduler` (minute check, one SCHEDULED run per slot from `daily-start` 08:00, `run-every-minutes: 0` = once a day; restarts don't repeat it, a late start catches it up), **V9**, `apibara.targets`/`parser.sync.interval` removed, Sizing fixes (approval price kept, sold beats removed), admin status `feed`. Free plan: `APIBARA_SYNC_*` in compose and `.env.example`.
 - [ ] Stage C. Listing: Dziś / Jutro / Wszystkie
 - [ ] Stage D. Lot page: synced bid, refresh, Copart/IAAI link, ended lots
 - [ ] Stage E. Retention, local database, switch checklist, docs

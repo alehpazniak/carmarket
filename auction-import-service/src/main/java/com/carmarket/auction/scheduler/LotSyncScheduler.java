@@ -1,33 +1,42 @@
 package com.carmarket.auction.scheduler;
 
-import com.carmarket.auction.client.ApibaraQuota;
 import com.carmarket.auction.client.ApibaraQuotaTracker;
-import com.carmarket.auction.entity.SyncRun;
-import com.carmarket.auction.parser.AuctionParser;
+import com.carmarket.auction.config.ApibaraSyncProperties;
 import com.carmarket.auction.repository.SyncRunRepository;
-import com.carmarket.auction.service.AuctionLotService;
+import com.carmarket.auction.sync.FeedSyncService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.time.Clock;
 import java.time.Instant;
-import java.util.List;
+import java.time.LocalTime;
+import java.time.ZonedDateTime;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Pulls live lots from every parser, on a schedule or when an admin asks (POST /api/auctions/admin/sync).
- * Only one sync runs at a time; each parser run is recorded in sync_runs for the admin status page.
+ * Starts the feed sync (FeedSyncService) on its schedule, or when an admin asks (POST /api/auctions/admin/sync).
+ * <p>Scheduled runs: slots at apibara.sync.daily-start, then every run-every-minutes (0 = only that one) until the
+ * end of the active hours. A minute-by-minute check starts a slot's run once now is past the slot, still inside the
+ * active hours, and no SCHEDULED run was recorded since the slot. So a restart the same day doesn't run it again,
+ * and a start after 08:00 runs it only if today's run hasn't happened yet. Nothing starts while disabled or while
+ * Apibara's Retry-After lasts (that doesn't use up the slot). A manual run ignores the slots and the active hours;
+ * the budget still applies (FeedSyncService).
  */
 @Slf4j
 @Component
 public class LotSyncScheduler {
 
-    private final List<AuctionParser> parsers;
-    private final AuctionLotService lotService;
+    static final String SCHEDULED = "SCHEDULED";
+
+    private final FeedSyncService feedSync;
     private final SyncRunRepository runs;
+    private final ApibaraSyncProperties props;
     private final ApibaraQuotaTracker quotaTracker;
+    private final Clock clock;
     private final AtomicBoolean running = new AtomicBoolean(false);
     private final ExecutorService manualRuns = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "manual-lot-sync");
@@ -35,25 +44,53 @@ public class LotSyncScheduler {
         return t;
     });
 
-    public LotSyncScheduler(List<AuctionParser> parsers, AuctionLotService lotService, SyncRunRepository runs,
-                            ApibaraQuotaTracker quotaTracker) {
-        this.parsers = parsers;
-        this.lotService = lotService;
+    public LotSyncScheduler(FeedSyncService feedSync, SyncRunRepository runs, ApibaraSyncProperties props,
+                            ApibaraQuotaTracker quotaTracker, Clock clock) {
+        this.feedSync = feedSync;
         this.runs = runs;
+        this.props = props;
         this.quotaTracker = quotaTracker;
+        this.clock = clock;
     }
 
-    @Scheduled(fixedDelayString = "${parser.sync.interval:300000}") // default 5 min
-    public void syncAllSources() {
+    /** Cheap when nothing is due: one indexed EXISTS on sync_runs. */
+    @Scheduled(cron = "0 * * * * *")
+    public void tick() {
+        if (!props.isEnabled()) {
+            return;
+        }
+        Optional<Instant> slot = dueSlot();
+        if (slot.isEmpty() || runs.existsByParserAndTriggerAndStartedAtGreaterThanEqual(FeedSyncService.PARSER, SCHEDULED, slot.get())) {
+            return;
+        }
+        Instant retryNotBefore = quotaTracker.retryNotBefore();
+        if (retryNotBefore != null && clock.instant().isBefore(retryNotBefore)) {
+            return;
+        }
         if (!running.compareAndSet(false, true)) {
-            log.info("Scheduled lot sync skipped: a sync is already running");
             return;
         }
         try {
-            runAll("SCHEDULED");
+            feedSync.run(SCHEDULED);
         } finally {
             running.set(false);
         }
+    }
+
+    /** The latest slot of today that has begun, if now is inside the active hours. */
+    Optional<Instant> dueSlot() {
+        ZonedDateTime now = clock.instant().atZone(props.getZone());
+        LocalTime time = now.toLocalTime();
+        if (!props.isActive(time) || time.isBefore(props.getDailyStart())) {
+            return Optional.empty();
+        }
+        LocalTime slot = props.getDailyStart();
+        int every = props.getRunEveryMinutes();
+        if (every > 0) {
+            long minutesSinceStart = java.time.Duration.between(props.getDailyStart(), time).toMinutes();
+            slot = props.getDailyStart().plusMinutes(minutesSinceStart / every * every);
+        }
+        return Optional.of(now.with(slot).withSecond(0).withNano(0).toInstant());
     }
 
     /** Starts a sync in the background; false when one is already running (the caller answers 409). */
@@ -64,7 +101,7 @@ public class LotSyncScheduler {
         try {
             manualRuns.execute(() -> {
                 try {
-                    runAll("MANUAL");
+                    feedSync.run("MANUAL");
                 } finally {
                     running.set(false);
                 }
@@ -78,46 +115,5 @@ public class LotSyncScheduler {
 
     public boolean isRunning() {
         return running.get();
-    }
-
-    void runAll(String trigger) {
-        for (AuctionParser parser : parsers) {
-            String name = parser.getClass().getSimpleName();
-            SyncRun run = runs.save(SyncRun.start(name, trigger));
-            long requestsBefore = quotaTracker.requestsSent();
-            int[] fetched = {0};
-            AuctionLotService.SyncCounts[] counts = {new AuctionLotService.SyncCounts(0, 0)};
-            try {
-                log.info("Starting {} sync for {}", trigger.toLowerCase(), name);
-                // one transaction per response page, upserted before the next request: a failure keeps the earlier pages
-                parser.forEachLiveLotPage(page -> {
-                    counts[0] = counts[0].plus(lotService.saveOrUpdateLots(page));
-                    fetched[0] += page.size();
-                });
-                log.info("Synced {} lots from {} ({} new, {} updated)", fetched[0], name, counts[0].added(), counts[0].updated());
-            } catch (Exception e) {
-                log.error("Sync failed for {}", name, e);
-                String message = e.getClass().getSimpleName() + (e.getMessage() != null ? ": " + e.getMessage() : "");
-                run.setError(message.length() > 1000 ? message.substring(0, 1000) : message);
-            }
-            run.setLotsFetched(fetched[0]);
-            run.setLotsAdded(counts[0].added());
-            run.setLotsUpdated(counts[0].updated());
-            run.setApiRequests((int) (quotaTracker.requestsSent() - requestsBefore));
-            quotaTracker.latest()
-                .filter(q -> q.observedAt() != null && !q.observedAt().isBefore(run.getStartedAt()))
-                .ifPresent(q -> applyQuota(run, q));
-            run.setFinishedAt(Instant.now());
-            runs.save(run);
-        }
-    }
-
-    private static void applyQuota(SyncRun run, ApibaraQuota quota) {
-        run.setQuotaLimit(quota.limit());
-        run.setQuotaUsed(quota.used());
-        run.setQuotaRemaining(quota.remaining());
-        run.setQuotaPeriodStart(quota.periodStart());
-        run.setQuotaPeriodEnd(quota.periodEnd());
-        run.setQuotaObservedAt(quota.observedAt());
     }
 }
