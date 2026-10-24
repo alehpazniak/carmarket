@@ -4,6 +4,7 @@ import com.carmarket.auction.client.ApibaraResponse;
 import com.carmarket.auction.client.ApibaraShippingResponse;
 import com.carmarket.auction.dto.CalculationRequest;
 import com.carmarket.auction.dto.ImportCalculationResponse;
+import com.carmarket.auction.dto.LotFacetsResponse;
 import com.carmarket.auction.dto.MaxBidRequest;
 import com.carmarket.auction.dto.MaxBidResponse;
 import com.carmarket.auction.entity.W8Auction;
@@ -60,6 +61,19 @@ class FrontendJsonContractTest {
         assertThat(json.path("auctionDate").asText()).isEqualTo("2026-10-01T14:00:00Z");
         assertThat(json.has("rawData")).isFalse();
         assertThat(json.has("contentHash")).isFalse();
+    }
+
+    @Test
+    void lotFacetsAreCamelCase() throws Exception {
+        JsonNode make = toJson(LotFacetsResponse.from(List.of(
+            new LotFacetsResponse.Row("TOYOTA", "RAV4", 7L), new LotFacetsResponse.Row("TOYOTA", "CAMRY", 5L))))
+            .path("makes").get(0);
+
+        assertThat(make.path("make").asText()).isEqualTo("TOYOTA");
+        assertThat(make.path("count").asLong()).isEqualTo(12);
+        assertThat(make.path("models").get(0).path("model").asText()).isEqualTo("CAMRY");
+        assertThat(make.path("models").get(0).path("count").asLong()).isEqualTo(5);
+        assertThat(make.path("models").get(1).path("model").asText()).isEqualTo("RAV4");
     }
 
     @Test

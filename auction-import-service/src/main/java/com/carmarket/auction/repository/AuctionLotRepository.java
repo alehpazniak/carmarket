@@ -1,5 +1,6 @@
 package com.carmarket.auction.repository;
 
+import com.carmarket.auction.dto.LotFacetsResponse;
 import com.carmarket.auction.entity.AuctionLot;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,11 +38,21 @@ public interface  AuctionLotRepository extends JpaRepository<AuctionLot, UUID> {
         @Param("damageType") String damageType
     );
 
-    @Query("""
-        SELECT a FROM AuctionLot a
-        WHERE a.status = 'LIVE'
-        AND (:make IS NULL OR a.make = :make)
-        AND (:modelPattern IS NULL OR LOWER(a.model) LIKE :modelPattern)
+    /**
+     * Which lots the public listing shows, on alias {@code a}. Shared by {@link #searchLiveLots} and
+     * {@link #findFacetRows} so the dropdown counts always match the listing.
+     */
+    String LISTED = "a.status = 'LIVE'";
+
+    /**
+     * {@code make}/{@code model} are exact, case-insensitive matches: the caller passes them already trimmed and
+     * upper-cased (or null). Never wrap a parameter in a function here: a null parameter inside UPPER()/CONCAT()
+     * is mis-typed as bytea by the Postgres driver.
+     */
+    @Query("SELECT a FROM AuctionLot a WHERE " + LISTED + """
+
+        AND (:make IS NULL OR UPPER(TRIM(a.make)) = :make)
+        AND (:model IS NULL OR UPPER(TRIM(a.model)) = :model)
         AND (:yearFrom IS NULL OR a.year >= :yearFrom)
         AND (:yearTo IS NULL OR a.year <= :yearTo)
         AND (:priceFrom IS NULL OR a.auctionPrice >= :priceFrom)
@@ -50,7 +61,7 @@ public interface  AuctionLotRepository extends JpaRepository<AuctionLot, UUID> {
         """)
     Page<AuctionLot> searchLiveLots(
         @Param("make") String make,
-        @Param("modelPattern") String modelPattern,
+        @Param("model") String model,
         @Param("yearFrom") Integer yearFrom,
         @Param("yearTo") Integer yearTo,
         @Param("priceFrom") BigDecimal priceFrom,
@@ -58,4 +69,10 @@ public interface  AuctionLotRepository extends JpaRepository<AuctionLot, UUID> {
         @Param("damageType") String damageType,
         Pageable pageable
     );
+
+    /** Listed lots per normalized make/model, grouped the same way {@link #searchLiveLots} matches. */
+    @Query("SELECT new com.carmarket.auction.dto.LotFacetsResponse$Row(UPPER(TRIM(a.make)), UPPER(TRIM(a.model)), COUNT(a))"
+        + " FROM AuctionLot a WHERE " + LISTED
+        + " GROUP BY UPPER(TRIM(a.make)), UPPER(TRIM(a.model))")
+    List<LotFacetsResponse.Row> findFacetRows();
 }

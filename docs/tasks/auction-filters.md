@@ -76,5 +76,6 @@ List what I should check by hand in the browser (`npm run dev`) on desktop and m
 
 - [x] Stage 1. Shared year dropdowns
   - `src/utils/years.ts` (`yearOptions`, pure, next year → oldest); "Rok od"/"Rok do" are `<select>`s on Home (1900, string state, request unchanged) and `/aukcje` (1990), each list limited by the other so an inverted range can't be picked.
-- [ ] Stage 2. Facets endpoint and exact make/model filter
+- [x] Stage 2. Facets endpoint and exact make/model filter
+  - `GET /api/auctions/lots/facets` (`LotFacetsResponse`, one grouped JPQL query, blank models count towards the make but get no facet); `/lots` make/model are exact `UPPER(TRIM())` matches, normalized in the controller; visibility in `AuctionLotRepository.LISTED`; tests `AuctionLotFacetsRepositoryTest`, `AuctionLotControllerTest`, `FrontendJsonContractTest`; `auction-lots-sync.md` stages 4 and 5 updated.
 - [ ] Stage 3. Make/model dropdowns on `/aukcje`
