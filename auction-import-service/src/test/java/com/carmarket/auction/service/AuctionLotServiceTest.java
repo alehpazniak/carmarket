@@ -1,6 +1,7 @@
 package com.carmarket.auction.service;
 
 import com.carmarket.auction.dto.AuctionLotChangedEvent;
+import com.carmarket.auction.config.ClockConfig;
 import com.carmarket.auction.entity.AuctionLot;
 import com.carmarket.auction.repository.AuctionLotRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +46,7 @@ import static org.mockito.Mockito.verify;
  */
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=validate")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({AuctionLotService.class, AuctionLotEventPublisher.class})
+@Import({AuctionLotService.class, AuctionLotEventPublisher.class, ClockConfig.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @Testcontainers
 class AuctionLotServiceTest {
@@ -162,6 +163,75 @@ class AuctionLotServiceTest {
 
         assertThat(repository.count()).isZero();
         verify(kafkaTemplate, never()).send(anyString(), anyString(), any());
+    }
+
+    private AuctionLot stored(String lotNumber) {
+        return repository.findByLotNumberAndSource(lotNumber, AuctionLot.AuctionSource.COPART).orElseThrow();
+    }
+
+    private static AuctionLot sold(String lotNumber) {
+        AuctionLot lot = lot(AuctionLot.AuctionSource.COPART, lotNumber);
+        lot.setStatus(AuctionLot.LotStatus.SOLD);
+        lot.setSoldPrice(new BigDecimal("7900"));
+        lot.setEndedAt(Instant.parse("2026-08-07T15:00:00Z"));
+        lot.setVehicleType("AUTOMOBILE");
+        return lot;
+    }
+
+    @Test
+    void aFinalResultIsNotRevertedByAnOlderRecord() {
+        service.saveOrUpdateLots(List.of(sold("1")));
+
+        // the same auction again as open (a stale page), or ended without a result: SOLD stays
+        service.saveOrUpdateLots(List.of(lot(AuctionLot.AuctionSource.COPART, "1")));
+        AuctionLot noResult = lot(AuctionLot.AuctionSource.COPART, "1");
+        noResult.setStatus(AuctionLot.LotStatus.EXPIRED);
+        service.saveOrUpdateLots(List.of(noResult));
+
+        assertThat(stored("1").getStatus()).isEqualTo(AuctionLot.LotStatus.SOLD);
+        assertThat(stored("1").getSoldPrice()).isEqualByComparingTo("7900");
+        assertThat(stored("1").getVehicleType()).isEqualTo("AUTOMOBILE");
+    }
+
+    @Test
+    void aRelistedLotTakesTheFeedsState() {
+        service.saveOrUpdateLots(List.of(sold("1")));
+
+        AuctionLot relisted = lot(AuctionLot.AuctionSource.COPART, "1");
+        relisted.setAuctionDate(Instant.parse("2026-09-01T14:00:00Z"));
+        service.saveOrUpdateLots(List.of(relisted));
+
+        assertThat(stored("1").getStatus()).isEqualTo(AuctionLot.LotStatus.LIVE);
+        assertThat(stored("1").getSoldPrice()).isNull();
+        assertThat(stored("1").getEndedAt()).isNull();
+    }
+
+    @Test
+    void theFeedReplacesExpiredAndASaleThatFellThrough() {
+        AuctionLot expired = lot(AuctionLot.AuctionSource.COPART, "1");
+        expired.setStatus(AuctionLot.LotStatus.EXPIRED);
+        service.saveOrUpdateLots(List.of(expired));
+
+        service.saveOrUpdateLots(List.of(sold("1")));
+        assertThat(stored("1").getStatus()).isEqualTo(AuctionLot.LotStatus.SOLD);
+
+        AuctionLot fellThrough = sold("1");
+        fellThrough.setStatus(AuctionLot.LotStatus.UNSOLD);
+        fellThrough.setSoldPrice(null);
+        service.saveOrUpdateLots(List.of(fellThrough));
+        assertThat(stored("1").getStatus()).isEqualTo(AuctionLot.LotStatus.UNSOLD);
+    }
+
+    @Test
+    void everyLotOfAPageIsMarkedSeenEvenWhenUnchanged() {
+        service.saveOrUpdateLots(List.of(lot(AuctionLot.AuctionSource.COPART, "1")));
+        jdbc.update("UPDATE auction_lots SET last_seen_at = TIMESTAMPTZ '2026-01-01 00:00:00+00'");
+
+        assertThat(service.saveOrUpdateLots(List.of(lot(AuctionLot.AuctionSource.COPART, "1"), lot(AuctionLot.AuctionSource.COPART, "2"))))
+            .isEqualTo(new AuctionLotService.SyncCounts(1, 0));
+
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM auction_lots WHERE last_seen_at > TIMESTAMPTZ '2026-01-01 00:00:00+00'",
+            Integer.class)).isEqualTo(2);
     }
 
     @Test

@@ -33,19 +33,34 @@ public record ApibaraResponse(List<Vehicle> data, Meta meta) {
         Location location,
         Condition condition,
         Odometer odometer,
-        Media media
+        Media media,
+        String type, // vehicle type, e.g. AUTOMOBILE, PICKUP; null on some records
+        @JsonProperty("vehicle_specs") VehicleSpecs vehicleSpecs
     ) {}
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record VehicleSpecs(@JsonProperty("body_style") String bodyStyle) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Auction(
         String state,
-        @JsonProperty("auction_at") String auctionAt
+        @JsonProperty("auction_at") String auctionAt,
+        // Outcome of an ended lot: Sold, Sold on Approval, Not Sold, Removed or null; older records only
+        // carry last_sold_status
+        @JsonProperty("outcome_status") String outcomeStatus,
+        @JsonProperty("last_sold_status") String lastSoldStatus,
+        @JsonProperty("last_sold_at") String lastSoldAt,
+        @JsonProperty("last_sold_day") String lastSoldDay,
+        @JsonProperty("auction_ended_at") String auctionEndedAt,
+        @JsonProperty("lot_removed") Boolean lotRemoved
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Pricing(
         @JsonProperty("current_bid_usd") java.math.BigDecimal currentBidUsd,
-        @JsonProperty("buy_now_usd") java.math.BigDecimal buyNowUsd
+        @JsonProperty("buy_now_usd") java.math.BigDecimal buyNowUsd,
+        @JsonProperty("sale_price_usd") java.math.BigDecimal salePriceUsd,
+        @JsonProperty("last_sold_price_usd") java.math.BigDecimal lastSoldPriceUsd
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)

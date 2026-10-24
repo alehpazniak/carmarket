@@ -49,6 +49,7 @@ class FrontendJsonContractTest {
             .auctionLocation("CA").saleDate(LocalDateTime.of(2026, 10, 1, 12, 0))
             .auctionDate(Instant.parse("2026-10-01T14:00:00Z"))
             .rawData("{\"lot_number\":\"45008746\"}").contentHash("abc")
+            .vehicleType("AUTOMOBILE").soldPrice(new BigDecimal("7900")).lastSeenAt(Instant.parse("2026-10-01T15:00:00Z"))
             .build();
 
         JsonNode json = toJson(lot);
@@ -57,10 +58,13 @@ class FrontendJsonContractTest {
         assertThat(json.path("auctionLocation").asText()).isEqualTo("CA");
         assertThat(json.path("saleDate").asText()).startsWith("2026-10-01T12:00");
         assertThat(json.has("lot_number")).isFalse();
+        assertThat(json.path("vehicleType").asText()).isEqualTo("AUTOMOBILE");
+        assertThat(json.path("soldPrice").decimalValue()).isEqualByComparingTo("7900");
         // ISO in UTC; the frontend converts to Europe/Warsaw
         assertThat(json.path("auctionDate").asText()).isEqualTo("2026-10-01T14:00:00Z");
         assertThat(json.has("rawData")).isFalse();
         assertThat(json.has("contentHash")).isFalse();
+        assertThat(json.has("lastSeenAt")).isFalse();
     }
 
     @Test
@@ -80,14 +84,16 @@ class FrontendJsonContractTest {
     void apibaraVehicleIsSnakeCase() throws Exception {
         ApibaraResponse.Vehicle vehicle = new ApibaraResponse.Vehicle(
             "copart", "45008746", "JTNABAAE4PA006723", "2023 TOYOTA GR COROLLA", 2023, "TOYOTA", "COROLLA",
-            new ApibaraResponse.Auction("upcoming", "2026-10-01T12:00:00Z"),
-            new ApibaraResponse.Pricing(new BigDecimal("1500"), null),
+            new ApibaraResponse.Auction("upcoming", "2026-10-01T12:00:00Z", null, null, null, null, null, null),
+            new ApibaraResponse.Pricing(new BigDecimal("1500"), null, null, null),
             new ApibaraResponse.Location("Sacramento (CA)", "CA"),
             new ApibaraResponse.Condition("FRONT END", true),
             new ApibaraResponse.Odometer(12000),
-            new ApibaraResponse.Media(12, false, List.of("https://example.com/1.jpg")));
+            new ApibaraResponse.Media(12, false, List.of("https://example.com/1.jpg")),
+            "AUTOMOBILE", new ApibaraResponse.VehicleSpecs("Sedan"));
 
         JsonNode json = toJson(vehicle);
+        assertThat(json.path("vehicle_specs").path("body_style").asText()).isEqualTo("Sedan");
 
         assertThat(json.path("lot_number").asText()).isEqualTo("45008746");
         assertThat(json.path("pricing").path("current_bid_usd").decimalValue()).isEqualByComparingTo("1500");

@@ -10,8 +10,12 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -20,6 +24,7 @@ public class AuctionLotService {
 
     private final AuctionLotRepository repository;
     private final ApplicationEventPublisher events;
+    private final Clock clock;
 
     /** How many lots a sync added and updated (unchanged ones are neither). */
     public record SyncCounts(int added, int updated) {
@@ -31,10 +36,13 @@ public class AuctionLotService {
 
     /**
      * Upserts one response page by (source, lot_number) in one transaction. A lot is rewritten only when its
-     * content hash changed; auction.lot.updated goes out after commit (AuctionLotEventPublisher).
+     * content hash changed; auction.lot.updated goes out after commit (AuctionLotEventPublisher). Every lot of
+     * the page gets last_seen_at = now, unchanged ones through one UPDATE for the page.
      */
     @Transactional
     public SyncCounts saveOrUpdateLots(List<AuctionLot> lots) {
+        Instant now = clock.instant();
+        List<UUID> seen = new ArrayList<>();
         int added = 0;
         int updated = 0;
         for (AuctionLot lot : lots) {
@@ -44,7 +52,17 @@ public class AuctionLotService {
 
             if (existing.isPresent()) {
                 AuctionLot current = existing.get();
+                seen.add(current.getId());
+                if (keepsOutcome(current, lot)) {
+                    log.debug("Lot {} {} keeps {}; the feed sent an older {}", current.getSource(),
+                        current.getLotNumber(), current.getStatus(), lot.getStatus());
+                    continue;
+                }
                 if (!hash.equals(current.getContentHash())) {
+                    if (isFinal(current.getStatus()) && lot.getStatus() == AuctionLot.LotStatus.LIVE) {
+                        log.warn("Lot {} {} relisted: {} → LIVE (auction {})", current.getSource(),
+                            current.getLotNumber(), current.getStatus(), lot.getAuctionDate());
+                    }
                     updateLot(current, lot);
                     current.setContentHash(hash);
                     repository.save(current);
@@ -53,13 +71,34 @@ public class AuctionLotService {
                 }
             } else {
                 lot.setContentHash(hash);
+                lot.setLastSeenAt(now);
                 AuctionLot saved = repository.save(lot);
                 events.publishEvent(AuctionLotChangedEvent.of(saved, ChangeType.CREATED));
                 log.info("New lot indexed: {} {}", saved.getSource(), saved.getLotNumber());
                 added++;
             }
         }
+        if (!seen.isEmpty()) {
+            repository.markSeen(seen, now);
+        }
         return new SyncCounts(added, updated);
+    }
+
+    private static boolean isFinal(AuctionLot.LotStatus status) {
+        return status == AuctionLot.LotStatus.SOLD || status == AuctionLot.LotStatus.UNSOLD;
+    }
+
+    /**
+     * A final result (SOLD / UNSOLD) is replaced only by another final result (a sale falling through) or by a
+     * relisting: LIVE with an auction after the one that ended. An older LIVE record, "ended without result"
+     * (EXPIRED) or REMOVED leave it. Any status from the feed replaces EXPIRED, the expiry job's fallback.
+     */
+    private static boolean keepsOutcome(AuctionLot current, AuctionLot incoming) {
+        if (!isFinal(current.getStatus()) || isFinal(incoming.getStatus())) return false;
+        if (incoming.getStatus() != AuctionLot.LotStatus.LIVE) return true;
+        Instant ended = current.getEndedAt() != null ? current.getEndedAt() : current.getAuctionDate();
+        boolean relisted = incoming.getAuctionDate() != null && (ended == null || incoming.getAuctionDate().isAfter(ended));
+        return !relisted;
     }
 
     /** Copies every field a parser maps (the ones LotContentHash covers) plus the raw JSON. */
@@ -83,6 +122,10 @@ public class AuctionLotService {
         target.setAuctionDate(source.getAuctionDate());
         target.setSaleDate(source.getSaleDate());
         target.setStatus(source.getStatus());
+        target.setVehicleType(source.getVehicleType());
+        target.setBodyStyle(source.getBodyStyle());
+        target.setSoldPrice(source.getSoldPrice());
+        target.setEndedAt(source.getEndedAt());
         target.getImageUrls().clear();
         if (source.getImageUrls() != null) {
             target.getImageUrls().addAll(source.getImageUrls());
