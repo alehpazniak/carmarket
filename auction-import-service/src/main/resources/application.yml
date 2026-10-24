@@ -92,8 +92,8 @@ eureka:
 
 apibara:
   base-url: https://apibara.tech
-  api-key: ${APIBARA_API_KEY:ak_live_juGK5bzI5Re9eFdCxwaKvi6B1q7i5i0e4b6BbiWXFZtvX4oy}      # from .env / env var, NEVER commit
-  #  api-key: ${APIBARA_API_KEY:ak_live_vQlgCCdFx2whPdgX1qv5xrhbved26ZgWwWBn8G9hb2YczhxV}      # from .env / env var, NEVER commit
+#  api-key: ${APIBARA_API_KEY:ak_live_juGK5bzI5Re9eFdCxwaKvi6B1q7i5i0e4b6BbiWXFZtvX4oy}      # from .env / env var, NEVER commit
+  api-key: ${APIBARA_API_KEY:ak_live_vQlgCCdFx2whPdgX1qv5xrhbved26ZgWwWBn8G9hb2YczhxV}      # from .env / env var, NEVER commit
   per-page: 20                      # Test…Pro plans: 20 (Basic too); the client also caps it by X-Per-Page-Limit
   vehicle-types:
     # Apibara Vehicle.type values the sync keeps (docs/tasks/auction-feed-sync.md, Findings F2): cars, SUVs, vans,
