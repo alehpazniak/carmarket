@@ -90,7 +90,7 @@ Migration `V6__...` (don't touch V1–V5; `ddl-auto: validate`):
 
 ## Stage 4. The listing never calls the API
 
-- `searchLiveLots`: only `status = LIVE` and (`auction_date IS NULL` or `auction_date > now()`). Default sort `auction_date ASC NULLS LAST`. Allowed sorts, by whitelist: `auctionDate`, `createdAt`, `auctionPrice`, `year`.
+- `searchLiveLots`: only `status = LIVE` and (`auction_date IS NULL` or `auction_date > now()`). Put the date rule into `AuctionLotRepository.LISTED`, the fragment `searchLiveLots` and `findFacetRows` (`GET /lots/facets`) share, so the dropdown counts keep matching the listing (`AuctionLotFacetsRepositoryTest`); `now()` must be the same in both. Default sort `auction_date ASC NULLS LAST`. Allowed sorts, by whitelist: `auctionDate`, `createdAt`, `auctionPrice`, `year`.
 - `LotExpiryJob` (no API calls, every 15 minutes): LIVE with `auction_date < now() − 2h` → `EXPIRED`; LIVE with no date and `last_seen_at` older than 14 days → `EXPIRED`. Publish events for changed rows after commit, as in stage 1.
 - `GET /api/auctions/lots/meta` (public, like `/lots/**`): `{ lastSuccessfulSyncAt, liveLots }`.
 - Frontend `AuctionActions.tsx`: on page load call only `searchLots` and `meta`. Show "Zaktualizowano: …", the auction date on each card in Europe/Warsaw ("za 5 godz."), and a sort selector. The "Szybkie sprawdzenie w Apibara" block no longer renders on `/aukcje` (moved, unrendered, to `src/components/auctions/ApibaraQuickTools.tsx` by `docs/tasks/ui-cleanup.md`); don't bring it or `W8TransportCalculator` back to this page.
@@ -98,7 +98,7 @@ Migration `V6__...` (don't touch V1–V5; `ddl-auto: validate`):
 ## Stage 5. Redis cache for the listing
 
 - `auction-import-service` has no Redis and no `@EnableCaching` yet. Connect it to the shared `redis` from `docker-compose.yml`: `spring-boot-starter-data-redis`, `REDIS_HOST`/`REDIS_PASSWORD` in the service's compose block, like api-gateway and auth-service.
-- Cache only the responses of `GET /api/auctions/lots` and `/lots/meta`. Key: the normalized request parameters; TTL 10 minutes. `Page<T>` doesn't deserialize well from Redis, so cache and return your own record with the fields the frontend reads: `content`, `totalPages`, `totalElements`, `number`, `size`.
+- Cache only the responses of `GET /api/auctions/lots`, `/lots/meta` and `/lots/facets`, and evict all three together. Key: the normalized request parameters; TTL 10 minutes. `Page<T>` doesn't deserialize well from Redis, so cache and return your own record with the fields the frontend reads: `content`, `totalPages`, `totalElements`, `number`, `size`.
 - Invalidation: after a sync run or `LotExpiryJob` commits with at least one changed row, evict the whole listing cache. No need to keep Redis constantly refreshed.
 - Fail open: if Redis is down, a `CacheErrorHandler` logs a WARN and the request goes to the database (like the gateway's rate limiter). Flag `auction.lots-cache.enabled`, default `true`.
 

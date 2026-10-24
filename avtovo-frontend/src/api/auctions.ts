@@ -3,6 +3,7 @@ import api from './client';
 import type { Page } from '../types';
 import type {
     AuctionLot,
+    LotFacets,
     ImportCalculationResult,
     MaxBidRequest,
     MaxBidResult,
@@ -38,6 +39,10 @@ export interface LotSearchParams {
 // ── Synced lots (our DB, kept fresh by the scheduled Apibara sync) ──
 export const searchLots = (params: LotSearchParams = {}) =>
     api.get<Page<AuctionLot>>(`/api/auctions/lots?${toQuery(params)}`).then(r => r.data);
+
+/** Makes/models that currently have listed lots, with counts, for the /aukcje dropdowns. */
+export const getLotFacets = () =>
+    api.get<LotFacets>('/api/auctions/lots/facets').then(r => r.data);
 
 export const getLot = (id: string) =>
     api.get<AuctionLot>(`/api/auctions/lots/${id}`).then(r => r.data);

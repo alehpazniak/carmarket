@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { searchLots, type LotSearchParams } from '../api/auctions';
-import type { AuctionLot } from '../types/auctions';
+import { getLotFacets, searchLots, type LotSearchParams } from '../api/auctions';
+import type { AuctionLot, LotMakeFacet } from '../types/auctions';
+import { makeDisplayName, modelDisplayName } from '../utils/auctionNames';
 import AuctionLotCard from '../components/AuctionLotCard';
 import { useAuth } from '../context/AuthContext';
+import { OLDEST_YEAR_AUCTIONS, yearOptions } from '../utils/years';
 import { Search, ClipboardList } from 'lucide-react';
 
 const hasFilters = (params: LotSearchParams) =>
@@ -18,9 +20,12 @@ export default function AuctionActions() {
     const [filters, setFilters] = useState<LotSearchParams>({});
     // Filters of the list on screen (not the unsubmitted form), for the empty-state message
     const [appliedFilters, setAppliedFilters] = useState<LotSearchParams>({});
+    const [facets, setFacets] = useState<LotMakeFacet[]>([]);
+    const [facetsLoaded, setFacetsLoaded] = useState(false);
     const navigate = useNavigate();
     const { hasRole } = useAuth();
     const isDealer = hasRole('DEALER') || hasRole('ADMIN');
+    const years = yearOptions(OLDEST_YEAR_AUCTIONS);
 
     // `loading` starts as true, so the initial load doesn't need to set it
     const loadLots = (params: LotSearchParams, targetPage = 0) => {
@@ -40,7 +45,16 @@ export default function AuctionActions() {
         loadLots(params, targetPage);
     };
 
-    useEffect(() => { loadLots({}); }, []);
+    useEffect(() => {
+        loadLots({});
+        // Independent of the list: if this fails, the dropdowns only offer "any" and the list still works
+        getLotFacets()
+            .then(res => { setFacets(res.makes); setFacetsLoaded(true); })
+            .catch(console.error);
+    }, []);
+
+    const selectedMake = facets.find(m => m.make === filters.make);
+    const noLots = facetsLoaded && facets.length === 0;
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -67,32 +81,44 @@ export default function AuctionActions() {
 
                 {/* Filters */}
                 <form onSubmit={handleSearch} className="bg-avtovo-card border border-avtovo-border rounded-xl p-4 grid grid-cols-2 sm:grid-cols-5 gap-3">
-                    <input
-                        placeholder="Marka"
+                    <select
                         value={filters.make ?? ''}
-                        onChange={e => setFilters(f => ({ ...f, make: e.target.value || undefined }))}
-                        className="bg-avtovo-bg border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
-                    />
-                    <input
-                        placeholder="Model"
+                        onChange={e => setFilters(f => ({ ...f, make: e.target.value || undefined, model: undefined }))}
+                        disabled={noLots}
+                        className="bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <option value="">Wszystkie marki</option>
+                        {facets.map(m => (
+                            <option key={m.make} value={m.make}>{makeDisplayName(m.make)} ({m.count})</option>
+                        ))}
+                    </select>
+                    <select
                         value={filters.model ?? ''}
                         onChange={e => setFilters(f => ({ ...f, model: e.target.value || undefined }))}
-                        className="bg-avtovo-bg border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
-                    />
-                    <input
-                        type="number"
-                        placeholder="Rok od"
+                        disabled={noLots || !selectedMake}
+                        className="bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <option value="">{selectedMake ? 'Wszystkie modele' : 'Najpierw wybierz markę'}</option>
+                        {selectedMake?.models.map(m => (
+                            <option key={m.model} value={m.model}>{modelDisplayName(selectedMake.make, m.model)} ({m.count})</option>
+                        ))}
+                    </select>
+                    <select
                         value={filters.yearFrom ?? ''}
                         onChange={e => setFilters(f => ({ ...f, yearFrom: e.target.value ? Number(e.target.value) : undefined }))}
-                        className="bg-avtovo-bg border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
-                    />
-                    <input
-                        type="number"
-                        placeholder="Rok do"
+                        className="bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
+                    >
+                        <option value="">Rok od</option>
+                        {years.filter(y => filters.yearTo == null || y <= filters.yearTo).map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                    <select
                         value={filters.yearTo ?? ''}
                         onChange={e => setFilters(f => ({ ...f, yearTo: e.target.value ? Number(e.target.value) : undefined }))}
-                        className="bg-avtovo-bg border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
-                    />
+                        className="bg-avtovo-bg border border-avtovo-border text-avtovo-text rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-avtovo-accent"
+                    >
+                        <option value="">Rok do</option>
+                        {years.filter(y => filters.yearFrom == null || y >= filters.yearFrom).map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
                     <button
                         type="submit"
                         className="flex items-center justify-center gap-2 bg-avtovo-accent hover:bg-avtovo-accent-hover text-white rounded-lg px-4 py-2 text-sm font-medium transition-colors"

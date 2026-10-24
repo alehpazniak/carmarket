@@ -6,6 +6,7 @@ import { FEATURES } from '../config/features';
 import { Search, SlidersHorizontal, ChevronDown, Car, Zap, Truck, Construction, Van, Motorbike, Caravan, Tractor, type LucideIcon } from 'lucide-react';
 import { CATEGORY_LABELS, hasModelList, makesFor, modelsFor } from '../constants/cars';
 import type { VehicleCategory } from '../types';
+import { OLDEST_YEAR_LISTINGS, yearOptions } from '../utils/years';
 
 /** Category tabs like on otomoto.pl. "Elektryczne" is not a separate category — it's passenger cars with fuel = ELECTRIC. */
 type CategoryTab = { id: string; label: string; icon: LucideIcon; category: VehicleCategory; fuelType?: string };
@@ -91,6 +92,7 @@ export default function Home() {
     };
     const makes = makesFor(tab.category);
     const modelsForMake = modelsFor(tab.category, make);
+    const years = yearOptions(OLDEST_YEAR_LISTINGS);
     const FUEL_LABELS: Record<string, string> = {
         PETROL: 'Benzyna', DIESEL: 'Diesel', ELECTRIC: 'Elektryczny',
         HYBRID: 'Hybryda', LPG: 'LPG',
@@ -248,22 +250,22 @@ export default function Home() {
                                 step={100} min={0}
                                 className="bg-avtovo-card border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
                             />
-                            <input
-                                type="number"
-                                placeholder="Rok od"
+                            <select
                                 value={yearFrom}
                                 onChange={e => setYearFrom(e.target.value)}
-                                min={1900} max={new Date().getFullYear() + 1}
-                                className="bg-avtovo-card border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
-                            />
-                            <input
-                                type="number"
-                                placeholder="Rok do"
+                                className="bg-avtovo-card border border-avtovo-border text-avtovo-text rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
+                            >
+                                <option value="">Rok od</option>
+                                {years.filter(y => !yearTo || y <= Number(yearTo)).map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                            <select
                                 value={yearTo}
                                 onChange={e => setYearTo(e.target.value)}
-                                min={1900} max={new Date().getFullYear() + 1}
-                                className="bg-avtovo-card border border-avtovo-border text-avtovo-text placeholder-avtovo-muted rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
-                            />
+                                className="bg-avtovo-card border border-avtovo-border text-avtovo-text rounded-xl px-3 py-3 focus:outline-none focus:border-avtovo-accent"
+                            >
+                                <option value="">Rok do</option>
+                                {years.filter(y => !yearFrom || y >= Number(yearFrom)).map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
                             <input
                                 type="text"
                                 placeholder="Lokalizacja (miasto)"

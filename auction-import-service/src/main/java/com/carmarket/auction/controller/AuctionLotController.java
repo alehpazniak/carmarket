@@ -9,6 +9,7 @@ import com.carmarket.auction.client.ApibaraClient;
 import com.carmarket.auction.client.ApibaraShippingResponse;
 import com.carmarket.auction.dto.CalculationRequest;
 import com.carmarket.auction.dto.ImportCalculationResponse;
+import com.carmarket.auction.dto.LotFacetsResponse;
 import com.carmarket.auction.dto.MaxBidRequest;
 import com.carmarket.auction.dto.MaxBidResponse;
 import com.carmarket.auction.entity.AuctionLot;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Slf4j
@@ -54,14 +56,23 @@ public class AuctionLotController {
         @RequestParam(required = false) String damageType,
         @PageableDefault(size = 20) Pageable pageable) {
 
-        // Build the LIKE pattern in Java (pre-lowercased) rather than via JPQL CONCAT: binding a null
-        // parameter through CONCAT('%', :model, '%') makes the Postgres JDBC driver mis-infer the
-        // parameter type as bytea, causing "function lower(bytea) does not exist".
-        String modelPattern = (model == null || model.isBlank()) ? null : "%" + model.toLowerCase() + "%";
-
+        // Exact, case-insensitive make/model (the /aukcje dropdowns send the facet values). Normalized here
+        // rather than via UPPER(:make) in JPQL: binding a null parameter inside a JPQL function makes the
+        // Postgres JDBC driver mis-infer its type as bytea ("function upper(bytea) does not exist").
         Page<AuctionLot> lots = lotRepository.searchLiveLots(
-            make, modelPattern, yearFrom, yearTo, null, null, damageType, pageable);
+            normalize(make), normalize(model), yearFrom, yearTo, null, null, damageType, pageable);
         return ResponseEntity.ok(lots);
+    }
+
+    /** Makes and models of the listed lots with their counts; the literal path wins over /lots/{id}. */
+    @GetMapping("/lots/facets")
+    public ResponseEntity<LotFacetsResponse> getFacets() {
+        return ResponseEntity.ok(LotFacetsResponse.from(lotRepository.findFacetRows()));
+    }
+
+    /** The form {@link AuctionLotRepository#searchLiveLots} and the facets use: trimmed, upper case, blank = any. */
+    static String normalize(String value) {
+        return (value == null || value.isBlank()) ? null : value.trim().toUpperCase(Locale.ROOT);
     }
 
     @GetMapping("/lots/{id}")
