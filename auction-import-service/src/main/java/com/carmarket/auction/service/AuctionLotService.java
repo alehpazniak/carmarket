@@ -4,6 +4,7 @@ import com.carmarket.auction.dto.AuctionLotChangedEvent;
 import com.carmarket.auction.dto.AuctionLotChangedEvent.ChangeType;
 import com.carmarket.auction.entity.AuctionLot;
 import com.carmarket.auction.repository.AuctionLotRepository;
+import com.carmarket.auction.sync.LotOutcome;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -84,6 +85,43 @@ public class AuctionLotService {
         return new SyncCounts(added, updated);
     }
 
+    /**
+     * Applies one /changes page of auction results in one transaction, to the lots we store; events for other lots
+     * are ignored. A price, sale date or end the event doesn't carry is kept from the lot (e.g. the approval price of
+     * a "Sold on Approval" lot). REMOVED never replaces a final result. Returns how many lots changed.
+     */
+    @Transactional
+    public int applyOutcomes(List<LotOutcome> outcomes) {
+        int changed = 0;
+        for (LotOutcome outcome : outcomes) {
+            Optional<AuctionLot> existing = repository.findByLotNumberAndSource(outcome.lotNumber(), outcome.source());
+            if (existing.isEmpty()) continue;
+            AuctionLot lot = existing.get();
+            if (isFinal(lot.getStatus()) && outcome.status() == AuctionLot.LotStatus.REMOVED) continue;
+
+            lot.setStatus(outcome.status());
+            if (outcome.status() == AuctionLot.LotStatus.SOLD) {
+                if (outcome.price() != null) lot.setSoldPrice(outcome.price());
+                if (outcome.saleDate() != null) lot.setSaleDate(outcome.saleDate());
+            } else if (outcome.status() == AuctionLot.LotStatus.UNSOLD) {
+                lot.setSoldPrice(null);
+            }
+            if (outcome.endedAt() != null) {
+                lot.setEndedAt(outcome.endedAt());
+            } else if (lot.getEndedAt() == null) {
+                lot.setEndedAt(lot.getAuctionDate());
+            }
+            String hash = LotContentHash.of(lot);
+            if (!hash.equals(lot.getContentHash())) {
+                lot.setContentHash(hash);
+                repository.save(lot);
+                events.publishEvent(AuctionLotChangedEvent.of(lot, ChangeType.UPDATED));
+                changed++;
+            }
+        }
+        return changed;
+    }
+
     private static boolean isFinal(AuctionLot.LotStatus status) {
         return status == AuctionLot.LotStatus.SOLD || status == AuctionLot.LotStatus.UNSOLD;
     }
@@ -126,6 +164,8 @@ public class AuctionLotService {
         target.setBodyStyle(source.getBodyStyle());
         target.setSoldPrice(source.getSoldPrice());
         target.setEndedAt(source.getEndedAt());
+        target.setRunCondition(source.getRunCondition());
+        target.setTitleType(source.getTitleType());
         target.getImageUrls().clear();
         if (source.getImageUrls() != null) {
             target.getImageUrls().addAll(source.getImageUrls());

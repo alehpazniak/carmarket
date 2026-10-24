@@ -1,8 +1,6 @@
 package com.carmarket.auction.parser;
 
-import com.carmarket.auction.client.ApibaraClient;
 import com.carmarket.auction.client.ApibaraResponse;
-import com.carmarket.auction.client.ApibaraVehiclesPage;
 import com.carmarket.auction.config.ParserTargetsConfig;
 import com.carmarket.auction.entity.AuctionLot;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,10 +16,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /** ApibaraAuctionParser.toLot against the recorded Apibara responses, and the vehicle-type filter. */
 class ApibaraLotMappingTest {
@@ -29,9 +23,8 @@ class ApibaraLotMappingTest {
     private static final Path FIXTURES = Path.of("src/test/java/com/carmarket/auction");
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final ApibaraClient client = mock(ApibaraClient.class);
     private final ParserTargetsConfig config = new ParserTargetsConfig();
-    private final ApibaraAuctionParser parser = new ApibaraAuctionParser(client, config, objectMapper);
+    private final ApibaraAuctionParser parser = new ApibaraAuctionParser(config, objectMapper);
 
     private JsonNode fixture(Path file) throws Exception {
         return objectMapper.readTree(Files.readString(file)).path("data");
@@ -102,8 +95,9 @@ class ApibaraLotMappingTest {
         // Sold on Approval isn't final, and an ended lot without an outcome has no result yet
         AuctionLot onApproval = withAuction("{" + ended + ", \"outcome_status\": \"Sold on Approval\"}");
         assertThat(onApproval.getStatus()).isEqualTo(AuctionLot.LotStatus.EXPIRED);
-        assertThat(onApproval.getSoldPrice()).isNull();
-        assertThat(withAuction("{" + ended + "}").getStatus()).isEqualTo(AuctionLot.LotStatus.EXPIRED);
+        AuctionLot noResult = withAuction("{" + ended + "}");
+        assertThat(noResult.getStatus()).isEqualTo(AuctionLot.LotStatus.EXPIRED);
+        assertThat(noResult.getSoldPrice()).isNull();
 
         // "timed" is an auction mode; an open lot's last_sold_status belongs to an earlier listing
         assertThat(withAuction("{\"state\": \"timed\", \"auction_at\": \"2026-11-01T14:00:00+00:00\"}").getStatus())
@@ -124,14 +118,6 @@ class ApibaraLotMappingTest {
 
     @Test
     void excludedTypesAreSkipped() throws Exception {
-        when(client.isConfigured()).thenReturn(true);
-        when(client.effectivePerPage(anyInt())).thenAnswer(inv -> inv.getArgument(0));
-        ParserTargetsConfig.Target target = new ParserTargetsConfig.Target();
-        target.setMake("Ford");
-        target.setModel("F-150");
-        target.setYearFrom(2000);
-        target.setYearTo(2030);
-        config.setTargets(List.of(target));
         config.getVehicleTypes().setInclude(List.of("AUTOMOBILE", "SUV", "PICKUP"));
 
         List<JsonNode> vehicles = new ArrayList<>();
@@ -141,12 +127,76 @@ class ApibaraLotMappingTest {
             vehicle.put("type", type);
             vehicles.add(vehicle);
         }
-        when(client.searchVehiclesPage(any())).thenReturn(new ApibaraVehiclesPage(vehicles, null, null));
 
-        List<AuctionLot> kept = new ArrayList<>();
-        parser.forEachLiveLotPage(kept::addAll);
+        ApibaraAuctionParser.MappedPage page = parser.map(vehicles);
 
         // TRUCK and ATV are dropped; a record without a type is kept
-        assertThat(kept).extracting(AuctionLot::getLotNumber).containsExactly("lot-PICKUP", "lot-pickup", "lot-null");
+        assertThat(page.lots()).extracting(AuctionLot::getLotNumber).containsExactly("lot-PICKUP", "lot-pickup", "lot-null");
+        assertThat(page.skippedType()).isEqualTo(2);
+    }
+
+    @Test
+    void runConditionAndTitleAreStoredAsSent() throws Exception {
+        AuctionLot iaai = map(fixture(FIXTURES.resolve("apibara.tech_api_v1_vehicle-auction_vehicles_JM3KFBDM7K1621899.json")));
+        assertThat(iaai.getRunCondition()).isEqualTo("RUNS AND DRIVES");
+        assertThat(iaai.getTitleType()).isEqualTo("SALVAGE - REBUILT");
+
+        AuctionLot copart = map(objectMapper.readTree(Files.readString(Path.of("src/test/resources/apibara/urltodetails-copart.json"))).path("data"));
+        assertThat(copart.getRunCondition()).isEqualTo("Run & Drive Verified");
+        assertThat(copart.getTitleType()).isEqualTo("SALVAGE CERTIFICATE");
+    }
+
+    @Test
+    void onlyRunAndDriveLotsWithARegistrableTitleAreKept() throws Exception {
+        config.getFilters().setTitleExclude(List.of("DESTRUCTION", "NON-REPAIRABLE", "JUNK", "PARTS ONLY", "BILL OF SALE"));
+        List<JsonNode> vehicles = new ArrayList<>();
+        String[][] cases = {
+            {"rd", "RUNS AND DRIVES", "SALVAGE CERTIFICATE (FL)"},
+            {"verified", "Run & Drive Verified", "CLEAR (TX)"},
+            {"starts", "ENGINE START PROGRAM", "SALVAGE CERTIFICATE (FL)"},
+            {"stationary", "STATIONARY", "CLEAR (TX)"},
+            {"unknown", null, "CLEAR (TX)"},
+            {"destruction", "RUNS AND DRIVES", "Certificate of Destruction (GA)"},
+            {"nonrepairable", "RUNS AND DRIVES", "NON-REPAIRABLE CERTIFICATE (WA)"},
+            {"no-title", "RUNS AND DRIVES", null},
+        };
+        for (String[] c : cases) {
+            ObjectNode vehicle = (ObjectNode) fixture(FIXTURES.resolve("apibara.tech_api_v1_vehicle-auction_vehicles_JM3KFBDM7K1621899.json"));
+            vehicle.put("lot_number", c[0]);
+            ((ObjectNode) vehicle.path("condition")).set("run_condition",
+                c[1] == null ? null : objectMapper.createObjectNode().put("value", c[1]));
+            vehicle.set("sale_document", c[2] == null ? null : objectMapper.createObjectNode().put("name", c[2]));
+            vehicles.add(vehicle);
+        }
+
+        ApibaraAuctionParser.MappedPage page = parser.map(vehicles);
+
+        assertThat(page.lots()).extracting(AuctionLot::getLotNumber).containsExactly("rd", "verified", "no-title");
+        assertThat(page.skippedCondition()).isEqualTo(3);
+        assertThat(page.skippedTitle()).isEqualTo(2);
+        assertThat(page.skippedType()).isZero();
+
+        config.getFilters().setRunAndDriveOnly(false);
+        assertThat(parser.map(vehicles).lots()).hasSize(6);
+    }
+
+    /** A Buy Now sale also removes the lot from inventory; the sale wins (seen in /changes, Sizing). */
+    @Test
+    void aBuyNowSaleIsSoldNotRemoved() throws Exception {
+        AuctionLot lot = withAuction("{\"state\": \"open\", \"lot_removed\": true, \"last_sold_status\": \"Sold\", "
+            + "\"last_sold_day\": \"2026-10-10\", \"auction_at\": \"2026-10-10T01:45:58+00:00\"}");
+
+        assertThat(lot.getStatus()).isEqualTo(AuctionLot.LotStatus.SOLD);
+        assertThat(lot.getSoldPrice()).isEqualByComparingTo("4100");
+    }
+
+    /** /changes confirms it later, usually without a price, so the approval price is kept meanwhile. */
+    @Test
+    void soldOnApprovalKeepsItsProvisionalPrice() throws Exception {
+        AuctionLot lot = withAuction("{\"state\": \"finished\", \"auction_ended_at\": \"2026-10-01T15:10:00+00:00\", "
+            + "\"outcome_status\": \"Sold on Approval\"}");
+
+        assertThat(lot.getStatus()).isEqualTo(AuctionLot.LotStatus.EXPIRED);
+        assertThat(lot.getSoldPrice()).isEqualByComparingTo("4100");
     }
 }

@@ -100,11 +100,22 @@ public class AuctionLot {
     @Column(name = "vehicle_type", length = 50)
     private String vehicleType;
 
+    /** Apibara's condition.run_condition.value as sent, e.g. "RUNS AND DRIVES", "Run & Drive Verified" (V10) */
+    @Column(name = "run_condition", length = 50)
+    private String runCondition;
+
+    /** Apibara's sale_document.name as sent, e.g. "SALVAGE CERTIFICATE", "CLEAR (FL)" (V10) */
+    @Column(name = "title_type", length = 100)
+    private String titleType;
+
     /** Apibara's vehicle_specs.body_style as sent (free text: Copart Body Style / IAAI VehicleClass) */
     @Column(name = "body_style", length = 50)
     private String bodyStyle;
 
-    /** Final price of a SOLD lot (Apibara sale_price_usd) */
+    /**
+     * Final price of a SOLD lot (Apibara sale_price_usd). On an EXPIRED lot "Sold on Approval", the approval price,
+     * kept until /changes confirms the sale (its lot.sold event usually carries no price).
+     */
     @Column(name = "sold_price", precision = 12, scale = 2)
     private BigDecimal soldPrice;
 

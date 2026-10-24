@@ -88,6 +88,49 @@ class SyncRunRepositoryTest {
             .map(SyncRun::getQuotaRemaining).contains(48);
     }
 
+    @Autowired
+    private SyncStreamRepository streams;
+
+    @Test
+    void spentRequestsAndTheDailyRunCheck() {
+        Instant morning = Instant.parse("2026-10-26T07:00:00Z");
+        SyncRun yesterday = SyncRun.start("FeedSync", "SCHEDULED");
+        yesterday.setStartedAt(morning.minus(1, ChronoUnit.DAYS));
+        yesterday.setApiRequests(7);
+        runs.saveAndFlush(yesterday);
+        SyncRun today = SyncRun.start("FeedSync", "SCHEDULED");
+        today.setStartedAt(morning.plusSeconds(5));
+        today.setApiRequests(3);
+        runs.saveAndFlush(today);
+        SyncRun running = SyncRun.start("FeedSync", "MANUAL"); // api_requests not known yet
+        running.setStartedAt(morning.plusSeconds(600));
+        runs.saveAndFlush(running);
+
+        assertThat(runs.sumApiRequestsSince(morning.minus(2, ChronoUnit.DAYS))).isEqualTo(10);
+        assertThat(runs.sumApiRequestsSince(morning)).isEqualTo(3);
+        assertThat(runs.sumApiRequestsSince(morning.plus(1, ChronoUnit.DAYS))).isZero();
+        assertThat(runs.existsByParserAndTriggerAndStartedAtGreaterThanEqual("FeedSync", "SCHEDULED", morning)).isTrue();
+        assertThat(runs.existsByParserAndTriggerAndStartedAtGreaterThanEqual("FeedSync", "SCHEDULED", morning.plusSeconds(60))).isFalse();
+    }
+
+    @Test
+    void dayStreamsRoundTripAndOldDaysAreDeleted() {
+        for (String key : new String[]{"open:2026-10-24", "open:2026-10-25", "open:2026-10-26", "outcomes"}) {
+            com.carmarket.auction.entity.SyncStream stream = new com.carmarket.auction.entity.SyncStream(key);
+            stream.setCursor("eyJ2ZWhpY2xlcy5hZCI6IjIwMjYtMTAtMjYgMDk6MDA6MDAifQ");
+            stream.setLastTotal(18437);
+            stream.setPagesDone(3);
+            stream.setSequence(34414178L);
+            streams.saveAndFlush(stream);
+        }
+
+        assertThat(streams.deleteDaysBefore("open:2026-10-25")).isEqualTo(1);
+        assertThat(streams.findDays()).extracting(com.carmarket.auction.entity.SyncStream::getStreamKey)
+            .containsExactly("open:2026-10-25", "open:2026-10-26");
+        assertThat(streams.findById("outcomes").orElseThrow().getSequence()).isEqualTo(34414178L);
+        assertThat(streams.findById("open:2026-10-26").orElseThrow().getLastTotal()).isEqualTo(18437);
+    }
+
     @Test
     void latestRunPerParser() {
         Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);

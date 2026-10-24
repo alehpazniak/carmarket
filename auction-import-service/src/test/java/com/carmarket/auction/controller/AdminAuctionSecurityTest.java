@@ -63,6 +63,8 @@ class AdminAuctionSecurityTest {
     private W8TowingRateRepository w8Rates;
     @MockBean
     private ApibaraQuotaTracker quotaTracker;
+    @MockBean
+    private com.carmarket.auction.sync.FeedSyncService feedSync;
 
     @Test
     void statusAndSyncAreAdminOnly() throws Exception {

@@ -45,6 +45,7 @@ public class ApibaraClient {
     private static final String AUCTION_TO_PORT_SHIPPING_PATH = "/api/v1/vehicle-auction/shipping/auction-to-port";
     private static final String LOCATIONS_PATH = "/api/v1/vehicle-auction/locations";
     private static final String USAGE_PATH = "/api/v1/vehicle-auction/usage";
+    private static final String CHANGES_PATH = "/api/v1/vehicle-auction/changes";
     private static final String IMAGE_PROXY_PATH = "/api/v1/vehicle-auction/image-proxy";
 
     private static final MultiValueMap<String, String> NO_PARAMS = new LinkedMultiValueMap<>();
@@ -81,6 +82,45 @@ public class ApibaraClient {
      * Each vehicle comes back as raw JSON so the caller can keep it.
      */
     public ApibaraVehiclesPage searchVehiclesPage(MultiValueMap<String, String> params) {
+        SyncAnswer answer = syncGet(VEHICLES_PATH, params);
+        List<JsonNode> vehicles = dataArray(answer.body());
+        JsonNode meta = answer.body().path("meta");
+        String nextCursor = meta.path("next_cursor").isTextual() ? meta.path("next_cursor").asText() : null;
+        Integer perPage = meta.path("per_page").isInt() ? meta.path("per_page").asInt() : null;
+        Integer total = meta.path("total").isInt() ? meta.path("total").asInt() : null;
+        return new ApibaraVehiclesPage(vehicles, new ApibaraResponse.Meta(nextCursor, perPage), answer.quota(), total);
+    }
+
+    /**
+     * GET /changes?terminal=1 for the sync: sold / not sold / removed events after {@code after}, in sequence order.
+     * Apibara wants terminal=1 (it answers 422 to "true"). Throws {@link ApibaraCursorExpiredException} on 410,
+     * otherwise like {@link #searchVehiclesPage}.
+     */
+    public ApibaraChangesPage terminalChangesPage(long after, int limit) {
+        MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
+        params.add("terminal", "1");
+        params.add("after", String.valueOf(after));
+        params.add("limit", String.valueOf(limit));
+        SyncAnswer answer = syncGet(CHANGES_PATH, params);
+        List<JsonNode> events = dataArray(answer.body());
+        JsonNode meta = answer.body().path("meta");
+        long nextCursor = meta.path("next_cursor").canConvertToLong() ? meta.path("next_cursor").asLong() : after;
+        return new ApibaraChangesPage(events, nextCursor, meta.path("has_more").asBoolean(false),
+            longOrNull(meta.path("latest_available_sequence")), answer.quota());
+    }
+
+    private record Exchange(HttpStatusCode status, HttpHeaders headers, JsonNode body) {
+    }
+
+    private record SyncAnswer(JsonNode body, ApibaraQuota quota) {
+    }
+
+    /**
+     * One sync request: counts it, records the quota headers of every answer, and throws instead of returning
+     * an error: 429 → {@link ApibaraQuotaExceededException}, 410 → {@link ApibaraCursorExpiredException},
+     * 400/404/422 → {@link ApibaraRejectedException}, anything else → {@link ApibaraUnavailableException}.
+     */
+    private SyncAnswer syncGet(String path, MultiValueMap<String, String> params) {
         if (apiKeyMissing()) {
             throw new ApibaraUnavailableException("apibara.api-key is not set");
         }
@@ -88,10 +128,11 @@ public class ApibaraClient {
         quotaTracker.requestSent();
         try {
             answer = restClient.get()
-                .uri(uriBuilder -> uriBuilder.path(VEHICLES_PATH).queryParams(params).build())
+                .uri(uriBuilder -> uriBuilder.path(path).queryParams(params).build())
                 .exchange((request, response) -> {
                     HttpStatusCode status = response.getStatusCode();
-                    JsonNode body = status.is2xxSuccessful() ? response.bodyTo(JsonNode.class) : null;
+                    // 410 carries the latest available sequence in its body
+                    JsonNode body = status.is2xxSuccessful() || status.value() == 410 ? response.bodyTo(JsonNode.class) : null;
                     HttpHeaders headers = new HttpHeaders();
                     headers.putAll(response.getHeaders());
                     return new Exchange(status, headers, body);
@@ -106,27 +147,40 @@ public class ApibaraClient {
         // the header comes on error responses too, e.g. a 4xx for a per_page above the limit
         rememberPerPageLimit(answer.headers().getFirst(PER_PAGE_LIMIT_HEADER));
 
-        if (answer.status().value() == HttpStatus.TOO_MANY_REQUESTS.value()) {
+        int status = answer.status().value();
+        if (status == HttpStatus.TOO_MANY_REQUESTS.value()) {
             Duration retryAfter = retryAfter(answer.headers().getFirst(HttpHeaders.RETRY_AFTER), clock.instant());
             quotaTracker.quotaExhausted(retryAfter != null ? clock.instant().plus(retryAfter) : null);
             throw new ApibaraQuotaExceededException(retryAfter, quota);
         }
-        if (!answer.status().is2xxSuccessful()) {
-            throw new ApibaraUnavailableException("Apibara answered HTTP " + answer.status().value());
+        if (status == 410) {
+            throw new ApibaraCursorExpiredException(answer.body() == null ? null
+                : longOrNull(answer.body().path("meta").path("latest_available_sequence")));
         }
-        JsonNode data = answer.body() == null ? null : answer.body().get("data");
+        if (status == 400 || status == 404 || status == 422) {
+            throw new ApibaraRejectedException(status);
+        }
+        if (!answer.status().is2xxSuccessful()) {
+            throw new ApibaraUnavailableException("Apibara answered HTTP " + status);
+        }
+        if (answer.body() == null) {
+            throw new ApibaraUnavailableException("Apibara answered without a body");
+        }
+        return new SyncAnswer(answer.body(), quota);
+    }
+
+    private static List<JsonNode> dataArray(JsonNode body) {
+        JsonNode data = body.get("data");
         if (data == null || !data.isArray()) {
             throw new ApibaraUnavailableException("Apibara answered without a data array");
         }
-        List<JsonNode> vehicles = new ArrayList<>(data.size());
-        data.forEach(vehicles::add);
-        JsonNode meta = answer.body().path("meta");
-        String nextCursor = meta.path("next_cursor").isTextual() ? meta.path("next_cursor").asText() : null;
-        Integer perPage = meta.path("per_page").isInt() ? meta.path("per_page").asInt() : null;
-        return new ApibaraVehiclesPage(vehicles, new ApibaraResponse.Meta(nextCursor, perPage), quota);
+        List<JsonNode> items = new ArrayList<>(data.size());
+        data.forEach(items::add);
+        return items;
     }
 
-    private record Exchange(HttpStatusCode status, HttpHeaders headers, JsonNode body) {
+    private static Long longOrNull(JsonNode node) {
+        return node != null && node.canConvertToLong() ? node.asLong() : null;
     }
 
     /** Retry-After is seconds per Apibara's OpenAPI; an HTTP date is accepted too. Null when absent or unreadable. */

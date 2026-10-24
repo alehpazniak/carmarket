@@ -10,6 +10,7 @@ import com.carmarket.auction.repository.SyncRunRepository;
 import com.carmarket.auction.repository.W8TowingRateRepository;
 import com.carmarket.auction.scheduler.LotSyncScheduler;
 import com.carmarket.auction.service.CurrencyExchangeService;
+import com.carmarket.auction.sync.FeedSyncService;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +42,7 @@ public class AdminAuctionController {
     private final W8TowingRateRepository w8Rates;
     private final W8ShippingConfig w8Config;
     private final ApibaraQuotaTracker quotaTracker;
+    private final FeedSyncService feedSync;
 
     /**
      * apibaraQuota: the sync's latest quota headers (free). apibaraUsage: GET /usage, only on ?refresh=true,
@@ -48,7 +50,7 @@ public class AdminAuctionController {
      */
     public record AuctionStatus(boolean apibaraConfigured, ApibaraQuota apibaraQuota, JsonNode apibaraUsage,
                                 String apibaraUsageError, boolean syncRunning, List<SyncRun> lastRuns, CurrencyExchangeService.LastRate exchangeRate,
-                                String w8PriceList, long w8TowingRows) {
+                                String w8PriceList, long w8TowingRows, FeedSyncService.FeedStatus feed) {
     }
 
     @GetMapping("/status")
@@ -66,7 +68,8 @@ public class AdminAuctionController {
             }
         }
         return new AuctionStatus(configured, quotaTracker.latest().orElse(null), usage, usageError, scheduler.isRunning(), runs.findLatestPerParser(),
-            currency.lastRate().orElse(null), w8Config.getPriceList(), w8Rates.countByPriceList(w8Config.getPriceList()));
+            currency.lastRate().orElse(null), w8Config.getPriceList(), w8Rates.countByPriceList(w8Config.getPriceList()),
+            feedSync.status());
     }
 
     /** 202 when a background sync was started, 409 when one is already running. */

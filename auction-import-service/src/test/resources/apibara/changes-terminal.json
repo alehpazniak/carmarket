@@ -1,0 +1,345 @@
+{
+  "ok": true,
+  "data": [
+    {
+      "sequence": 11818394,
+      "event_id": "chg_11818394",
+      "event": "lot.sold",
+      "terminal": true,
+      "reason": "source_outcome",
+      "vehicle": {
+        "id": 3576190,
+        "platform": "copart",
+        "platform_id": 1,
+        "lot_number": "66412596",
+        "vin": "3PCAJ5M10LF121148"
+      },
+      "changed_fields": [
+        "auction.lot_sold",
+        "auction.last_sold_day",
+        "auction.last_sold_status"
+      ],
+      "before": {
+        "auction.lot_sold": "0",
+        "auction.last_sold_day": "2026-10-10",
+        "auction.last_sold_status": "Sold on Approval"
+      },
+      "after": {
+        "auction.lot_sold": "1",
+        "auction.last_sold_day": "2026-10-09",
+        "auction.last_sold_status": "Sold"
+      },
+      "vehicle_updated_at": "2026-10-10T04:45:15+03:00",
+      "recorded_at": "2026-10-10T01:45:15+00:00"
+    },
+    {
+      "sequence": 11820087,
+      "event_id": "chg_11820087",
+      "event": "lot.sold",
+      "terminal": true,
+      "reason": "source_outcome",
+      "vehicle": {
+        "id": 3569997,
+        "platform": "copart",
+        "platform_id": 1,
+        "lot_number": "61818936",
+        "vin": "1FADP3F27FL276602"
+      },
+      "changed_fields": [
+        "auction.lot_sold",
+        "auction.last_sold_status",
+        "pricing.last_sold_price_usd"
+      ],
+      "before": {
+        "auction.lot_sold": "0",
+        "auction.last_sold_status": "Sold on Approval",
+        "pricing.last_sold_price_usd": 650
+      },
+      "after": {
+        "auction.lot_sold": "1",
+        "auction.last_sold_status": "Sold",
+        "pricing.last_sold_price_usd": 875
+      },
+      "vehicle_updated_at": "2026-10-10T04:45:52+03:00",
+      "recorded_at": "2026-10-10T01:45:52+00:00"
+    },
+    {
+      "sequence": 11824484,
+      "event_id": "chg_11824484",
+      "event": "lot.removed",
+      "terminal": true,
+      "reason": "source_removed",
+      "vehicle": {
+        "id": 3659338,
+        "platform": "copart",
+        "platform_id": 1,
+        "lot_number": "70616046",
+        "vin": "4FGA511297C096838"
+      },
+      "changed_fields": [
+        "auction.auction_at",
+        "auction.lot_sold",
+        "auction.lot_removed",
+        "auction.has_status",
+        "auction.sold_buy_now",
+        "auction.last_sold_day",
+        "auction.last_sold_status",
+        "pricing.last_sold_price_usd"
+      ],
+      "before": {
+        "auction.auction_at": "2026-10-20 19:00:00",
+        "auction.lot_sold": "0",
+        "auction.lot_removed": 0,
+        "auction.has_status": 0,
+        "auction.sold_buy_now": 0,
+        "auction.last_sold_day": null,
+        "auction.last_sold_status": null,
+        "pricing.last_sold_price_usd": null
+      },
+      "after": {
+        "auction.auction_at": "2026-10-10 04:45:58",
+        "auction.lot_sold": "1",
+        "auction.lot_removed": 1,
+        "auction.has_status": 1,
+        "auction.sold_buy_now": 1,
+        "auction.last_sold_day": "2026-10-10",
+        "auction.last_sold_status": "Sold",
+        "pricing.last_sold_price_usd": 50
+      },
+      "vehicle_updated_at": "2026-10-10T04:45:58+03:00",
+      "recorded_at": "2026-10-10T01:45:58+00:00"
+    },
+    {
+      "sequence": 11827859,
+      "event_id": "chg_11827859",
+      "event": "lot.sold",
+      "terminal": true,
+      "reason": "source_outcome",
+      "vehicle": {
+        "id": 3553655,
+        "platform": "copart",
+        "platform_id": 1,
+        "lot_number": "69914926",
+        "vin": "4T1B11HK9JU071043"
+      },
+      "changed_fields": [
+        "auction.lot_sold",
+        "auction.last_sold_status"
+      ],
+      "before": {
+        "auction.lot_sold": "0",
+        "auction.last_sold_status": "Sold on Approval"
+      },
+      "after": {
+        "auction.lot_sold": "1",
+        "auction.last_sold_status": "Sold"
+      },
+      "vehicle_updated_at": "2026-10-10T04:46:22+03:00",
+      "recorded_at": "2026-10-10T01:46:22+00:00"
+    },
+    {
+      "sequence": 11828932,
+      "event_id": "chg_11828932",
+      "event": "lot.sold",
+      "terminal": true,
+      "reason": "source_outcome",
+      "vehicle": {
+        "id": 3362162,
+        "platform": "copart",
+        "platform_id": 1,
+        "lot_number": "66549036",
+        "vin": "3C6FRVJG0ME501029"
+      },
+      "changed_fields": [
+        "auction.auction_at",
+        "pricing.buy_now_usd",
+        "auction.lot_sold",
+        "auction.has_status",
+        "auction.sold_buy_now",
+        "auction.last_sold_day",
+        "auction.last_sold_status",
+        "pricing.last_sold_price_usd"
+      ],
+      "before": {
+        "auction.auction_at": "2026-10-09 08:51:00",
+        "pricing.buy_now_usd": 0,
+        "auction.lot_sold": "0",
+        "auction.has_status": 0,
+        "auction.sold_buy_now": 0,
+        "auction.last_sold_day": null,
+        "auction.last_sold_status": null,
+        "pricing.last_sold_price_usd": null
+      },
+      "after": {
+        "auction.auction_at": "2026-10-10 04:46:46",
+        "pricing.buy_now_usd": 7500,
+        "auction.lot_sold": "1",
+        "auction.has_status": 1,
+        "auction.sold_buy_now": 1,
+        "auction.last_sold_day": "2026-10-10",
+        "auction.last_sold_status": "Sold",
+        "pricing.last_sold_price_usd": 7500
+      },
+      "vehicle_updated_at": "2026-10-10T04:46:46+03:00",
+      "recorded_at": "2026-10-10T01:46:46+00:00"
+    },
+    {
+      "sequence": 11829020,
+      "event_id": "chg_11829020",
+      "event": "lot.sold",
+      "terminal": true,
+      "reason": "source_outcome",
+      "vehicle": {
+        "id": 3534603,
+        "platform": "copart",
+        "platform_id": 1,
+        "lot_number": "60872986",
+        "vin": "1GNALAEKXEZ100970"
+      },
+      "changed_fields": [
+        "auction.lot_sold",
+        "auction.last_sold_status"
+      ],
+      "before": {
+        "auction.lot_sold": "0",
+        "auction.last_sold_status": "Sold on Approval"
+      },
+      "after": {
+        "auction.lot_sold": "1",
+        "auction.last_sold_status": "Sold"
+      },
+      "vehicle_updated_at": "2026-10-10T04:46:48+03:00",
+      "recorded_at": "2026-10-10T01:46:48+00:00"
+    },
+    {
+      "sequence": 11830150,
+      "event_id": "chg_11830150",
+      "event": "lot.sold",
+      "terminal": true,
+      "reason": "source_outcome",
+      "vehicle": {
+        "id": 3514498,
+        "platform": "copart",
+        "platform_id": 1,
+        "lot_number": "65016206",
+        "vin": "4S4GUHD68T3788489"
+      },
+      "changed_fields": [
+        "auction.lot_sold",
+        "auction.last_sold_status"
+      ],
+      "before": {
+        "auction.lot_sold": "0",
+        "auction.last_sold_status": "Sold on Approval"
+      },
+      "after": {
+        "auction.lot_sold": "1",
+        "auction.last_sold_status": "Sold"
+      },
+      "vehicle_updated_at": "2026-10-10T04:47:23+03:00",
+      "recorded_at": "2026-10-10T01:47:23+00:00"
+    },
+    {
+      "sequence": 11830379,
+      "event_id": "chg_11830379",
+      "event": "lot.sold",
+      "terminal": true,
+      "reason": "source_outcome",
+      "vehicle": {
+        "id": 3514461,
+        "platform": "copart",
+        "platform_id": 1,
+        "lot_number": "69930076",
+        "vin": "4F4CR12X4RTM16817"
+      },
+      "changed_fields": [
+        "auction.lot_sold",
+        "auction.last_sold_status"
+      ],
+      "before": {
+        "auction.lot_sold": "0",
+        "auction.last_sold_status": "Sold on Approval"
+      },
+      "after": {
+        "auction.lot_sold": "1",
+        "auction.last_sold_status": "Sold"
+      },
+      "vehicle_updated_at": "2026-10-10T04:47:29+03:00",
+      "recorded_at": "2026-10-10T01:47:29+00:00"
+    },
+    {
+      "sequence": 11830383,
+      "event_id": "chg_11830383",
+      "event": "lot.sold",
+      "terminal": true,
+      "reason": "source_outcome",
+      "vehicle": {
+        "id": 3514319,
+        "platform": "copart",
+        "platform_id": 1,
+        "lot_number": "67679356",
+        "vin": "2A4RR5DG2BR611359"
+      },
+      "changed_fields": [
+        "auction.lot_sold",
+        "auction.last_sold_status"
+      ],
+      "before": {
+        "auction.lot_sold": "0",
+        "auction.last_sold_status": "Sold on Approval"
+      },
+      "after": {
+        "auction.lot_sold": "1",
+        "auction.last_sold_status": "Sold"
+      },
+      "vehicle_updated_at": "2026-10-10T04:47:29+03:00",
+      "recorded_at": "2026-10-10T01:47:29+00:00"
+    },
+    {
+      "sequence": 11830852,
+      "event_id": "chg_11830852",
+      "event": "lot.sold",
+      "terminal": true,
+      "reason": "source_outcome",
+      "vehicle": {
+        "id": 3489054,
+        "platform": "copart",
+        "platform_id": 1,
+        "lot_number": "68603226",
+        "vin": "19UUB6F58MA009869"
+      },
+      "changed_fields": [
+        "auction.lot_sold",
+        "auction.last_sold_day",
+        "auction.last_sold_status"
+      ],
+      "before": {
+        "auction.lot_sold": "0",
+        "auction.last_sold_day": "2026-10-10",
+        "auction.last_sold_status": "Sold on Approval"
+      },
+      "after": {
+        "auction.lot_sold": "1",
+        "auction.last_sold_day": "2026-10-09",
+        "auction.last_sold_status": "Sold"
+      },
+      "vehicle_updated_at": "2026-10-10T04:47:59+03:00",
+      "recorded_at": "2026-10-10T01:47:59+00:00"
+    }
+  ],
+  "meta": {
+    "schema_version": "2026-10-04.beta2",
+    "after": 0,
+    "next_cursor": 11830852,
+    "has_more": true,
+    "count": 10,
+    "scanned_count": 11,
+    "filtered_non_material": 0,
+    "oldest_available_sequence": 11818114,
+    "latest_available_sequence": 34414178,
+    "retention_days": 14,
+    "ordering": "sequence_asc",
+    "delivery_guarantee": "at_least_once_when_cursor_is_committed_after_local_processing",
+    "commit_rule": "Persist meta.next_cursor only after your local transaction succeeds."
+  }
+}

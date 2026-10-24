@@ -50,7 +50,9 @@ public final class LotContentHash {
             Objects.toString(lot.getVehicleType(), NULL),
             Objects.toString(lot.getBodyStyle(), NULL),
             decimal(lot.getSoldPrice()),
-            Objects.toString(lot.getEndedAt(), NULL)
+            Objects.toString(lot.getEndedAt(), NULL),
+            Objects.toString(lot.getRunCondition(), NULL),
+            Objects.toString(lot.getTitleType(), NULL)
         );
         StringBuilder text = new StringBuilder();
         for (Object field : fields) {

@@ -76,7 +76,7 @@ Mapping (`ApibaraAuctionParser.toLot`, `mapStatus`):
 
 Tests: mapping against the fixtures (vehicle type, every state, the sold price), and the excluded-type skip.
 
-## Stage 2. The feed sync
+## Stage 2. The feed sync (superseded by docs/tasks/auction-feed-rollout.md)
 
 **Streams.** One stream per `platform` (copart, iaai) × type filter value, or one per platform if the API takes all included types in one request. `stream_key` example: `copart:automobile`. Rotate the starting stream between runs (round-robin) so none starves.
 
@@ -125,7 +125,7 @@ Tests (unit with a mocked client, Testcontainers for the repository parts):
 
 Update `LotSyncSchedulerTest`, keep `FrontendJsonContractTest` green, and run `mvn -pl auction-import-service clean verify`.
 
-## Stage 3. Retention and docs
+## Stage 3. Retention and docs (superseded by docs/tasks/auction-feed-rollout.md)
 
 - `LotRetentionJob` (daily, no API calls):
   - delete `SOLD`/`UNSOLD`/`EXPIRED`/`REMOVED` lots with `ended_at` (or `auction_date`) older than `ended-lots-days`, together with their images and `import_calculations`;
@@ -145,8 +145,8 @@ Update `LotSyncSchedulerTest`, keep `FrontendJsonContractTest` green, and run `m
 - [x] Stage 0. API findings and type split: see **Findings** below; 2 real requests (`/vehicles/filters` and one `/vehicles` count). **Waiting for your OK on the split (F2) and the Stage 2 changes (F7).**
 - [x] Stage 1. Data model and mapping
   - Split approved (pickups in, ATVs out); `TRUCK` sampled (1 request: IAAI commercial trucks) → excluded. **V8** (`auction_lots.vehicle_type/body_style/sold_price/last_seen_at/ended_at`, `sync_streams`, `sync_runs.mode/stop_reason/window_minutes/streams_done/streams_with_backlog`), `SyncStream` entity; `apibara.vehicle-types.include`; `toLot` maps source from `platform` (IAAI was stored as COPART) and status from `outcome_status`/`last_sold_status`/`lot_removed` (Sold on Approval / no result → EXPIRED); a final result survives stale records, a relist (later auction) takes the feed's state with a WARN; `last_seen_at` via one UPDATE per page. `apibara.targets` stays until Stage 2.
-- [ ] Stage 2. Feed sync
-- [ ] Stage 3. Retention and docs
+- [ ] Stage 2. Feed sync — superseded by docs/tasks/auction-feed-rollout.md
+- [ ] Stage 3. Retention and docs — superseded by docs/tasks/auction-feed-rollout.md
 
 ## Findings (Stage 0, 2026-10-24)
 
