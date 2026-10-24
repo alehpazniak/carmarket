@@ -28,6 +28,9 @@ export interface AuctionLot {
     saleDate?: string;
     status: LotStatus;
     imageUrls?: string[];
+    // As Apibara sends them: e.g. "RUNS AND DRIVES", "Run & Drive Verified"; "SALVAGE CERTIFICATE (FL)"
+    runCondition?: string;
+    titleType?: string;
     createdAt?: string;
     updatedAt?: string;
 }

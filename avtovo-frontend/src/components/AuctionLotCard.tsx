@@ -1,5 +1,5 @@
 import type { AuctionLot } from '../types/auctions';
-import { Gauge, MapPin, Calendar, Gavel } from 'lucide-react';
+import { Gauge, MapPin, Calendar, Gavel, FileText } from 'lucide-react';
 
 const STATUS_LABELS: Record<string, { label: string; className: string }> = {
     LIVE: { label: 'Na żywo', className: 'bg-avtovo-accent/15 text-avtovo-accent' },
@@ -63,6 +63,14 @@ export default function AuctionLotCard({ lot, onSelect, selected }: Props) {
                         <MapPin size={12} />
                         <span>{lot.auctionLocation ?? '—'}{lot.primaryDamage ? ` · ${lot.primaryDamage}` : ''}</span>
                     </div>
+                    {(lot.runCondition || lot.titleType) && (
+                        <div className="flex items-center gap-1.5 text-avtovo-text-secondary text-xs col-span-2 min-w-0">
+                            <FileText size={12} className="shrink-0" />
+                            <span className="truncate" title={[lot.runCondition, lot.titleType].filter(Boolean).join(' · ')}>
+                                {[lot.runCondition, lot.titleType].filter(Boolean).join(' · ')}
+                            </span>
+                        </div>
+                    )}
                 </div>
             </div>
         </button>

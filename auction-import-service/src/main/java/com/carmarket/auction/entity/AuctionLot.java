@@ -100,6 +100,14 @@ public class AuctionLot {
     @Column(name = "vehicle_type", length = 50)
     private String vehicleType;
 
+    /** Apibara's condition.run_condition.value as sent, e.g. "RUNS AND DRIVES", "Run & Drive Verified" (V10) */
+    @Column(name = "run_condition", length = 50)
+    private String runCondition;
+
+    /** Apibara's sale_document.name as sent, e.g. "SALVAGE CERTIFICATE", "CLEAR (FL)" (V10) */
+    @Column(name = "title_type", length = 100)
+    private String titleType;
+
     /** Apibara's vehicle_specs.body_style as sent (free text: Copart Body Style / IAAI VehicleClass) */
     @Column(name = "body_style", length = 50)
     private String bodyStyle;

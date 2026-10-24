@@ -203,6 +203,12 @@ Update `LotSyncSchedulerTest`, keep `FrontendJsonContractTest` green, and run `m
 - [x] Stage A. Measure and size: see **Sizing** below; 6 counted requests (24 → 30). Not waited for: on 24 Oct you asked to start syncing on the free plan at once (one run a day at 08:00, days-ahead 0); the Basic proposals (days-ahead 1, `year-from: 2012`, tomorrow before today) are still open.
 - [x] Stage B. Feed sync within the active window
   - `FeedSyncService` (outcomes via `/changes?terminal=1` from the newest event, then today … days-ahead by cursor passes, resumable), `SyncBudget` (pacing), `SyncLock` (`pg_try_advisory_lock`), `LotSyncScheduler` (minute check, one SCHEDULED run per slot from `daily-start` 08:00, `run-every-minutes: 0` = once a day; restarts don't repeat it, a late start catches it up), **V9**, `apibara.targets`/`parser.sync.interval` removed, Sizing fixes (approval price kept, sold beats removed), admin status `feed`. Free plan: `APIBARA_SYNC_*` in compose and `.env.example`.
+  - **Run and Drive + title filter** (added 24 Oct):
+    - `apibara.filters.run-and-drive-only`: sent as `run_cond=RUNS AND DRIVES` and re-checked per record;
+    - `title-exclude`: case-insensitive substring, applied on our side, because the API filters titles only by one exact value;
+    - **V10** (V9 had already run on the dev database): `run_condition` / `title_type` on `auction_lots`, `skipped_type/condition/title` on `sync_runs`;
+    - shown on the lot card and the lot page.
+    - **Open:** after the first syncs, list the distinct values (see **Filters** below).
 - [ ] Stage C. Listing: Dziś / Jutro / Wszystkie
 - [ ] Stage D. Lot page: synced bid, refresh, Copart/IAAI link, ended lots
 - [ ] Stage E. Retention, local database, switch checklist, docs
@@ -285,3 +291,27 @@ All `/vehicles` requests used `auction_type=0`, the seven included types, `upcom
 - Keep `APIBARA_SYNC_ENABLED=false`. For the end-to-end tests of Stages B–D, run the admin's manual sync with `APIBARA_SYNC_MONTHLY_BUDGET=20`: 1–2 outcome requests plus up to ~18 pages (~360 lots) of the next auction day, enough to fill and check the listing.
 - Keep the rest for the lot-page refresh tests (Stage D) and live lookups.
 - Note: Stage 0's headers said `X-Subscription-Period-End: 2026-10-24 10:03`, yet the counter didn't reset. Use the calendar month as the fallback period (Stage B already does).
+
+## Filters (Run and Drive, title), 24 Oct
+
+- **Run condition:** `condition.run_condition` on every record (`value`, `label`, `class_hint`), already normalized by Apibara for both platforms:
+  - IAAI's start code "Run & Drive" and Copart's highlight both come out as `RUNS AND DRIVES`;
+  - a Copart fixture has `Run & Drive Verified`;
+  - `/vehicles/filters` lists `RUNS AND DRIVES`, `ENGINE START PROGRAM` ("Vehicle starts") and `STATIONARY / NO INFORMATION`.
+  - **Server-side:** `run_cond` takes one value (`RUNS AND DRIVES`, `ENGINE START PROGRAM`, `STATIONARY`, `NO INFORMATION`). The sync sends `run_cond=RUNS AND DRIVES` and re-checks each record (the value contains RUN and DRIVE).
+  - **Unverified:** whether `run_cond=RUNS AND DRIVES` also returns "Run & Drive Verified" lots. If the distinct values below never show "Verified", the server filter drops them.
+- **Title:** `sale_document` (`name`, `type`, `export`, `registration`, `page_id`, `sale_document_group`).
+  - Seen: `CERTIFICATE OF DESTRUCTION` (`registration: false`), `SALVAGE - REBUILT` and `SALVAGE CERTIFICATE` (`registration: true`).
+  - `registration` is Apibara's US flag, not a Polish rule; it's kept in `raw_data` only.
+  - **Server-side:** `sale_document_type` takes one exact string, so neither an exclude list nor several allowed values work there. `title-exclude` therefore runs in the mapping (`skipped_title`).
+- **Not measured beforehand:** Stage A was finished, so no extra request was spent. `sync_runs.skipped_condition` / `skipped_title` and the per-page log line (`kept N of 20 (...)`) show the share after the first runs.
+- **After the first syncs**, list the values for the logistics partner:
+
+  ```sql
+  SELECT title_type, count(*) FROM auction_lots WHERE title_type IS NOT NULL GROUP BY 1 ORDER BY 2 DESC;
+  SELECT run_condition, count(*) FROM auction_lots WHERE run_condition IS NOT NULL GROUP BY 1 ORDER BY 2 DESC;
+  SELECT started_at, lots_fetched, skipped_type, skipped_condition, skipped_title FROM sync_runs
+   WHERE parser = 'FeedSync' ORDER BY started_at DESC;
+  ```
+
+  Lots dropped by the title rule aren't stored, so their titles only appear in the log.

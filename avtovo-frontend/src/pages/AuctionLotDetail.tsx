@@ -6,7 +6,7 @@ import W8QuoteBreakdown from '../components/auctions/W8QuoteBreakdown';
 import W8ShippingFields from '../components/auctions/W8ShippingFields';
 import PhotoGallery from '../components/PhotoGallery';
 import { useAuth } from '../context/AuthContext';
-import { ChevronLeft, TrendingUp, Loader2, Gauge, MapPin, Gavel, Lock, ClipboardPlus } from 'lucide-react';
+import { ChevronLeft, TrendingUp, Loader2, Gauge, MapPin, Gavel, Lock, ClipboardPlus, KeyRound, FileText } from 'lucide-react';
 
 const PLN = (v: number | undefined) => v == null ? '—' : `${v.toLocaleString('pl-PL', { maximumFractionDigits: 0 })} zł`;
 const USD = (v: number | undefined) => v == null ? '—' : `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
@@ -141,6 +141,8 @@ export default function AuctionLotDetail() {
                                 {[
                                     { icon: <Gauge size={16} />, label: 'Przebieg', value: lot.odometer != null ? `${lot.odometer.toLocaleString('en-US')} ${lot.odometerUnit ?? 'mi'}` : '—' },
                                     { icon: <Gavel size={16} />, label: 'Uszkodzenia', value: [lot.primaryDamage, lot.secondaryDamage].filter(Boolean).join(' · ') || '—' },
+                                    { icon: <KeyRound size={16} />, label: 'Stan (uruchamianie)', value: lot.runCondition ?? '—' },
+                                    { icon: <FileText size={16} />, label: 'Dokument (title)', value: lot.titleType ?? '—' },
                                     { icon: <MapPin size={16} />, label: 'Lokalizacja', value: lot.auctionLocation ?? '—' },
                                     { icon: <Gauge size={16} />, label: 'Silnik', value: lot.engineCapacity != null ? `${lot.engineCapacity} L` : '—' },
                                     { icon: <Gauge size={16} />, label: 'Paliwo', value: lot.fuelType ?? '—' },

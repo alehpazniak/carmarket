@@ -99,6 +99,13 @@ apibara:
     # motorcycles and pickups. Everything else is skipped (ATV, DIRT BIKE, TRUCK = IAAI commercial trucks, trailers,
     # RVs, buses, boats, equipment, OTHER, ...). Records without a type are kept.
     include: [SEDAN, AUTOMOBILE, COUPE, SUV, VAN, MOTORCYCLE, PICKUP]
+  filters:
+    # Run and Drive only: sent to Apibara as run_cond=RUNS AND DRIVES (fewer pages), checked again per record
+    # (condition.run_condition.value must contain RUN and DRIVE; "ENGINE START PROGRAM", "STATIONARY" are dropped)
+    run-and-drive-only: true
+    # Titles that can't be registered in Poland; case-insensitive substring of sale_document.name, which carries a
+    # state ("... (FL)"). Apibara filters titles only by one exact value, so this runs on our side (skipped_title).
+    title-exclude: [DESTRUCTION, NON-REPAIRABLE, NONREPAIRABLE, JUNK, PARTS ONLY, SCRAP, BILL OF SALE]
   # Feed sync (docs/tasks/auction-feed-rollout.md, Sizing). Every run: outcomes (GET /changes?terminal=1, 500 events
   # per request) first, then the auction days today … today+days-ahead (GET /vehicles, 20 lots per request, soonest
   # auction first; an unfinished pass resumes from its cursor in the next run).

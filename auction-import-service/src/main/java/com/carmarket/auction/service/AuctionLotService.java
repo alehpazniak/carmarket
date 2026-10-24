@@ -164,6 +164,8 @@ public class AuctionLotService {
         target.setBodyStyle(source.getBodyStyle());
         target.setSoldPrice(source.getSoldPrice());
         target.setEndedAt(source.getEndedAt());
+        target.setRunCondition(source.getRunCondition());
+        target.setTitleType(source.getTitleType());
         target.getImageUrls().clear();
         if (source.getImageUrls() != null) {
             target.getImageUrls().addAll(source.getImageUrls());

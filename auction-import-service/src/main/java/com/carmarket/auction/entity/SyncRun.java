@@ -86,6 +86,16 @@ public class SyncRun {
     @Column(name = "streams_with_backlog")
     private Integer streamsWithBacklog;
 
+    /** Records the sync dropped for their vehicle type, run condition or title (apibara.filters, V10) */
+    @Column(name = "skipped_type")
+    private Integer skippedType;
+
+    @Column(name = "skipped_condition")
+    private Integer skippedCondition;
+
+    @Column(name = "skipped_title")
+    private Integer skippedTitle;
+
     public static SyncRun start(String parser, String trigger) {
         SyncRun run = new SyncRun();
         run.id = UUID.randomUUID();

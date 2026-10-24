@@ -293,8 +293,12 @@ public class FeedSyncService {
                 run.setLotsUpdated(count(run.getLotsUpdated()) + counts.updated());
             }
             run.setLotsFetched(count(run.getLotsFetched()) + page.vehicles().size());
-            if (mapped.skippedType() > 0) {
-                log.info("{}: skipped_type={}", stream.getStreamKey(), mapped.skippedType());
+            run.setSkippedType(count(run.getSkippedType()) + mapped.skippedType());
+            run.setSkippedCondition(count(run.getSkippedCondition()) + mapped.skippedCondition());
+            run.setSkippedTitle(count(run.getSkippedTitle()) + mapped.skippedTitle());
+            if (page.vehicles().size() > mapped.lots().size()) {
+                log.info("{}: kept {} of {} (skipped_type={}, skipped_condition={}, skipped_title={})", stream.getStreamKey(),
+                    mapped.lots().size(), page.vehicles().size(), mapped.skippedType(), mapped.skippedCondition(), mapped.skippedTitle());
             }
             stream.setPagesDone(count(stream.getPagesDone()) + 1);
             stream.setLastRunAt(clock.instant());
@@ -321,6 +325,9 @@ public class FeedSyncService {
         params.add("auction_type", "0"); // both platforms in one request
         apibara.getVehicleTypes().getInclude().forEach(type -> params.add("type[]", type));
         params.add("upcoming", "only");
+        if (apibara.getFilters().isRunAndDriveOnly()) {
+            params.add("run_cond", "RUNS AND DRIVES"); // server-side; titles can only be filtered on our side
+        }
         params.add("auction_date_from", day.toString());
         params.add("auction_date_to", day.toString());
         if (props.getYearFrom() != null) {
@@ -360,7 +367,9 @@ public class FeedSyncService {
                 run.setQuotaObservedAt(q.observedAt());
             });
         run.setFinishedAt(clock.instant());
-        log.info("Feed sync ({}) stopped: {}, {} requests, {} lots fetched", run.getTrigger(), reason, requests, count(run.getLotsFetched()));
+        log.info("Feed sync ({}) stopped: {}, {} requests, {} lots fetched, skipped_type={}, skipped_condition={}, skipped_title={}",
+            run.getTrigger(), reason, requests, count(run.getLotsFetched()), count(run.getSkippedType()),
+            count(run.getSkippedCondition()), count(run.getSkippedTitle()));
         return runs.save(run);
     }
 }

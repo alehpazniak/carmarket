@@ -23,7 +23,7 @@ class ApibaraAuctionParserTest {
              "make": "BMW", "model": "X3", "type": "SUV", "seller": {"name": "Insurance Company"},
              "auction": {"state": "upcoming", "auction_at": "%s", "diff_minutes": 120},
              "pricing": {"current_bid_usd": 7200}, "location": {"display": "Tampa South (FL)"},
-             "condition": {"primary_damage": "FRONT END"}, "media": {"thumbs": ["https://example.com/1.jpg"]}}
+             "condition": {"primary_damage": "FRONT END", "run_condition": {"value": "RUNS AND DRIVES"}}, "media": {"thumbs": ["https://example.com/1.jpg"]}}
             """.formatted(lotNumber, auctionAt));
     }
 

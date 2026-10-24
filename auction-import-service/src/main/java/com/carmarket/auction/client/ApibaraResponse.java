@@ -35,7 +35,8 @@ public record ApibaraResponse(List<Vehicle> data, Meta meta) {
         Odometer odometer,
         Media media,
         String type, // vehicle type, e.g. AUTOMOBILE, PICKUP; null on some records
-        @JsonProperty("vehicle_specs") VehicleSpecs vehicleSpecs
+        @JsonProperty("vehicle_specs") VehicleSpecs vehicleSpecs,
+        @JsonProperty("sale_document") SaleDocument saleDocument
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -72,8 +73,20 @@ public record ApibaraResponse(List<Vehicle> data, Meta meta) {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Condition(
         @JsonProperty("primary_damage") String primaryDamage,
-        @JsonProperty("has_key") Boolean hasKey
+        @JsonProperty("has_key") Boolean hasKey,
+        @JsonProperty("run_condition") RunCondition runCondition
     ) {}
+
+    /** Apibara's normalized start/run state, e.g. value "RUNS AND DRIVES", "Run & Drive Verified", "ENGINE START PROGRAM" */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record RunCondition(String value, String label) {}
+
+    /**
+     * The title (Copart "Doc Type", IAAI "Title/Sale Doc"): name e.g. "SALVAGE CERTIFICATE", "CERTIFICATE OF
+     * DESTRUCTION"; registration = Apibara's flag for US registrability (not a Polish rule).
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record SaleDocument(String name, Boolean registration) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Odometer(Integer mi) {}

@@ -101,7 +101,7 @@ class FeedSyncServiceTest {
 
     private JsonNode vehicle(String lotNumber) throws Exception {
         return objectMapper.readTree("""
-            {"platform": "copart", "lot_number": "%s", "year": 2020, "make": "TOYOTA", "model": "RAV4", "type": "SUV",
+            {"platform": "copart", "lot_number": "%s", "year": 2020, "make": "TOYOTA", "model": "RAV4", "type": "SUV", "condition": {"run_condition": {"value": "RUNS AND DRIVES"}},
              "auction": {"state": "open", "auction_at": "2026-10-26T15:00:00+00:00"}}""".formatted(lotNumber));
     }
 
@@ -138,13 +138,33 @@ class FeedSyncServiceTest {
         order.verify(client).searchVehiclesPage(argThat(p -> p.get("type[]").equals(List.of("AUTOMOBILE", "SUV", "PICKUP"))
             && "0".equals(p.getFirst("auction_type")) && "only".equals(p.getFirst("upcoming"))
             && "2026-10-26".equals(p.getFirst("auction_date_from")) && "2026-10-26".equals(p.getFirst("auction_date_to"))
-            && p.getFirst("year_from") == null));
+            && "RUNS AND DRIVES".equals(p.getFirst("run_cond")) && p.getFirst("year_from") == null));
         order.verify(lotService).saveOrUpdateLots(argThat(lots -> lots.size() == 2));
         assertThat(run.getStopReason()).isEqualTo("DONE");
         assertThat(stored.get(SyncStream.OUTCOMES).getSequence()).isEqualTo(150);
         assertThat(stored.get(TODAY).getLastFullAt()).isEqualTo(NOW);
         assertThat(stored.get(TODAY).getLastTotal()).isEqualTo(2);
         assertThat(stored.get(TODAY).getCursor()).isNull();
+    }
+
+    @Test
+    void droppedLotsAreCountedPerRun() throws Exception {
+        outcomesAt(100);
+        when(client.terminalChangesPage(100, 500)).thenReturn(changes(List.of(), 100, false));
+        apibara.getFilters().setTitleExclude(List.of("DESTRUCTION"));
+        JsonNode destroyed = vehicle("3");
+        ((com.fasterxml.jackson.databind.node.ObjectNode) destroyed)
+            .set("sale_document", objectMapper.createObjectNode().put("name", "CERTIFICATE OF DESTRUCTION (GA)"));
+        JsonNode stationary = objectMapper.readTree(vehicle("4").toString().replace("RUNS AND DRIVES", "STATIONARY"));
+        when(client.searchVehiclesPage(firstPage())).thenReturn(vehicles(List.of(vehicle("1"), destroyed, stationary), null, 3));
+
+        SyncRun run = service.run("SCHEDULED");
+
+        assertThat(run.getLotsFetched()).isEqualTo(3);
+        assertThat(run.getSkippedCondition()).isEqualTo(1);
+        assertThat(run.getSkippedTitle()).isEqualTo(1);
+        assertThat(run.getSkippedType()).isZero();
+        verify(lotService).saveOrUpdateLots(argThat(lots -> lots.size() == 1));
     }
 
     @Test

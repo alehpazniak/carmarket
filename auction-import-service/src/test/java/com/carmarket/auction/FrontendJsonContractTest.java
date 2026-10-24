@@ -49,7 +49,8 @@ class FrontendJsonContractTest {
             .auctionLocation("CA").saleDate(LocalDateTime.of(2026, 10, 1, 12, 0))
             .auctionDate(Instant.parse("2026-10-01T14:00:00Z"))
             .rawData("{\"lot_number\":\"45008746\"}").contentHash("abc")
-            .vehicleType("AUTOMOBILE").soldPrice(new BigDecimal("7900")).lastSeenAt(Instant.parse("2026-10-01T15:00:00Z"))
+            .vehicleType("AUTOMOBILE").runCondition("RUNS AND DRIVES").titleType("SALVAGE CERTIFICATE (FL)")
+            .soldPrice(new BigDecimal("7900")).lastSeenAt(Instant.parse("2026-10-01T15:00:00Z"))
             .build();
 
         JsonNode json = toJson(lot);
@@ -59,6 +60,8 @@ class FrontendJsonContractTest {
         assertThat(json.path("saleDate").asText()).startsWith("2026-10-01T12:00");
         assertThat(json.has("lot_number")).isFalse();
         assertThat(json.path("vehicleType").asText()).isEqualTo("AUTOMOBILE");
+        assertThat(json.path("runCondition").asText()).isEqualTo("RUNS AND DRIVES");
+        assertThat(json.path("titleType").asText()).isEqualTo("SALVAGE CERTIFICATE (FL)");
         assertThat(json.path("soldPrice").decimalValue()).isEqualByComparingTo("7900");
         // ISO in UTC; the frontend converts to Europe/Warsaw
         assertThat(json.path("auctionDate").asText()).isEqualTo("2026-10-01T14:00:00Z");
@@ -87,13 +90,16 @@ class FrontendJsonContractTest {
             new ApibaraResponse.Auction("upcoming", "2026-10-01T12:00:00Z", null, null, null, null, null, null),
             new ApibaraResponse.Pricing(new BigDecimal("1500"), null, null, null),
             new ApibaraResponse.Location("Sacramento (CA)", "CA"),
-            new ApibaraResponse.Condition("FRONT END", true),
+            new ApibaraResponse.Condition("FRONT END", true, new ApibaraResponse.RunCondition("RUNS AND DRIVES", "Runs and drives")),
             new ApibaraResponse.Odometer(12000),
             new ApibaraResponse.Media(12, false, List.of("https://example.com/1.jpg")),
-            "AUTOMOBILE", new ApibaraResponse.VehicleSpecs("Sedan"));
+            "AUTOMOBILE", new ApibaraResponse.VehicleSpecs("Sedan"),
+            new ApibaraResponse.SaleDocument("SALVAGE CERTIFICATE", true));
 
         JsonNode json = toJson(vehicle);
         assertThat(json.path("vehicle_specs").path("body_style").asText()).isEqualTo("Sedan");
+        assertThat(json.path("condition").path("run_condition").path("value").asText()).isEqualTo("RUNS AND DRIVES");
+        assertThat(json.path("sale_document").path("name").asText()).isEqualTo("SALVAGE CERTIFICATE");
 
         assertThat(json.path("lot_number").asText()).isEqualTo("45008746");
         assertThat(json.path("pricing").path("current_bid_usd").decimalValue()).isEqualByComparingTo("1500");

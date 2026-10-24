@@ -135,6 +135,51 @@ class ApibaraLotMappingTest {
         assertThat(page.skippedType()).isEqualTo(2);
     }
 
+    @Test
+    void runConditionAndTitleAreStoredAsSent() throws Exception {
+        AuctionLot iaai = map(fixture(FIXTURES.resolve("apibara.tech_api_v1_vehicle-auction_vehicles_JM3KFBDM7K1621899.json")));
+        assertThat(iaai.getRunCondition()).isEqualTo("RUNS AND DRIVES");
+        assertThat(iaai.getTitleType()).isEqualTo("SALVAGE - REBUILT");
+
+        AuctionLot copart = map(objectMapper.readTree(Files.readString(Path.of("src/test/resources/apibara/urltodetails-copart.json"))).path("data"));
+        assertThat(copart.getRunCondition()).isEqualTo("Run & Drive Verified");
+        assertThat(copart.getTitleType()).isEqualTo("SALVAGE CERTIFICATE");
+    }
+
+    @Test
+    void onlyRunAndDriveLotsWithARegistrableTitleAreKept() throws Exception {
+        config.getFilters().setTitleExclude(List.of("DESTRUCTION", "NON-REPAIRABLE", "JUNK", "PARTS ONLY", "BILL OF SALE"));
+        List<JsonNode> vehicles = new ArrayList<>();
+        String[][] cases = {
+            {"rd", "RUNS AND DRIVES", "SALVAGE CERTIFICATE (FL)"},
+            {"verified", "Run & Drive Verified", "CLEAR (TX)"},
+            {"starts", "ENGINE START PROGRAM", "SALVAGE CERTIFICATE (FL)"},
+            {"stationary", "STATIONARY", "CLEAR (TX)"},
+            {"unknown", null, "CLEAR (TX)"},
+            {"destruction", "RUNS AND DRIVES", "Certificate of Destruction (GA)"},
+            {"nonrepairable", "RUNS AND DRIVES", "NON-REPAIRABLE CERTIFICATE (WA)"},
+            {"no-title", "RUNS AND DRIVES", null},
+        };
+        for (String[] c : cases) {
+            ObjectNode vehicle = (ObjectNode) fixture(FIXTURES.resolve("apibara.tech_api_v1_vehicle-auction_vehicles_JM3KFBDM7K1621899.json"));
+            vehicle.put("lot_number", c[0]);
+            ((ObjectNode) vehicle.path("condition")).set("run_condition",
+                c[1] == null ? null : objectMapper.createObjectNode().put("value", c[1]));
+            vehicle.set("sale_document", c[2] == null ? null : objectMapper.createObjectNode().put("name", c[2]));
+            vehicles.add(vehicle);
+        }
+
+        ApibaraAuctionParser.MappedPage page = parser.map(vehicles);
+
+        assertThat(page.lots()).extracting(AuctionLot::getLotNumber).containsExactly("rd", "verified", "no-title");
+        assertThat(page.skippedCondition()).isEqualTo(3);
+        assertThat(page.skippedTitle()).isEqualTo(2);
+        assertThat(page.skippedType()).isZero();
+
+        config.getFilters().setRunAndDriveOnly(false);
+        assertThat(parser.map(vehicles).lots()).hasSize(6);
+    }
+
     /** A Buy Now sale also removes the lot from inventory; the sale wins (seen in /changes, Sizing). */
     @Test
     void aBuyNowSaleIsSoldNotRemoved() throws Exception {

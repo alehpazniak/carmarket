@@ -23,7 +23,8 @@ import java.util.Set;
 
 /**
  * Maps Apibara /vehicles records to AuctionLot entities for the feed sync (FeedSyncService), one response page at
- * a time, and drops the vehicle types outside apibara.vehicle-types.include.
+ * a time. Drops what the sync doesn't keep, even if the request's filters let it through: vehicle types outside
+ * apibara.vehicle-types.include, lots that aren't Run and Drive, and excluded titles (apibara.filters).
  */
 @Slf4j
 @Component
@@ -33,28 +34,42 @@ public class ApibaraAuctionParser {
     private final ParserTargetsConfig config;
     private final ObjectMapper objectMapper;
 
-    /** The lots of one page, each with its raw JSON, and how many records were dropped for their type. */
-    public record MappedPage(List<AuctionLot> lots, int skippedType) {
+    /** The lots of one page, each with its raw JSON, and how many records were dropped and why. */
+    public record MappedPage(List<AuctionLot> lots, int skippedType, int skippedCondition, int skippedTitle) {
     }
 
     public MappedPage map(List<JsonNode> vehicles) {
         List<AuctionLot> lots = new ArrayList<>();
         int skippedType = 0;
+        int skippedCondition = 0;
+        int skippedTitle = 0;
+        ParserTargetsConfig.Filters filters = config.getFilters();
         for (JsonNode node : vehicles) {
             ApibaraResponse.Vehicle v = toVehicle(node);
             if (v == null) continue;
-            // Trucks, trailers, ATVs, ... even if the request's filter let them through
             if (!config.getVehicleTypes().includes(v.type())) {
                 skippedType++;
-                continue;
-            }
-            AuctionLot lot = toLot(v);
-            if (lot != null) {
-                lot.setRawData(node.toString());
-                lots.add(lot);
+            } else if (!filters.acceptsRunCondition(runCondition(v))) {
+                skippedCondition++;
+            } else if (!filters.acceptsTitle(title(v))) {
+                skippedTitle++;
+            } else {
+                AuctionLot lot = toLot(v);
+                if (lot != null) {
+                    lot.setRawData(node.toString());
+                    lots.add(lot);
+                }
             }
         }
-        return new MappedPage(lots, skippedType);
+        return new MappedPage(lots, skippedType, skippedCondition, skippedTitle);
+    }
+
+    private static String runCondition(ApibaraResponse.Vehicle v) {
+        return v.condition() == null || v.condition().runCondition() == null ? null : v.condition().runCondition().value();
+    }
+
+    private static String title(ApibaraResponse.Vehicle v) {
+        return v.saleDocument() == null ? null : v.saleDocument().name();
     }
 
     private ApibaraResponse.Vehicle toVehicle(JsonNode node) {
@@ -82,7 +97,9 @@ public class ApibaraAuctionParser {
             .lotNumber(v.lotNumber())
             .currency("USD")
             .vehicleType(truncate(v.type()))
-            .bodyStyle(v.vehicleSpecs() == null ? null : truncate(v.vehicleSpecs().bodyStyle()));
+            .bodyStyle(v.vehicleSpecs() == null ? null : truncate(v.vehicleSpecs().bodyStyle()))
+            .runCondition(truncate(runCondition(v)))
+            .titleType(truncate(title(v), 100));
         applyOutcome(b, v);
 
         if (v.pricing() != null) {
@@ -199,11 +216,16 @@ public class ApibaraAuctionParser {
         return null;
     }
 
-    /** vehicle_type / body_style are VARCHAR(50); body_style is free text */
+    /** vehicle_type / body_style / run_condition are VARCHAR(50); body_style is free text */
     private static String truncate(String value) {
+        return truncate(value, 50);
+    }
+
+    /** title_type is VARCHAR(100) */
+    private static String truncate(String value, int max) {
         if (value == null || value.isBlank()) return null;
         String trimmed = value.trim();
-        return trimmed.length() <= 50 ? trimmed : trimmed.substring(0, 50);
+        return trimmed.length() <= max ? trimmed : trimmed.substring(0, max);
     }
 
     /** Parses ISO-8601 with offset (e.g. "2026-07-13T14:00:00+00:00") to the instant, keeping the offset. */
