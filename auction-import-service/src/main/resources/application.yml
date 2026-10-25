@@ -93,7 +93,7 @@ eureka:
 apibara:
   base-url: https://apibara.tech
 #  api-key: ${APIBARA_API_KEY:ak_live_juGK5bzI5Re9eFdCxwaKvi6B1q7i5i0e4b6BbiWXFZtvX4oy}      # from .env / env var, NEVER commit
-  api-key: ${APIBARA_API_KEY:ak_live_vQlgCCdFx2whPdgX1qv5xrhbved26ZgWwWBn8G9hb2YczhxV}      # from .env / env var, NEVER commit
+  api-key: ${APIBARA_API_KEY:ak_live_Zjt4wAZEBh7ZiPinte8lt6E1YBE8V3NDFmkLR2MNuxrbcxoN}      # from .env / env var, NEVER commit
   per-page: 20                      # Test…Pro plans: 20 (Basic too); the client also caps it by X-Per-Page-Limit
   vehicle-types:
     # Apibara Vehicle.type values the sync keeps (docs/tasks/auction-feed-sync.md, Findings F2): cars, SUVs, vans,
@@ -115,13 +115,13 @@ apibara:
   # Basic (30,000/month from 1 Nov): monthly-budget 22000 (≈ 730/day), keep-remaining 1000, run-every-minutes 30,
   # days-ahead 1, year-from 2012 → one pass per auction day the day before (Sizing).
   sync:
-    enabled: ${APIBARA_SYNC_ENABLED:false}        # the automatic schedule only (off by default: IntelliJ restarts must
+    enabled: ${APIBARA_SYNC_ENABLED:true}        # the automatic schedule only (off by default: IntelliJ restarts must
                                                   # not spend quota); "Synchronizuj teraz" works either way, within the budget
     zone: Europe/Warsaw
     active-hours: "07:00-23:00"                   # no scheduled run starts outside; a manual run ignores it
     daily-start: "08:00"                          # first (and with run-every-minutes 0 the only) run of the day
     run-every-minutes: 0                          # 0 = one scheduled run a day
-    monthly-budget: ${APIBARA_SYNC_MONTHLY_BUDGET:30}
+    monthly-budget: ${APIBARA_SYNC_MONTHLY_BUDGET:100}
     keep-remaining: ${APIBARA_KEEP_REMAINING:15}
     quota-snapshot-max-age: 6h                    # a quota snapshot without a period end (e.g. a 429's) is ignored after this
     days-ahead: 0                                 # today only for now
