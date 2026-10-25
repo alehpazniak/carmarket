@@ -1,6 +1,8 @@
 package com.carmarket.auction.controller;
 
 import com.carmarket.auction.client.ApibaraClient;
+import com.carmarket.auction.client.ApibaraQuotaExceededException;
+import com.carmarket.auction.client.ApibaraUnavailableException;
 import com.carmarket.auction.config.SecurityConfig;
 import com.carmarket.auction.entity.W8Auction;
 import com.carmarket.auction.security.GatewaySignatureFilter;
@@ -29,6 +31,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -64,18 +68,50 @@ class ApibaraSecurityTest {
         verify(liveLookup).vehicle("1hgcm82633a004352");
     }
 
-    /** Apibara's 429 reaches the frontend as 429 (apibaraErrorMessage), a failure as 502, no key as 503 */
+    private static com.carmarket.auction.client.ApibaraQuota quota(Integer remaining, Integer rateLimitRemaining) {
+        return new com.carmarket.auction.client.ApibaraQuota(100, null, remaining, null, null, rateLimitRemaining, null,
+            java.time.Instant.parse("2026-10-25T10:00:00Z"));
+    }
+
+    /** Apibara's monthly quota is used up (X-Subscription-Remaining 0): 429, the reason and Apibara's Retry-After */
     @Test
-    void liveLookupFailuresKeepTheirMeaning() throws Exception {
+    void anExhaustedQuotaSaysSo() throws Exception {
         when(client.isConfigured()).thenReturn(true);
-        when(liveLookup.resolve("https://www.copart.com/lot/61747696"))
-            .thenThrow(new com.carmarket.auction.client.ApibaraQuotaExceededException(null, null));
-        when(liveLookup.vehicle("61747696"))
-            .thenThrow(new com.carmarket.auction.client.ApibaraUnavailableException("Apibara answered HTTP 500"));
+        when(liveLookup.resolve("https://www.copart.com/lot/61747696")).thenThrow(
+            new ApibaraQuotaExceededException(java.time.Duration.ofHours(1), quota(0, 9)));
 
         mvc.perform(get("/api/auctions/apibara/vehicles/url-to-details").param("url", "https://www.copart.com/lot/61747696"))
-            .andExpect(status().isTooManyRequests());
-        mvc.perform(get("/api/auctions/apibara/vehicles/{id}", "61747696")).andExpect(status().isBadGateway());
+            .andExpect(status().isTooManyRequests())
+            .andExpect(header().string("Retry-After", "3600"))
+            .andExpect(jsonPath("$.reason").value("QUOTA_EXHAUSTED"));
+    }
+
+    /** a 429 with quota left (or without the header) is the short-term limit; no Retry-After when Apibara sent none */
+    @Test
+    void aShortTermLimitIsRateLimited() throws Exception {
+        when(client.isConfigured()).thenReturn(true);
+        when(liveLookup.vehicle("61747696")).thenThrow(new ApibaraQuotaExceededException(java.time.Duration.ofSeconds(30), quota(57, 0)));
+        when(liveLookup.vehicle("61747697")).thenThrow(new ApibaraQuotaExceededException(null, null));
+
+        mvc.perform(get("/api/auctions/apibara/vehicles/{id}", "61747696"))
+            .andExpect(status().isTooManyRequests())
+            .andExpect(header().string("Retry-After", "30"))
+            .andExpect(jsonPath("$.reason").value("RATE_LIMITED"));
+        mvc.perform(get("/api/auctions/apibara/vehicles/{id}", "61747697"))
+            .andExpect(status().isTooManyRequests())
+            .andExpect(header().doesNotExist("Retry-After"))
+            .andExpect(jsonPath("$.reason").value("RATE_LIMITED"));
+    }
+
+    /** any other failure: 502 with UNAVAILABLE; no API key stays a bare 503 */
+    @Test
+    void otherFailuresAreUnavailable() throws Exception {
+        when(client.isConfigured()).thenReturn(true);
+        when(liveLookup.vehicle("61747696")).thenThrow(new ApibaraUnavailableException("Apibara answered HTTP 500"));
+
+        mvc.perform(get("/api/auctions/apibara/vehicles/{id}", "61747696"))
+            .andExpect(status().isBadGateway())
+            .andExpect(jsonPath("$.reason").value("UNAVAILABLE"));
 
         when(client.isConfigured()).thenReturn(false);
         mvc.perform(get("/api/auctions/apibara/vehicles/{id}", "61747696")).andExpect(status().isServiceUnavailable());
