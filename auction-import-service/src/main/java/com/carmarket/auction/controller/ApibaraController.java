@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.MultiValueMap;
@@ -63,10 +64,10 @@ public class ApibaraController {
     /**
      * A pasted Copart/IAAI link, lot number or VIN → the vehicle (same shape as GET /vehicles/{slugVin}). Both are
      * cached and stored when they pass the sync's filters ({@link LiveVehicleLookup}). 404 when Apibara doesn't know
-     * the car, 429 when Apibara's quota is used up, 502 when it failed, 503 without an API key.
+     * the car, 429 / 502 with a {@link LookupFailure} reason when Apibara refused or failed, 503 without an API key.
      */
     @GetMapping("/vehicles/url-to-details")
-    public ResponseEntity<ApibaraVehicleDetailResponse> resolveFromUrl(@RequestParam String url) {
+    public ResponseEntity<?> resolveFromUrl(@RequestParam String url) {
         return live(() -> liveLookup.resolve(url));
     }
 
@@ -76,22 +77,37 @@ public class ApibaraController {
     }
 
     @GetMapping("/vehicles/{slugVin}")
-    public ResponseEntity<ApibaraVehicleDetailResponse> getVehicle(@PathVariable String slugVin) {
+    public ResponseEntity<?> getVehicle(@PathVariable String slugVin) {
         return live(() -> liveLookup.vehicle(slugVin));
     }
 
-    private ResponseEntity<ApibaraVehicleDetailResponse> live(Supplier<Optional<ApibaraVehicleDetailResponse>> lookup) {
+    /**
+     * Why a live lookup failed, for the frontend's message (apibaraErrorMessage): QUOTA_EXHAUSTED (429, Apibara's
+     * monthly quota), RATE_LIMITED (429, a short-term limit) or UNAVAILABLE (502). The gateway's own 429
+     * (ApibaraRateLimiter) has no body.
+     */
+    public record LookupFailure(String reason) {
+        static final LookupFailure QUOTA_EXHAUSTED = new LookupFailure("QUOTA_EXHAUSTED");
+        static final LookupFailure RATE_LIMITED = new LookupFailure("RATE_LIMITED");
+        static final LookupFailure UNAVAILABLE = new LookupFailure("UNAVAILABLE");
+    }
+
+    private ResponseEntity<?> live(Supplier<Optional<ApibaraVehicleDetailResponse>> lookup) {
         if (!client.isConfigured()) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         }
         try {
-            return lookup.get().map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+            return lookup.get().<ResponseEntity<?>>map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
         } catch (ApibaraQuotaExceededException e) {
             log.warn("Apibara live lookup: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build();
+            ResponseEntity.BodyBuilder tooMany = ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS);
+            if (e.getRetryAfter() != null) {
+                tooMany.header(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfter().toSeconds()));
+            }
+            return tooMany.body(e.isMonthlyQuotaExhausted() ? LookupFailure.QUOTA_EXHAUSTED : LookupFailure.RATE_LIMITED);
         } catch (ApibaraUnavailableException e) {
             log.error("Apibara live lookup failed: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(LookupFailure.UNAVAILABLE);
         }
     }
 

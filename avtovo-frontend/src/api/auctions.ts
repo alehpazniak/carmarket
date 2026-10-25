@@ -108,9 +108,26 @@ export const getComparables = (id: string) =>
 // ── Live Apibara lookups — each call spends the account's monthly quota ──
 // Open to anonymous users; the gateway limits them per IP and all together (429), logged-in users far less.
 
-/** Error text for a failed live lookup: a 429 gets its own message (log in when anonymous), else the fallback. */
+/**
+ * Why a live lookup failed, from auction-import-service (ApibaraController.LookupFailure). The gateway's own 429
+ * (its per-IP / anonymous limits) has no body.
+ */
+export type ApibaraFailureReason = 'QUOTA_EXHAUSTED' | 'RATE_LIMITED' | 'UNAVAILABLE';
+
+/**
+ * Error text for a failed live lookup: Apibara's monthly quota, a short-term limit (or the gateway's 429: log in
+ * when anonymous), Apibara not answering; anything else gets the fallback.
+ */
 export function apibaraErrorMessage(err: unknown, isAuthenticated: boolean, fallback: string): string {
-    if (axios.isAxiosError(err) && err.response?.status === 429) {
+    if (!axios.isAxiosError(err)) return fallback;
+    const reason = (err.response?.data as { reason?: ApibaraFailureReason } | undefined)?.reason;
+    if (reason === 'QUOTA_EXHAUSTED') {
+        return 'Miesięczny limit zapytań do Apibara został wyczerpany. Auta z naszej bazy nadal możesz wyszukać.';
+    }
+    if (reason === 'UNAVAILABLE') {
+        return 'Apibara chwilowo nie odpowiada.';
+    }
+    if (reason === 'RATE_LIMITED' || err.response?.status === 429) {
         return isAuthenticated
             ? 'Zbyt wiele zapytań do Apibara. Spróbuj ponownie za chwilę.'
             : 'Wyczerpano limit wyszukiwań dla niezalogowanych. Zaloguj się, aby kontynuować.';
