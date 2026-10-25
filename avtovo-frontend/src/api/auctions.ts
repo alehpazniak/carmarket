@@ -44,6 +44,21 @@ export const searchLots = (params: LotSearchParams = {}) =>
 export const getLotFacets = () =>
     api.get<LotFacets>('/api/auctions/lots/facets').then(r => r.data);
 
+/** What GET /lots/lookup recognised in the search field on /aukcje. */
+export type LotLookupKind = 'LOT_NUMBER' | 'VIN' | 'COPART_URL' | 'IAAI_URL' | 'URL' | 'UNKNOWN';
+
+export interface LotLookupResult {
+    kind: LotLookupKind;
+    /** Our lots, best first (LIVE, then the latest auction); empty when we don't have the car */
+    ids: string[];
+    /** Lot number or VIN the live page can open directly; null for links (resolved through Apibara first) */
+    identifier: string | null;
+}
+
+/** Lot number, VIN or Copart/IAAI link in our own database: free, no Apibara request. */
+export const lookupLot = (q: string) =>
+    api.get<LotLookupResult>(`/api/auctions/lots/lookup?${toQuery({ q })}`).then(r => r.data);
+
 export const getLot = (id: string) =>
     api.get<AuctionLot>(`/api/auctions/lots/${id}`).then(r => r.data);
 
@@ -108,7 +123,16 @@ export const searchApibaraVehicles = (params: Record<string, string | number> = 
 export const getApibaraVehicle = (slugVin: string) =>
     api.get<ApibaraVehicleDetail>(`/api/auctions/apibara/vehicles/${encodeURIComponent(slugVin)}`).then(r => r.data);
 
-export const getShippingEstimate = (params: { vin?: string; lot_number?: string; ports?: string }) =>
+/** A Copart/IAAI link → the vehicle (urltodetails, Copart lot fallback); 404 when Apibara doesn't know it. */
+export const resolveApibaraUrl = (url: string) =>
+    api.get<ApibaraVehicleDetail>(`/api/auctions/apibara/vehicles/url-to-details?${toQuery({ url })}`).then(r => r.data);
+
+export const NOT_FOUND_MESSAGE = 'Nie znaleziono auta o tym numerze';
+
+/** A live lookup's 404: neither our database nor Apibara knows the car. */
+export const isNotFound = (err: unknown) => axios.isAxiosError(err) && err.response?.status === 404;
+
+export const getShippingEstimate =(params: { vin?: string; lot_number?: string; ports?: string }) =>
     api.get<ApibaraShippingResult>(`/api/auctions/apibara/shipping/auction-to-port?${toQuery(params)}`).then(r => r.data);
 
 export const getVehicleHistory = (slugVin: string) =>

@@ -24,6 +24,7 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -239,9 +240,12 @@ public class ApibaraClient {
         return get(VEHICLE_FILTERS_PATH, NO_PARAMS, JsonNode.class);
     }
 
-    /** GET /vehicles/{slugVin} — full normalized vehicle record. */
-    public ApibaraVehicleDetailResponse getVehicle(String slugVin) {
-        return get(VEHICLE_DETAIL_PATH, Map.of("slugVin", slugVin), NO_PARAMS, ApibaraVehicleDetailResponse.class);
+    /**
+     * GET /vehicles/{slugVin} — the full normalized vehicle record as raw JSON (so it can be stored like the sync's
+     * records). Empty when Apibara doesn't know it; see {@link #lookup} for the failures.
+     */
+    public Optional<JsonNode> lookupVehicle(String slugVin) {
+        return lookup(VEHICLE_DETAIL_PATH, Map.of("slugVin", slugVin), NO_PARAMS);
     }
 
     /** GET /vehicles/{slugVin}/history — paginated past auction/sale records for the vehicle. */
@@ -275,11 +279,11 @@ public class ApibaraClient {
         return get(LOCATIONS_PATH, filters, JsonNode.class);
     }
 
-    /** GET /vehicles/urltodetails — resolve a Copart/IAAI listing URL to a normalized vehicle record. */
-    public ApibaraVehicleDetailResponse resolveFromUrl(String url) {
+    /** GET /vehicles/urltodetails — a Copart/IAAI listing URL as the same record as {@link #lookupVehicle}. */
+    public Optional<JsonNode> lookupUrl(String url) {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("url", url);
-        return get(VEHICLE_URL_TO_DETAILS_PATH, params, ApibaraVehicleDetailResponse.class);
+        return lookup(VEHICLE_URL_TO_DETAILS_PATH, Map.of(), params);
     }
 
     /** GET /usage — API key usage stats and plan limits. */
@@ -325,6 +329,48 @@ public class ApibaraClient {
 
     private boolean apiKeyMissing() {
         return config.getApiKey() == null || config.getApiKey().isBlank();
+    }
+
+    /**
+     * One vehicle lookup that tells "not found" from a failure, unlike {@link #get}: empty on 400/404/422 or an
+     * answer without {@code data}; 429 → {@link ApibaraQuotaExceededException}; no key, any other status or no
+     * answer → {@link ApibaraUnavailableException}. Quota headers are recorded like everywhere else.
+     */
+    private Optional<JsonNode> lookup(String path, Map<String, ?> pathVars, MultiValueMap<String, String> params) {
+        if (apiKeyMissing()) {
+            throw new ApibaraUnavailableException("apibara.api-key is not set");
+        }
+        Exchange answer;
+        try {
+            answer = restClient.get()
+                .uri(uriBuilder -> uriBuilder.path(path).queryParams(params).build(pathVars))
+                .exchange((request, response) -> {
+                    HttpStatusCode status = response.getStatusCode();
+                    JsonNode body = status.is2xxSuccessful() ? response.bodyTo(JsonNode.class) : null;
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.putAll(response.getHeaders());
+                    return new Exchange(status, headers, body);
+                }, true);
+        } catch (Exception e) {
+            throw new ApibaraUnavailableException("Apibara request failed: " + e.getMessage(), e);
+        }
+        ApibaraQuota quota = observe(answer.headers());
+        int status = answer.status().value();
+        if (status == HttpStatus.TOO_MANY_REQUESTS.value()) {
+            Duration retryAfter = retryAfter(answer.headers().getFirst(HttpHeaders.RETRY_AFTER), clock.instant());
+            if (retryAfter != null) {
+                quotaTracker.quotaExhausted(clock.instant().plus(retryAfter));
+            }
+            throw new ApibaraQuotaExceededException(retryAfter, quota);
+        }
+        if (status == 400 || status == 404 || status == 422) {
+            return Optional.empty();
+        }
+        if (!answer.status().is2xxSuccessful()) {
+            throw new ApibaraUnavailableException("Apibara answered HTTP " + status);
+        }
+        JsonNode body = answer.body();
+        return body == null || body.path("data").isNull() || body.path("data").isMissingNode() ? Optional.empty() : Optional.of(body);
     }
 
     private <T> T get(String path, MultiValueMap<String, String> params, Class<T> type) {

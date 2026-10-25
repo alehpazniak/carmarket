@@ -5,6 +5,7 @@ import { getLotFacets, searchLots, type LotSearchParams } from '../api/auctions'
 import type { AuctionLot, LotMakeFacet } from '../types/auctions';
 import { makeDisplayName, modelDisplayName } from '../utils/auctionNames';
 import AuctionLotCard from '../components/AuctionLotCard';
+import LotLookupBar from '../components/auctions/LotLookupBar';
 import { useAuth } from '../context/AuthContext';
 import { OLDEST_YEAR_AUCTIONS, yearOptions } from '../utils/years';
 import { Search, ClipboardList } from 'lucide-react';
@@ -78,6 +79,8 @@ export default function AuctionActions() {
                         </Link>
                     )}
                 </div>
+
+                <LotLookupBar />
 
                 {/* Filters */}
                 <form onSubmit={handleSearch} className="bg-avtovo-card border border-avtovo-border rounded-xl p-4 grid grid-cols-2 sm:grid-cols-5 gap-3">

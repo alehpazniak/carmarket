@@ -209,9 +209,32 @@ class ApibaraClientSyncTest {
         server.expect(requestTo(any(String.class)))
             .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).headers(headers));
 
-        assertThat(client.getVehicle("1HGCM82633A004352")).isNull();
+        assertThat(client.getVehicleHistory("1HGCM82633A004352", new LinkedMultiValueMap<>())).isNull();
         assertThat(tracker.latest().orElseThrow().remaining()).isZero();
         assertThat(tracker.retryNotBefore()).isEqualTo(NOW.plus(Duration.ofMinutes(10)));
+    }
+
+    /** a vehicle lookup tells "Apibara doesn't know it" (empty) from a used-up quota and a failure */
+    @Test
+    void vehicleLookupsTellNotFoundFromFailures() {
+        server.expect(requestTo(startsWith("https://apibara.tech/api/v1/vehicle-auction/vehicles/61747696")))
+            .andRespond(withSuccess("{\"ok\": true, \"data\": {\"lot_number\": \"61747696\"}}", MediaType.APPLICATION_JSON));
+        assertThat(client.lookupVehicle("61747696")).map(b -> b.path("data").path("lot_number").asText()).contains("61747696");
+
+        server.reset();
+        server.expect(requestTo(any(String.class))).andRespond(withStatus(HttpStatus.NOT_FOUND).headers(quotaHeaders(30)));
+        assertThat(client.lookupVehicle("99999999")).isEmpty();
+        assertThat(tracker.latest().orElseThrow().remaining()).isEqualTo(30);
+
+        server.reset();
+        server.expect(requestTo(any(String.class))).andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).headers(quotaHeaders(0)));
+        assertThatThrownBy(() -> client.lookupUrl("https://www.copart.com/lot/61747696"))
+            .isInstanceOf(ApibaraQuotaExceededException.class);
+
+        server.reset();
+        server.expect(requestTo(any(String.class))).andRespond(withServerError());
+        assertThatThrownBy(() -> client.lookupVehicle("61747696"))
+            .isInstanceOf(ApibaraUnavailableException.class).hasMessageNotContaining(KEY);
     }
 
     @Test

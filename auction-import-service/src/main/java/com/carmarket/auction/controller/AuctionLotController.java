@@ -10,11 +10,13 @@ import com.carmarket.auction.client.ApibaraShippingResponse;
 import com.carmarket.auction.dto.CalculationRequest;
 import com.carmarket.auction.dto.ImportCalculationResponse;
 import com.carmarket.auction.dto.LotFacetsResponse;
+import com.carmarket.auction.dto.LotLookupResponse;
 import com.carmarket.auction.dto.MaxBidRequest;
 import com.carmarket.auction.dto.MaxBidResponse;
 import com.carmarket.auction.entity.AuctionLot;
 import com.carmarket.auction.repository.AuctionLotRepository;
 import com.carmarket.auction.service.AuctionLotService;
+import com.carmarket.auction.service.LotLookupService;
 import com.carmarket.auction.service.UsaShippingRateService;
 import com.carmarket.auction.service.calculator.CalculationInput;
 import com.carmarket.auction.service.calculator.ImportCostCalculator;
@@ -46,6 +48,7 @@ public class AuctionLotController {
     private final AuctionLotRepository lotRepository;
     private final ApibaraClient apibaraClient;
     private final UsaShippingRateService shippingRateService;
+    private final LotLookupService lotLookup;
 
     @GetMapping("/lots")
     public ResponseEntity<Page<AuctionLot>> searchLots(
@@ -68,6 +71,19 @@ public class AuctionLotController {
     @GetMapping("/lots/facets")
     public ResponseEntity<LotFacetsResponse> getFacets() {
         return ResponseEntity.ok(LotFacetsResponse.from(lotRepository.findFacetRows()));
+    }
+
+    /**
+     * The search field on /aukcje: a lot number, VIN or Copart/IAAI link → our matching lots, best first. Costs no
+     * Apibara request; with no match the frontend falls back to the live page. Public like every GET /lots/**;
+     * the literal path wins over /lots/{id}.
+     */
+    @GetMapping("/lots/lookup")
+    public ResponseEntity<LotLookupResponse> lookup(@RequestParam(defaultValue = "") String q) {
+        if (q.length() > 500) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(lotLookup.lookup(q));
     }
 
     /** The form {@link AuctionLotRepository#searchLiveLots} and the facets use: trimmed, upper case, blank = any. */
