@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -20,10 +21,15 @@ import java.time.temporal.ChronoUnit;
  * X-Subscription-Remaining − keep-remaining. Unspent days roll forward by themselves, since every day re-divides
  * what is left. The period is X-Subscription-Period-Start/End while now lies inside it, else the calendar month.
  * "Spent" is the sum of sync_runs.api_requests, so live lookups don't count against the sync's budget.
+ * A snapshot that blocks (remaining <= keep-remaining) but is older than {@link #PROBE_AFTER} caps nothing: the next
+ * run sends one probe request whose headers refresh it (FeedSyncService), since the quota may have reset meanwhile.
  */
 @Component
 @RequiredArgsConstructor
 public class SyncBudget {
+
+    /** How old a blocking quota snapshot must be before a run may send one request to recheck it */
+    public static final Duration PROBE_AFTER = Duration.ofHours(1);
 
     private final ApibaraSyncProperties props;
     private final SyncRunRepository runs;
@@ -37,10 +43,12 @@ public class SyncBudget {
      * @param periodLeft   monthly-budget − spent in the period, never negative
      * @param manualMax    the most an admin's manual run may spend: periodLeft, capped by quotaCap when known.
      *                     It may exceed today's share; the following days' pacing then lowers by itself.
+     * @param quotaProbe   the snapshot blocks but is older than {@link #PROBE_AFTER}: quotaCap caps neither
+     *                     available nor manualMax, and the run's first request rechecks the quota
      */
     public record Allowance(Instant periodStart, Instant periodEnd, long daysLeft, long spentInPeriod,
                             long spentToday, int dayAllowance, Integer quotaCap, int available,
-                            int periodLeft, int manualMax) {
+                            int periodLeft, int manualMax, boolean quotaProbe) {
     }
 
     public Allowance today() {
@@ -71,11 +79,18 @@ public class SyncBudget {
 
         Integer quotaCap = quota == null || quota.remaining() == null ? null
             : Math.max(0, quota.remaining() - props.getKeepRemaining());
-        int available = quotaCap == null ? dayAllowance : Math.min(dayAllowance, quotaCap);
+        boolean quotaProbe = quotaCap != null && quotaCap == 0 && probeDue(quota, now);
+        Integer cap = quotaProbe ? null : quotaCap;
+        int available = cap == null ? dayAllowance : Math.min(dayAllowance, cap);
         int periodLeft = (int) Math.max(0, props.getMonthlyBudget() - spentInPeriod);
-        int manualMax = quotaCap == null ? periodLeft : Math.min(periodLeft, quotaCap);
+        int manualMax = cap == null ? periodLeft : Math.min(periodLeft, cap);
         return new Allowance(periodStart, periodEnd, daysLeft, spentInPeriod, spentToday, dayAllowance, quotaCap, available,
-            periodLeft, manualMax);
+            periodLeft, manualMax, quotaProbe);
+    }
+
+    /** Whether the snapshot is old enough to be rechecked by one request when it blocks. */
+    public static boolean probeDue(ApibaraQuota quota, Instant now) {
+        return quota.observedAt() == null || quota.observedAt().isBefore(now.minus(PROBE_AFTER));
     }
 
     /** The start of today in the sync's zone. */

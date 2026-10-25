@@ -1,5 +1,6 @@
 package com.carmarket.auction.client;
 
+import com.carmarket.auction.config.ApibaraSyncProperties;
 import com.carmarket.auction.config.ParserTargetsConfig;
 import com.carmarket.auction.repository.SyncRunRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,8 +38,10 @@ class ApibaraClientSyncTest {
     private static final Instant NOW = Instant.parse("2026-10-21T10:00:00Z");
 
     private final ParserTargetsConfig config = new ParserTargetsConfig();
-    private final ApibaraQuotaTracker tracker = new ApibaraQuotaTracker(mock(SyncRunRepository.class));
-    private final ApibaraClient client = new ApibaraClient(config, tracker, Clock.fixed(NOW, ZoneOffset.UTC));
+    private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+    private final ApibaraQuotaTracker tracker = new ApibaraQuotaTracker(mock(SyncRunRepository.class), config,
+        new ApibaraSyncProperties(), clock);
+    private final ApibaraClient client = new ApibaraClient(config, tracker, clock);
     private MockRestServiceServer server;
 
     @BeforeEach
@@ -188,6 +191,27 @@ class ApibaraClientSyncTest {
         assertThatThrownBy(() -> client.searchVehiclesPage(params()))
             .isInstanceOf(ApibaraUnavailableException.class)
             .hasMessageNotContaining(KEY);
+    }
+
+    /** The live lookups and GET /usage keep the snapshot current too, not only the sync */
+    @Test
+    void liveLookupsRecordTheQuotaHeaders() {
+        server.expect(requestTo(startsWith("https://apibara.tech/api/v1/vehicle-auction/usage")))
+            .andRespond(withSuccess("{\"plan\": \"free\"}", MediaType.APPLICATION_JSON).headers(quotaHeaders(37)));
+
+        assertThat(client.getUsage().path("plan").asText()).isEqualTo("free");
+        assertThat(tracker.latest().orElseThrow().remaining()).isEqualTo(37);
+        assertThat(tracker.requestsSent()).isZero(); // not the sync's spend
+
+        server.reset();
+        HttpHeaders headers = quotaHeaders(0);
+        headers.add(HttpHeaders.RETRY_AFTER, "600");
+        server.expect(requestTo(any(String.class)))
+            .andRespond(withStatus(HttpStatus.TOO_MANY_REQUESTS).headers(headers));
+
+        assertThat(client.getVehicle("1HGCM82633A004352")).isNull();
+        assertThat(tracker.latest().orElseThrow().remaining()).isZero();
+        assertThat(tracker.retryNotBefore()).isEqualTo(NOW.plus(Duration.ofMinutes(10)));
     }
 
     @Test

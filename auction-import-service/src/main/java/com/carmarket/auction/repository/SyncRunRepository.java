@@ -16,8 +16,8 @@ public interface SyncRunRepository extends JpaRepository<SyncRun, UUID> {
     @Query(value = "SELECT DISTINCT ON (parser) * FROM sync_runs ORDER BY parser, started_at DESC", nativeQuery = true)
     List<SyncRun> findLatestPerParser();
 
-    /** The most recent persisted Apibara quota snapshot (ApibaraQuotaTracker after a restart). */
-    Optional<SyncRun> findFirstByQuotaObservedAtIsNotNullOrderByQuotaObservedAtDesc();
+    /** The most recent persisted Apibara quota snapshot of one API key (ApibaraQuotaTracker after a restart). */
+    Optional<SyncRun> findFirstByQuotaKeyFingerprintAndQuotaObservedAtIsNotNullOrderByQuotaObservedAtDesc(String keyFingerprint);
 
     /** Apibara requests the sync spent since {@code from} (the budget's "spent"). */
     @Query("SELECT COALESCE(SUM(r.apiRequests), 0) FROM SyncRun r WHERE r.startedAt >= :from")

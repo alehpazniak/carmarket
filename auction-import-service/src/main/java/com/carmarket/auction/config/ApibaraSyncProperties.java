@@ -4,6 +4,7 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
 import java.time.LocalTime;
 import java.time.ZoneId;
 
@@ -29,6 +30,8 @@ public class ApibaraSyncProperties {
     private int monthlyBudget = 30;
     /** Never let X-Subscription-Remaining drop below this (live lookups and lot pages need the rest) */
     private int keepRemaining = 15;
+    /** A quota snapshot without a period end (e.g. from a 429) is ignored when older than this */
+    private Duration quotaSnapshotMaxAge = Duration.ofHours(6);
     /** 0 = today only, 1 = today and tomorrow, ... */
     private int daysAhead = 0;
     private RefreshHours refreshHours = new RefreshHours();

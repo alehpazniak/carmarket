@@ -140,7 +140,8 @@ public class FeedSyncService {
             runs.save(run); // visible at once: a restart in the meantime must not start today's run again
             long requestsBefore = quotaTracker.requestsSent();
             SyncBudget.Allowance allowance = budget.today();
-            Work work = new Work(maxRequests == null ? allowance.available() : Math.min(maxRequests, allowance.manualMax()));
+            // the pacing limit; the quota (remaining − keep-remaining) is checked per request, see Work
+            Work work = new Work(maxRequests == null ? allowance.dayAllowance() : Math.min(maxRequests, allowance.periodLeft()));
             StopReason reason;
             String error = null;
             try {
@@ -151,6 +152,7 @@ public class FeedSyncService {
                 }
             } catch (ApibaraQuotaExceededException e) {
                 log.warn("Feed sync stopped: {}", e.getMessage());
+                rememberExhausted(e.getQuota());
                 reason = StopReason.QUOTA_EXHAUSTED;
             } catch (ApibaraUnavailableException e) {
                 log.error("Feed sync failed: {}", e.getMessage());
@@ -166,26 +168,45 @@ public class FeedSyncService {
         }
     }
 
-    /** Requests this run may still send, and why it stopped when it can't. */
+    /**
+     * Requests this run may still send, and why it stopped when it can't: BUDGET when the pacing limit is reached,
+     * QUOTA_EXHAUSTED when the quota is (remaining − keep-remaining, minus what this run sent since that snapshot).
+     * A blocking snapshot older than {@link SyncBudget#PROBE_AFTER} lets exactly one probe request through; its
+     * headers refresh the snapshot and the next take() decides with them.
+     */
     private final class Work {
         private final int allowed;
         private int taken;
         private StopReason stop;
+        private ApibaraQuota snapshotSeen;
+        private int sentSinceSnapshot;
+        private boolean probed;
 
         private Work(int allowed) {
             this.allowed = allowed;
         }
 
-        /** Reserves one request; false when the allowance or the quota (remaining − keep-remaining) is used up. */
+        /** Reserves one request; false when the pacing limit or the quota is used up. */
         boolean take() {
             if (taken >= allowed) {
                 stop = StopReason.BUDGET;
                 return false;
             }
             ApibaraQuota quota = quotaTracker.latest().orElse(null);
-            if (quota != null && quota.remaining() != null && quota.remaining() <= props.getKeepRemaining()) {
-                stop = StopReason.QUOTA_EXHAUSTED;
-                return false;
+            if (quota != null && quota.remaining() != null) {
+                if (quota != snapshotSeen) { // the tracker hands out the same object until new headers arrive
+                    snapshotSeen = quota;
+                    sentSinceSnapshot = 0;
+                }
+                if (quota.remaining() - props.getKeepRemaining() - sentSinceSnapshot <= 0) {
+                    if (probed || sentSinceSnapshot > 0 || !SyncBudget.probeDue(quota, clock.instant())) {
+                        stop = StopReason.QUOTA_EXHAUSTED;
+                        return false;
+                    }
+                    probed = true;
+                    log.info("Quota snapshot from {} says remaining {}; sending one probe request", quota.observedAt(), quota.remaining());
+                }
+                sentSinceSnapshot++;
             }
             taken++;
             return true;
@@ -360,6 +381,24 @@ public class FeedSyncService {
         return value == null ? 0 : value;
     }
 
+    /**
+     * A 429 whose headers carry no X-Subscription-Remaining: keep "exhausted" as a snapshot (remaining 0, now, the
+     * last known period), so the budget and, through sync_runs, a restart know it. With the header the client
+     * already recorded what Apibara said (a 429 with remaining > 0 is the short-window rate limit, not the quota).
+     */
+    private void rememberExhausted(ApibaraQuota fromResponse) {
+        if (fromResponse != null && fromResponse.remaining() != null) {
+            return;
+        }
+        ApibaraQuota last = quotaTracker.latest().orElse(null);
+        quotaTracker.record(new ApibaraQuota(last == null ? null : last.limit(), last == null ? null : last.limit(), 0,
+            last == null ? null : last.periodStart(), last == null ? null : last.periodEnd(), null, null, clock.instant()));
+    }
+
+    /**
+     * Persists the run with the latest quota snapshot: one seen during the run, or, when the quota stopped it, whatever
+     * snapshot did (it may predate the run, e.g. from a live lookup), so a restart still knows the quota is used up.
+     */
     private SyncRun finish(SyncRun run, StopReason reason, String error, int requests) {
         run.setStopReason(reason.name());
         run.setApiRequests(requests);
@@ -367,7 +406,8 @@ public class FeedSyncService {
             run.setError(error.length() > 1000 ? error.substring(0, 1000) : error);
         }
         quotaTracker.latest()
-            .filter(q -> q.observedAt() != null && !q.observedAt().isBefore(run.getStartedAt()))
+            .filter(q -> q.observedAt() != null
+                && (reason == StopReason.QUOTA_EXHAUSTED || !q.observedAt().isBefore(run.getStartedAt())))
             .ifPresent(q -> {
                 run.setQuotaLimit(q.limit());
                 run.setQuotaUsed(q.used());
@@ -375,6 +415,7 @@ public class FeedSyncService {
                 run.setQuotaPeriodStart(q.periodStart());
                 run.setQuotaPeriodEnd(q.periodEnd());
                 run.setQuotaObservedAt(q.observedAt());
+                run.setQuotaKeyFingerprint(quotaTracker.keyFingerprint());
             });
         run.setFinishedAt(clock.instant());
         log.info("Feed sync ({}) stopped: {}, {} requests, {} lots fetched, skipped_type={}, skipped_condition={}, skipped_title={}",
