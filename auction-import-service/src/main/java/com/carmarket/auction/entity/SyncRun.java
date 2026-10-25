@@ -70,6 +70,10 @@ public class SyncRun {
     @Column(name = "quota_observed_at")
     private Instant quotaObservedAt;
 
+    /** Which API key the quota belongs to: ApibaraQuotaTracker#keyFingerprint, never the key (V11) */
+    @Column(name = "quota_key_fingerprint", length = 12)
+    private String quotaKeyFingerprint;
+
     /** Feed sync bookkeeping (V8): BACKFILL / INCREMENTAL, why the run stopped (e.g. BUDGET), the window it read */
     @Column(length = 20)
     private String mode;

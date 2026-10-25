@@ -103,4 +103,20 @@ class SyncBudgetTest {
         when(tracker.latest()).thenReturn(Optional.of(quota(5, null, null)));
         assertThat(at("2026-10-24T06:00:00Z", 0, 0).available()).isZero();
     }
+
+    /** a blocking snapshot older than an hour caps nothing: the run's first request rechecks it */
+    @Test
+    void anOldBlockingSnapshotAllowsAProbe() {
+        when(tracker.latest()).thenReturn(Optional.of(quota(5, null, null))); // observed 08:00Z
+
+        SyncBudget.Allowance recent = at("2026-10-24T08:30:00Z", 0, 0);
+        assertThat(recent.quotaProbe()).isFalse();
+        assertThat(recent.manualMax()).isZero();
+
+        SyncBudget.Allowance old = at("2026-10-24T09:30:00Z", 0, 0);
+        assertThat(old.quotaProbe()).isTrue();
+        assertThat(old.quotaCap()).isZero();
+        assertThat(old.available()).isEqualTo(7);
+        assertThat(old.manualMax()).isEqualTo(60);
+    }
 }

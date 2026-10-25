@@ -118,7 +118,7 @@ class AdminAuctionSecurityTest {
     /** 1 … what the period still allows (here 23), even beyond today's allowance of 7 */
     @Test
     void aManualLimitMustFitThePeriod() throws Exception {
-        when(budget.today()).thenReturn(new com.carmarket.auction.sync.SyncBudget.Allowance(null, null, 8, 37, 0, 7, 23, 7, 23, 23));
+        when(budget.today()).thenReturn(new com.carmarket.auction.sync.SyncBudget.Allowance(null, null, 8, 37, 0, 7, 23, 7, 23, 23, false));
         when(scheduler.triggerManualSync(23)).thenReturn(true);
 
         mvc.perform(post("/api/auctions/admin/sync").param("maxRequests", "24").with(as("ADMIN"))).andExpect(status().isBadRequest())

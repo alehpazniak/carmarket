@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -94,7 +95,7 @@ class FeedSyncServiceTest {
 
     /** today's allowance, and what the period still allows a manual run */
     private void allowance(int requests, int manualMax) {
-        when(budget.today()).thenReturn(new SyncBudget.Allowance(null, null, 6, 0, 0, requests, null, requests, manualMax, manualMax));
+        when(budget.today()).thenReturn(new SyncBudget.Allowance(null, null, 6, 0, 0, requests, null, requests, manualMax, manualMax, false));
     }
 
     private SyncStream outcomesAt(long sequence) {
@@ -280,6 +281,141 @@ class FeedSyncServiceTest {
 
         verify(client, never()).terminalChangesPage(anyLong(), anyInt());
         verify(client, never()).searchVehiclesPage(any());
+    }
+
+    private static ApibaraQuota quota(int remaining, Instant observedAt) {
+        return new ApibaraQuota(100, 100 - remaining, remaining, null, null, null, null, observedAt);
+    }
+
+    /** the remaining 0 of a 429 two hours ago: one probe request rechecks it, and the same answer stops the run */
+    @Test
+    void aStaleBlockingSnapshotGetsExactlyOneProbe() {
+        outcomesAt(100);
+        AtomicReference<ApibaraQuota> snapshot = new AtomicReference<>(quota(0, NOW.minusSeconds(2 * 3600)));
+        when(tracker.latest()).thenAnswer(inv -> Optional.of(snapshot.get()));
+        when(client.terminalChangesPage(100, 500)).thenAnswer(inv -> {
+            snapshot.set(quota(0, NOW)); // still exhausted
+            return changes(List.of(), 100, false);
+        });
+
+        SyncRun run = service.run("SCHEDULED");
+
+        assertThat(run.getStopReason()).isEqualTo("QUOTA_EXHAUSTED");
+        verify(client).terminalChangesPage(100, 500);
+        verify(client, never()).searchVehiclesPage(any());
+    }
+
+    /** the period reset (or the plan changed) since the snapshot: the probe's headers let the run go on */
+    @Test
+    void aProbeThatFindsQuotaLetsTheRunContinue() {
+        outcomesAt(100);
+        AtomicReference<ApibaraQuota> snapshot = new AtomicReference<>(quota(10, NOW.minusSeconds(3 * 3600)));
+        when(tracker.latest()).thenAnswer(inv -> Optional.of(snapshot.get()));
+        when(client.terminalChangesPage(100, 500)).thenAnswer(inv -> {
+            snapshot.set(quota(95, NOW));
+            return changes(List.of(), 100, false);
+        });
+        when(client.searchVehiclesPage(firstPage())).thenReturn(vehicles(List.of(), null, 0));
+
+        assertThat(service.run("SCHEDULED").getStopReason()).isEqualTo("DONE");
+        verify(client).searchVehiclesPage(firstPage());
+    }
+
+    @Test
+    void noProbeWithinTheHourOrBeforeRetryAfter() {
+        outcomesAt(100);
+        when(tracker.latest()).thenReturn(Optional.of(quota(0, NOW.minusSeconds(30 * 60))));
+        assertThat(service.run("SCHEDULED").getStopReason()).isEqualTo("QUOTA_EXHAUSTED");
+
+        when(tracker.latest()).thenReturn(Optional.of(quota(0, NOW.minusSeconds(2 * 3600))));
+        when(tracker.retryNotBefore()).thenReturn(NOW.plusSeconds(600));
+        SyncRun run = service.run("SCHEDULED");
+        assertThat(run.getStopReason()).isEqualTo("QUOTA_EXHAUSTED");
+        assertThat(run.getError()).contains("wait until");
+
+        verify(client, never()).terminalChangesPage(anyLong(), anyInt());
+        verify(lock).tryAcquire(); // only the first run got that far
+    }
+
+    /** remaining 13 − keep-remaining 10 = 3 requests, fewer than today's 10: the quota stopped it, not the budget */
+    @Test
+    void theQuotaCapStopsTheRunAsQuotaExhausted() throws Exception {
+        outcomesAt(100);
+        ApibaraQuota snapshot = quota(13, NOW);
+        when(tracker.latest()).thenReturn(Optional.of(snapshot));
+        when(tracker.keyFingerprint()).thenReturn("0123456789ab");
+        when(client.terminalChangesPage(100, 500)).thenReturn(changes(List.of(), 100, false));
+        when(client.searchVehiclesPage(firstPage())).thenReturn(vehicles(List.of(vehicle("1")), "c1", 60));
+        when(client.searchVehiclesPage(withCursor("c1"))).thenReturn(vehicles(List.of(vehicle("2")), "c1", null));
+
+        SyncRun run = service.run("SCHEDULED");
+
+        assertThat(run.getStopReason()).isEqualTo("QUOTA_EXHAUSTED");
+        verify(client).searchVehiclesPage(withCursor("c1")); // 1 outcomes + 2 pages = 3
+        assertThat(run.getQuotaRemaining()).isEqualTo(13);
+        assertThat(run.getQuotaKeyFingerprint()).isEqualTo("0123456789ab");
+    }
+
+    /** tracker.latest() / record() backed by a real reference, like the component */
+    private AtomicReference<ApibaraQuota> liveSnapshot(ApibaraQuota initial) {
+        AtomicReference<ApibaraQuota> snapshot = new AtomicReference<>(initial);
+        when(tracker.latest()).thenAnswer(inv -> Optional.ofNullable(snapshot.get()));
+        org.mockito.Mockito.doAnswer(inv -> {
+            snapshot.set(inv.getArgument(0));
+            return null;
+        }).when(tracker).record(any());
+        return snapshot;
+    }
+
+    /** a 429 with quota headers: the client recorded remaining 0, the run persists it for the next start */
+    @Test
+    void aTooManyRequestsRunPersistsItsSnapshot() {
+        outcomesAt(100);
+        AtomicReference<ApibaraQuota> snapshot = liveSnapshot(quota(40, NOW.minusSeconds(3 * 3600)));
+        when(tracker.keyFingerprint()).thenReturn("0123456789ab");
+        when(client.terminalChangesPage(100, 500)).thenAnswer(inv -> {
+            snapshot.set(quota(0, NOW));
+            throw new ApibaraQuotaExceededException(null, snapshot.get());
+        });
+
+        SyncRun run = service.run("SCHEDULED");
+
+        assertThat(run.getStopReason()).isEqualTo("QUOTA_EXHAUSTED");
+        assertThat(run.getQuotaRemaining()).isZero();
+        assertThat(run.getQuotaObservedAt()).isEqualTo(NOW);
+        assertThat(run.getQuotaKeyFingerprint()).isEqualTo("0123456789ab");
+        verify(tracker, never()).record(any());
+    }
+
+    /** a 429 without X-Subscription-* headers: remaining 0 now, in the last known period */
+    @Test
+    void aTooManyRequestsWithoutQuotaHeadersStillPersistsExhausted() {
+        outcomesAt(100);
+        Instant periodEnd = Instant.parse("2026-11-05T10:00:00Z");
+        liveSnapshot(new ApibaraQuota(100, 60, 40, null, periodEnd, null, null, NOW.minusSeconds(3 * 3600)));
+        when(client.terminalChangesPage(100, 500)).thenThrow(new ApibaraQuotaExceededException(null, null));
+
+        SyncRun run = service.run("SCHEDULED");
+
+        assertThat(run.getStopReason()).isEqualTo("QUOTA_EXHAUSTED");
+        assertThat(run.getQuotaRemaining()).isZero();
+        assertThat(run.getQuotaLimit()).isEqualTo(100);
+        assertThat(run.getQuotaPeriodEnd()).isEqualTo(periodEnd);
+        assertThat(run.getQuotaObservedAt()).isEqualTo(NOW);
+    }
+
+    /** stopped before sending by a snapshot from before the run: that snapshot is persisted with the run */
+    @Test
+    void aRunTheQuotaStoppedPersistsTheSnapshotThatStoppedIt() {
+        outcomesAt(100);
+        liveSnapshot(quota(10, NOW.minusSeconds(30 * 60)));
+
+        SyncRun run = service.run("SCHEDULED");
+
+        assertThat(run.getStopReason()).isEqualTo("QUOTA_EXHAUSTED");
+        assertThat(run.getApiRequests()).isZero();
+        assertThat(run.getQuotaRemaining()).isEqualTo(10);
+        assertThat(run.getQuotaObservedAt()).isEqualTo(NOW.minusSeconds(30 * 60));
     }
 
     /** A manual limit may go beyond today's share, but never beyond what the period still allows */

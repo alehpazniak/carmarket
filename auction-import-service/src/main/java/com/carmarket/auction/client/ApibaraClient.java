@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -142,10 +143,7 @@ public class ApibaraClient {
             throw new ApibaraUnavailableException("Apibara request failed: " + e.getMessage(), e);
         }
 
-        ApibaraQuota quota = ApibaraQuota.from(answer.headers(), clock.instant());
-        quotaTracker.record(quota);
-        // the header comes on error responses too, e.g. a 4xx for a per_page above the limit
-        rememberPerPageLimit(answer.headers().getFirst(PER_PAGE_LIMIT_HEADER));
+        ApibaraQuota quota = observe(answer.headers());
 
         int status = answer.status().value();
         if (status == HttpStatus.TOO_MANY_REQUESTS.value()) {
@@ -167,6 +165,17 @@ public class ApibaraClient {
             throw new ApibaraUnavailableException("Apibara answered without a body");
         }
         return new SyncAnswer(answer.body(), quota);
+    }
+
+    /**
+     * Records the quota headers of any Apibara answer, whatever its status, so the live lookups and GET /usage keep
+     * the snapshot current too. X-Per-Page-Limit comes on error responses as well, e.g. a 4xx for a per_page above it.
+     */
+    private ApibaraQuota observe(HttpHeaders headers) {
+        ApibaraQuota quota = ApibaraQuota.from(headers, clock.instant());
+        quotaTracker.record(quota);
+        rememberPerPageLimit(headers.getFirst(PER_PAGE_LIMIT_HEADER));
+        return quota;
     }
 
     private static List<JsonNode> dataArray(JsonNode body) {
@@ -288,6 +297,7 @@ public class ApibaraClient {
                 .uri(uriBuilder -> uriBuilder.path(IMAGE_PROXY_PATH).queryParam("url", imageUrl).build())
                 .retrieve()
                 .toEntity(byte[].class);
+            observe(upstream.getHeaders());
             // Only the content headers: passing Apibara's on (e.g. "Access-Control-Allow-Origin: *",
             // Cloudflare headers) would give browsers a second, conflicting CORS header next to the gateway's.
             HttpHeaders headers = new HttpHeaders();
@@ -300,6 +310,9 @@ public class ApibaraClient {
             }
             return new ResponseEntity<>(upstream.getBody(), headers, upstream.getStatusCode());
         } catch (Exception e) {
+            if (e instanceof RestClientResponseException failed && failed.getResponseHeaders() != null) {
+                observe(failed.getResponseHeaders());
+            }
             log.error("Apibara image proxy failed for {}: {}", imageUrl, e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();
         }
@@ -318,16 +331,29 @@ public class ApibaraClient {
         return get(path, Map.of(), params, type);
     }
 
+    /** A live lookup: null on any failure. Its quota headers are recorded like the sync's; a 429's Retry-After too. */
     private <T> T get(String path, Map<String, ?> pathVars, MultiValueMap<String, String> params, Class<T> type) {
         if (apiKeyMissing()) {
             return null;
         }
         try {
-            T body = restClient.get()
+            return restClient.get()
                     .uri(uriBuilder -> uriBuilder.path(path).queryParams(params).build(pathVars))
-                    .retrieve()
-                    .body(type);
-            return body;
+                    .exchange((request, response) -> {
+                        observe(response.getHeaders());
+                        int status = response.getStatusCode().value();
+                        if (response.getStatusCode().is2xxSuccessful()) {
+                            return response.bodyTo(type);
+                        }
+                        if (status == HttpStatus.TOO_MANY_REQUESTS.value()) {
+                            Duration retryAfter = retryAfter(response.getHeaders().getFirst(HttpHeaders.RETRY_AFTER), clock.instant());
+                            if (retryAfter != null) {
+                                quotaTracker.quotaExhausted(clock.instant().plus(retryAfter));
+                            }
+                        }
+                        log.error("Apibara request failed for {}: HTTP {}", path, status);
+                        return null;
+                    }, true);
         } catch (Exception e) {
             log.error("Apibara request failed for {}: {}", path, e.getMessage());
             return null;

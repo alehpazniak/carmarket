@@ -60,6 +60,7 @@ class SyncRunRepositoryTest {
         run.setQuotaPeriodStart(Instant.parse("2026-10-01T00:00:00Z"));
         run.setQuotaPeriodEnd(Instant.parse("2026-10-31T23:59:59Z"));
         run.setQuotaObservedAt(Instant.parse("2026-10-21T10:00:00Z"));
+        run.setQuotaKeyFingerprint("0123456789ab");
         runs.saveAndFlush(run);
 
         SyncRun loaded = runs.findById(run.getId()).orElseThrow();
@@ -69,23 +70,32 @@ class SyncRunRepositoryTest {
         assertThat(loaded.getApiRequests()).isEqualTo(2);
         assertThat(loaded.getQuotaRemaining()).isEqualTo(40);
         assertThat(loaded.getQuotaPeriodStart()).isEqualTo(Instant.parse("2026-10-01T00:00:00Z"));
+        assertThat(loaded.getQuotaKeyFingerprint()).isEqualTo("0123456789ab");
     }
 
     @Test
-    void latestPersistedQuotaSnapshot() {
+    void latestPersistedQuotaSnapshotOfTheKey() {
         Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-        SyncRun older = run("ApibaraAuctionParser", now.minus(2, ChronoUnit.HOURS), null);
+        SyncRun older = run("ApibaraAuctionParser", now.minus(3, ChronoUnit.HOURS), null);
         older.setQuotaRemaining(50);
-        older.setQuotaObservedAt(now.minus(2, ChronoUnit.HOURS));
+        older.setQuotaObservedAt(now.minus(3, ChronoUnit.HOURS));
+        older.setQuotaKeyFingerprint("aaaaaaaaaaaa");
         runs.saveAndFlush(older);
-        SyncRun newer = run("ApibaraAuctionParser", now.minus(1, ChronoUnit.HOURS), null);
+        SyncRun newer = run("ApibaraAuctionParser", now.minus(2, ChronoUnit.HOURS), null);
         newer.setQuotaRemaining(48);
-        newer.setQuotaObservedAt(now.minus(1, ChronoUnit.HOURS));
+        newer.setQuotaObservedAt(now.minus(2, ChronoUnit.HOURS));
+        newer.setQuotaKeyFingerprint("aaaaaaaaaaaa");
         runs.saveAndFlush(newer);
+        SyncRun otherKey = run("ApibaraAuctionParser", now.minus(1, ChronoUnit.HOURS), null);
+        otherKey.setQuotaRemaining(0);
+        otherKey.setQuotaObservedAt(now.minus(1, ChronoUnit.HOURS));
+        otherKey.setQuotaKeyFingerprint("bbbbbbbbbbbb");
+        runs.saveAndFlush(otherKey);
         run("ApibaraAuctionParser", now, "no answer"); // no snapshot
 
-        assertThat(runs.findFirstByQuotaObservedAtIsNotNullOrderByQuotaObservedAtDesc())
+        assertThat(runs.findFirstByQuotaKeyFingerprintAndQuotaObservedAtIsNotNullOrderByQuotaObservedAtDesc("aaaaaaaaaaaa"))
             .map(SyncRun::getQuotaRemaining).contains(48);
+        assertThat(runs.findFirstByQuotaKeyFingerprintAndQuotaObservedAtIsNotNullOrderByQuotaObservedAtDesc("cccccccccccc")).isEmpty();
     }
 
     @Autowired
