@@ -1,12 +1,14 @@
 package com.carmarket.auction.controller;
 
 import com.carmarket.auction.client.ApibaraClient;
+import com.carmarket.auction.client.ApibaraQuotaExceededException;
+import com.carmarket.auction.client.ApibaraUnavailableException;
 import com.carmarket.auction.client.ApibaraResponse;
 import com.carmarket.auction.client.ApibaraShippingResponse;
 import com.carmarket.auction.client.ApibaraVehicleDetailResponse;
 import com.carmarket.auction.dto.MaxBidRequest;
 import com.carmarket.auction.dto.MaxBidResponse;
-import com.carmarket.auction.service.ApibaraVehicleResolver;
+import com.carmarket.auction.service.LiveVehicleLookup;
 import com.carmarket.auction.service.UsaShippingRateService;
 import com.carmarket.auction.entity.W8Auction;
 import com.carmarket.auction.service.shipping.W8QuoteRequest;
@@ -32,6 +34,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Direct passthrough to the Apibara vehicle-auction API
@@ -49,22 +53,21 @@ public class ApibaraController {
     private final MaxBidCalculator maxBidCalculator;
     private final W8ShippingQuoteService w8QuoteService;
     private final UsaShippingRateService shippingRateService;
-    private final ApibaraVehicleResolver vehicleResolver;
+    private final LiveVehicleLookup liveLookup;
 
     @GetMapping("/vehicles/filters")
     public ResponseEntity<JsonNode> getFilters() {
         return okOrBadGateway(client.getFiltersMetadata());
     }
 
-    /** A pasted Copart/IAAI link, lot number or VIN → the vehicle (same shape as GET /vehicles/{slugVin}); 404 if none. */
+    /**
+     * A pasted Copart/IAAI link, lot number or VIN → the vehicle (same shape as GET /vehicles/{slugVin}). Both are
+     * cached and stored when they pass the sync's filters ({@link LiveVehicleLookup}). 404 when Apibara doesn't know
+     * the car, 429 when Apibara's quota is used up, 502 when it failed, 503 without an API key.
+     */
     @GetMapping("/vehicles/url-to-details")
     public ResponseEntity<ApibaraVehicleDetailResponse> resolveFromUrl(@RequestParam String url) {
-        if (!client.isConfigured()) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
-        }
-        return vehicleResolver.resolve(url)
-            .map(ResponseEntity::ok)
-            .orElseGet(() -> ResponseEntity.notFound().build());
+        return live(() -> liveLookup.resolve(url));
     }
 
     @GetMapping("/vehicles")
@@ -74,7 +77,22 @@ public class ApibaraController {
 
     @GetMapping("/vehicles/{slugVin}")
     public ResponseEntity<ApibaraVehicleDetailResponse> getVehicle(@PathVariable String slugVin) {
-        return okOrBadGateway(client.getVehicle(slugVin));
+        return live(() -> liveLookup.vehicle(slugVin));
+    }
+
+    private ResponseEntity<ApibaraVehicleDetailResponse> live(Supplier<Optional<ApibaraVehicleDetailResponse>> lookup) {
+        if (!client.isConfigured()) {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+        try {
+            return lookup.get().map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+        } catch (ApibaraQuotaExceededException e) {
+            log.warn("Apibara live lookup: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build();
+        } catch (ApibaraUnavailableException e) {
+            log.error("Apibara live lookup failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();
+        }
     }
 
     @GetMapping("/vehicles/{slugVin}/history")

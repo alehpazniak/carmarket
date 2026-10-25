@@ -107,6 +107,10 @@ apibara:
     # Titles that can't be registered in Poland; case-insensitive substring of sale_document.name, which carries a
     # state ("... (FL)"). Apibara filters titles only by one exact value, so this runs on our side (skipped_title).
     title-exclude: [DESTRUCTION, NON-REPAIRABLE, NONREPAIRABLE, JUNK, PARTS ONLY, SCRAP, BILL OF SALE]
+  live-lookup:
+    # /aukcje search and /aukcje/pojazd/:identifier: an answer is reused this long (in memory, per identifier, VIN
+    # and lot number), so repeated views spend no quota. A car passing the filters above is also stored as a lot.
+    cache-minutes: 10
   # Feed sync (docs/tasks/auction-feed-rollout.md, Sizing). Every run: outcomes (GET /changes?terminal=1, 500 events
   # per request) first, then the auction days today … today+days-ahead (GET /vehicles, 20 lots per request, soonest
   # auction first; an unfinished pass resumes from its cursor in the next run).

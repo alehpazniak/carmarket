@@ -2,10 +2,12 @@ package com.carmarket.auction.service;
 
 import com.carmarket.auction.client.ApibaraClient;
 import com.carmarket.auction.client.ApibaraVehicleDetailResponse;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -25,7 +27,7 @@ class ApibaraVehicleResolverTest {
     /** A real urltodetails response must map onto the same record as GET /vehicles/{slugVin}. */
     @Test
     void urltodetailsResponseDeserializes() throws Exception {
-        ApibaraVehicleDetailResponse response = fixture();
+        ApibaraVehicleDetailResponse response = new ObjectMapper().treeToValue(fixture(), ApibaraVehicleDetailResponse.class);
 
         assertThat(response.data().vin()).isEqualTo("JM3KFBDM6M1463543");
         assertThat(response.data().lotNumber()).isEqualTo("61747696");
@@ -40,35 +42,36 @@ class ApibaraVehicleResolverTest {
 
     @Test
     void urlResolvedInOneCall() throws Exception {
-        ApibaraVehicleDetailResponse vehicle = fixture();
-        when(client.resolveFromUrl(COPART_URL)).thenReturn(vehicle);
+        JsonNode vehicle = fixture();
+        when(client.lookupUrl(COPART_URL)).thenReturn(Optional.of(vehicle));
 
         assertThat(resolver.resolve(" " + COPART_URL + " ")).contains(vehicle);
-        verify(client, never()).getVehicle(anyString());
+        verify(client, never()).lookupVehicle(anyString());
     }
 
     @Test
     void fallsBackToCopartLotNumberWhenUrlIsNotMatched() throws Exception {
-        ApibaraVehicleDetailResponse vehicle = fixture();
-        when(client.resolveFromUrl(COPART_URL)).thenReturn(null);
-        when(client.getVehicle("61747696")).thenReturn(vehicle);
+        JsonNode vehicle = fixture();
+        when(client.lookupUrl(COPART_URL)).thenReturn(Optional.empty());
+        when(client.lookupVehicle("61747696")).thenReturn(Optional.of(vehicle));
 
         assertThat(resolver.resolve(COPART_URL)).contains(vehicle);
     }
 
     @Test
     void bareLotNumberOrVinIsLookedUpDirectly() throws Exception {
-        ApibaraVehicleDetailResponse vehicle = fixture();
-        when(client.getVehicle("61747696")).thenReturn(vehicle);
-        when(client.getVehicle("JM3KFBDM6M1463543")).thenReturn(vehicle);
+        JsonNode vehicle = fixture();
+        when(client.lookupVehicle("61747696")).thenReturn(Optional.of(vehicle));
+        when(client.lookupVehicle("JM3KFBDM6M1463543")).thenReturn(Optional.of(vehicle));
 
         assertThat(resolver.resolve("61747696")).contains(vehicle);
         assertThat(resolver.resolve("jm3kfbdm6m1463543")).contains(vehicle);
-        verify(client, never()).resolveFromUrl(anyString());
+        verify(client, never()).lookupUrl(anyString());
     }
 
     @Test
     void nothingFound() {
+        when(client.lookupUrl(anyString())).thenReturn(Optional.empty());
         assertThat(resolver.resolve("https://www.iaai.com/VehicleDetail/12345678~US")).isEmpty();
         assertThat(resolver.resolve("   ")).isEmpty();
     }
@@ -80,9 +83,17 @@ class ApibaraVehicleResolverTest {
         assertThat(ApibaraVehicleResolver.copartLotNumber("https://www.iaai.com/VehicleDetail/12345678~US")).isEmpty();
     }
 
-    private static ApibaraVehicleDetailResponse fixture() throws Exception {
+    /** the number in an IAAI link is the item id (the image key), not the stock number */
+    @Test
+    void iaaiItemIdFromUrl() {
+        assertThat(ApibaraVehicleResolver.iaaiItemId("https://www.iaai.com/VehicleDetail/46069832~US")).contains("46069832");
+        assertThat(ApibaraVehicleResolver.iaaiItemId("https://www.iaai.com/Vehicle?itemID=46069832&RowNumber=0")).contains("46069832");
+        assertThat(ApibaraVehicleResolver.iaaiItemId(COPART_URL)).isEmpty();
+    }
+
+    private static JsonNode fixture() throws Exception {
         try (InputStream in = ApibaraVehicleResolverTest.class.getResourceAsStream("/apibara/urltodetails-copart.json")) {
-            return new ObjectMapper().readValue(in, ApibaraVehicleDetailResponse.class);
+            return new ObjectMapper().readTree(in);
         }
     }
 }

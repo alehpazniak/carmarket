@@ -4,7 +4,7 @@ import com.carmarket.auction.client.ApibaraClient;
 import com.carmarket.auction.config.SecurityConfig;
 import com.carmarket.auction.entity.W8Auction;
 import com.carmarket.auction.security.GatewaySignatureFilter;
-import com.carmarket.auction.service.ApibaraVehicleResolver;
+import com.carmarket.auction.service.LiveVehicleLookup;
 import com.carmarket.auction.service.UsaShippingRateService;
 import com.carmarket.auction.service.calculator.MaxBidCalculator;
 import com.carmarket.auction.service.calculator.MaxBidResult;
@@ -49,17 +49,36 @@ class ApibaraSecurityTest {
     @MockBean
     private UsaShippingRateService shippingRateService;
     @MockBean
-    private ApibaraVehicleResolver vehicleResolver;
+    private LiveVehicleLookup liveLookup;
     @MockBean
     private W8ShippingQuoteService w8QuoteService;
 
     @Test
     void anonymousLookupsReachTheController() throws Exception {
-        // The mocked client returns null → 502, i.e. the request got past security
+        // The mocked client returns null → 502, the mocked lookup nothing → 404: the requests got past security
+        when(client.isConfigured()).thenReturn(true);
+        when(liveLookup.vehicle(any())).thenReturn(Optional.empty());
         mvc.perform(get("/api/auctions/apibara/vehicles").param("make", "BMW")).andExpect(status().isBadGateway());
-        mvc.perform(get("/api/auctions/apibara/vehicles/{vin}", "1hgcm82633a004352")).andExpect(status().isBadGateway());
+        mvc.perform(get("/api/auctions/apibara/vehicles/{vin}", "1hgcm82633a004352")).andExpect(status().isNotFound());
         verify(client).searchVehicles(any());
-        verify(client).getVehicle("1hgcm82633a004352");
+        verify(liveLookup).vehicle("1hgcm82633a004352");
+    }
+
+    /** Apibara's 429 reaches the frontend as 429 (apibaraErrorMessage), a failure as 502, no key as 503 */
+    @Test
+    void liveLookupFailuresKeepTheirMeaning() throws Exception {
+        when(client.isConfigured()).thenReturn(true);
+        when(liveLookup.resolve("https://www.copart.com/lot/61747696"))
+            .thenThrow(new com.carmarket.auction.client.ApibaraQuotaExceededException(null, null));
+        when(liveLookup.vehicle("61747696"))
+            .thenThrow(new com.carmarket.auction.client.ApibaraUnavailableException("Apibara answered HTTP 500"));
+
+        mvc.perform(get("/api/auctions/apibara/vehicles/url-to-details").param("url", "https://www.copart.com/lot/61747696"))
+            .andExpect(status().isTooManyRequests());
+        mvc.perform(get("/api/auctions/apibara/vehicles/{id}", "61747696")).andExpect(status().isBadGateway());
+
+        when(client.isConfigured()).thenReturn(false);
+        mvc.perform(get("/api/auctions/apibara/vehicles/{id}", "61747696")).andExpect(status().isServiceUnavailable());
     }
 
     @Test

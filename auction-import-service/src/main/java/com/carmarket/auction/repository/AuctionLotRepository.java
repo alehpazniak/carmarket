@@ -29,6 +29,19 @@ public interface  AuctionLotRepository extends JpaRepository<AuctionLot, UUID> {
 
     List<AuctionLot> findByVin(String vin);
 
+    /** Every platform's lot with this number (Copart and IAAI numbers can collide). */
+    List<AuctionLot> findByLotNumber(String lotNumber);
+
+    /**
+     * IAAI lots whose images carry this item id (the number in an iaai.com/VehicleDetail/{id}~US link), e.g.
+     * {@code %imageKeys=46069832~%}. The caller builds the pattern from digits only.
+     */
+    @Query(value = """
+        SELECT DISTINCT a.* FROM auction_lots a JOIN auction_lot_images i ON i.lot_id = a.id
+        WHERE a.source = 'IAAI' AND i.image_urls LIKE :pattern
+        """, nativeQuery = true)
+    List<AuctionLot> findIaaiByImageKey(@Param("pattern") String pattern);
+
     Page<AuctionLot> findByStatus(AuctionLot.LotStatus status, Pageable pageable);
 
     @Query("""

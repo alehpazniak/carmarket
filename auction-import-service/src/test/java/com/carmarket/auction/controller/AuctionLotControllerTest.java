@@ -6,6 +6,8 @@ import com.carmarket.auction.dto.LotFacetsResponse;
 import com.carmarket.auction.repository.AuctionLotRepository;
 import com.carmarket.auction.security.GatewaySignatureFilter;
 import com.carmarket.auction.service.AuctionLotService;
+import com.carmarket.auction.service.LotLookupService;
+import com.carmarket.auction.dto.LotLookupResponse;
 import com.carmarket.auction.service.UsaShippingRateService;
 import com.carmarket.auction.service.calculator.ImportCostCalculator;
 import com.carmarket.auction.service.calculator.MaxBidCalculator;
@@ -20,6 +22,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -53,6 +56,8 @@ class AuctionLotControllerTest {
     private ApibaraClient apibaraClient;
     @MockBean
     private UsaShippingRateService shippingRateService;
+    @MockBean
+    private LotLookupService lotLookup;
 
     @Test
     void facetsAreAnonymousAndDontHitLotById() throws Exception {
@@ -66,6 +71,28 @@ class AuctionLotControllerTest {
             .andExpect(jsonPath("$.makes[0].models[0].model").value("CAMRY"));
 
         verify(lotRepository, never()).findById(any());
+    }
+
+    /** anonymous like the rest of GET /lots/**, and the literal path wins over /lots/{id} (a UUID) */
+    @Test
+    void lookupIsAnonymousAndWinsOverLotById() throws Exception {
+        UUID id = UUID.fromString("28d85e9b-9b15-4b91-a75b-5655c3eb4257");
+        when(lotLookup.lookup("61747696")).thenReturn(new LotLookupResponse(LotLookupResponse.Kind.LOT_NUMBER, List.of(id), "61747696"));
+
+        mvc.perform(get("/api/auctions/lots/lookup").param("q", "61747696"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.kind").value("LOT_NUMBER"))
+            .andExpect(jsonPath("$.ids[0]").value(id.toString()))
+            .andExpect(jsonPath("$.identifier").value("61747696"));
+
+        verify(lotRepository, never()).findById(any());
+        verify(apibaraClient, never()).isConfigured(); // no Apibara request
+    }
+
+    @Test
+    void lookupRejectsAnOverlongQuery() throws Exception {
+        mvc.perform(get("/api/auctions/lots/lookup").param("q", "x".repeat(501))).andExpect(status().isBadRequest());
+        verify(lotLookup, never()).lookup(any());
     }
 
     @Test

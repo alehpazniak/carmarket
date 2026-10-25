@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getApibaraVehicle, getVehicleHistory, getRelatedVehicles, calculateApibaraMaxBid, apibaraErrorMessage, w8AuctionFromPlatform } from '../api/auctions';
+import { getApibaraVehicle, getVehicleHistory, getRelatedVehicles, calculateApibaraMaxBid, apibaraErrorMessage, isNotFound, NOT_FOUND_MESSAGE, w8AuctionFromPlatform } from '../api/auctions';
 import type { ApibaraVehicleDetail, ApibaraHistoryEntry, ApibaraRelatedVehicle, MaxBidResult, FuelType, LengthClass, PolandZone } from '../types/auctions';
 import W8QuoteBreakdown from '../components/auctions/W8QuoteBreakdown';
 import W8ShippingFields from '../components/auctions/W8ShippingFields';
@@ -99,13 +99,13 @@ export default function ApibaraVehiclePage() {
         fetchedIdentifierRef.current = identifier;
         getApibaraVehicle(identifier)
             .then(result => {
-                if (!result.data) setError('Nie znaleziono pojazdu');
+                if (!result.data) setError(NOT_FOUND_MESSAGE);
                 setVehicle(result.data);
                 setEngineCapacityCm3(prev => prev || String(parseEngineCapacityCm3(result.data?.vehicle_specs?.engine?.size_l) ?? ''));
                 setFuelType(guessFuelType(result.data?.vehicle_specs?.fuel_type));
                 setSuv(guessIsSuv(result.data?.vehicle_specs?.body_style));
             })
-            .catch(err => setError(apibaraErrorMessage(err, isAuthenticated,
+            .catch(err => setError(isNotFound(err) ? NOT_FOUND_MESSAGE : apibaraErrorMessage(err, isAuthenticated,
                 'Nie udało się pobrać danych pojazdu (limit Apibara lub błędne dane)')))
             .finally(() => setLoading(false));
     }, [identifier, authLoading, isAuthenticated]);

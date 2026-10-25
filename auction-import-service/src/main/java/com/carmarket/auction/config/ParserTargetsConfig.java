@@ -21,6 +21,13 @@ public class ParserTargetsConfig {
     private int perPage = 20;
     private VehicleTypes vehicleTypes = new VehicleTypes();
     private Filters filters = new Filters();
+    private LiveLookup liveLookup = new LiveLookup();
+
+    /** The live vehicle lookups (/aukcje search, /aukcje/pojazd/:identifier): how long an answer is reused */
+    @Data
+    public static class LiveLookup {
+        private int cacheMinutes = 10;
+    }
 
     /**
      * Which lots the sync keeps beyond their type (apibara.filters): Run and Drive only, and no title from the
