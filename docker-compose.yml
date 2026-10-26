@@ -45,7 +45,7 @@ services:
     environment:
       POSTGRES_DB: auth_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - postgres-auth-data:/var/lib/postgresql/data
     healthcheck:
@@ -62,7 +62,7 @@ services:
     environment:
       POSTGRES_DB: user_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - postgres-user-data:/var/lib/postgresql/data
     healthcheck:
@@ -79,7 +79,7 @@ services:
     environment:
       POSTGRES_DB: car_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - postgres-car-data:/var/lib/postgresql/data
     healthcheck:
@@ -195,7 +195,7 @@ services:
     ports: ["8761:8761"]
     environment:
       EUREKA_USER: ${EUREKA_USER:-admin}
-      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://admin:admin@localhost:8761/actuator/health || exit 1"]
       interval: 15s
@@ -223,10 +223,11 @@ services:
     environment:
       EUREKA_HOST: eureka-server
       EUREKA_USER: ${EUREKA_USER:-admin}
-      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:?GATEWAY_INTERNAL_SECRET is required}
       REDIS_HOST: redis
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      JWT_SECRET: ${JWT_SECRET:-bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}  #  -bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       GATEWAY_TRUSTED_PROXIES: ${GATEWAY_TRUSTED_PROXIES:-0}
       APIBARA_ANON_PER_IP_PER_SECOND: ${APIBARA_ANON_PER_IP_PER_SECOND:-1}
       APIBARA_ANON_PER_IP_BURST: ${APIBARA_ANON_PER_IP_BURST:-5}
@@ -257,19 +258,20 @@ services:
     environment:
       EUREKA_HOST: eureka-server
       EUREKA_USER: ${EUREKA_USER:-admin}
-      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:?GATEWAY_INTERNAL_SECRET is required}
       DB_HOST: postgres-auth
       DB_NAME: auth_db
       DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       REDIS_HOST: redis
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      JWT_SECRET: ${JWT_SECRET:-bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}  #-bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?GOOGLE_CLIENT_ID is required}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?GOOGLE_CLIENT_SECRET is required}
       FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID:-}
-      FACEBOOK_CLIENT_SECRET: ${FACEBOOK_CLIENT_SECRET:-}
+      FACEBOOK_CLIENT_SECRET: ${FACEBOOK_CLIENT_SECRET}
       OAUTH2_REDIRECT_URI: ${OAUTH2_REDIRECT_URI:-http://localhost:5173/auth/callback}
       OAUTH2_ALLOWED_HOSTS: ${OAUTH2_ALLOWED_HOSTS:-localhost}
       ADMIN_EMAILS: ${ADMIN_EMAILS:-}
@@ -297,11 +299,12 @@ services:
     environment:
       EUREKA_HOST: eureka-server
       EUREKA_USER: ${EUREKA_USER:-admin}
-      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:?GATEWAY_INTERNAL_SECRET is required}
       DB_HOST: postgres-user
       DB_NAME: user_db
       DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     restart: on-failure
 
@@ -327,14 +330,15 @@ services:
     environment:
       EUREKA_HOST: eureka-server
       EUREKA_USER: ${EUREKA_USER:-admin}
-      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:?GATEWAY_INTERNAL_SECRET is required}
       DB_HOST: postgres-car
       DB_NAME: car_db
       DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-AKIAXKPUZSWFZZVDDJLO}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-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}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?AWS_ACCESS_KEY_ID is required}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?AWS_SECRET_ACCESS_KEY is required}
     restart: on-failure
 
   # ─── SEARCH SERVICE ────────────────────────────────────────────────────────────
@@ -359,7 +363,7 @@ services:
     environment:
       EUREKA_HOST: eureka-server
       EUREKA_USER: ${EUREKA_USER:-admin}
-      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
       ES_HOST: elasticsearch
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     restart: on-failure
@@ -373,7 +377,7 @@ services:
     environment:
       POSTGRES_DB: chat_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - postgres-chat-data:/var/lib/postgresql/data
     healthcheck:
@@ -404,13 +408,14 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       EUREKA_HOST: eureka-server
       EUREKA_USER: ${EUREKA_USER:-admin}
-      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:?GATEWAY_INTERNAL_SECRET is required}
       CHAT_DB_HOST: postgres-chat
       CHAT_DB_PORT: 5432
       CHAT_DB_NAME: chat_db
       CHAT_DB_USER: postgres
-      CHAT_DB_PASSWORD: postgres
-      JWT_SECRET: ${JWT_SECRET:-bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+      CHAT_DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
     restart: on-failure
 
   # ─── NOTIFICATIONS ──────────────────────────────────────────────────────────
@@ -422,7 +427,7 @@ services:
     environment:
       POSTGRES_DB: notification_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - postgres-notification-data:/var/lib/postgresql/data
     healthcheck:
@@ -457,18 +462,19 @@ services:
     environment:
       EUREKA_HOST: eureka-server
       EUREKA_USER: ${EUREKA_USER:-admin}
-      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:?GATEWAY_INTERNAL_SECRET is required}
       NOTIFICATION_DB_HOST: postgres-notification
       NOTIFICATION_DB_PORT: 5432
       NOTIFICATION_DB_NAME: notification_db
       NOTIFICATION_DB_USER: postgres
-      NOTIFICATION_DB_PASSWORD: postgres
+      NOTIFICATION_DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       MAIL_HOST: ${MAIL_HOST:-mailhog}
       MAIL_PORT: ${MAIL_PORT:-1025}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
-      MAIL_PASSWORD: ${MAIL_PASSWORD:-Gfccdjhl!@3}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
       MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
       MAIL_STARTTLS: ${MAIL_STARTTLS:-false}
       MAIL_FROM: ${MAIL_FROM:-no-rep}
@@ -484,7 +490,7 @@ services:
     environment:
       POSTGRES_DB: carmarket_auctions
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - postgres-auction-data:/var/lib/postgresql/data
     healthcheck:
@@ -512,7 +518,8 @@ services:
     environment:
       EUREKA_HOST: eureka-server
       EUREKA_USER: ${EUREKA_USER:-admin}
-      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:?GATEWAY_INTERNAL_SECRET is required}
       DB_HOST: postgres-auction
       DB_USER: postgres
       DB_PASS: postgres
@@ -533,7 +540,7 @@ services:
     environment:
       POSTGRES_DB: payment_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - postgres-payment-data:/var/lib/postgresql/data
     healthcheck:
@@ -564,18 +571,19 @@ services:
     environment:
       EUREKA_HOST: eureka-server
       EUREKA_USER: ${EUREKA_USER:-admin}
-      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:?GATEWAY_INTERNAL_SECRET is required}
       DB_HOST: postgres-payment
       DB_PORT: 5432
       DB_NAME: payment_db
       DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       P24_SANDBOX: ${P24_SANDBOX:-true}
       P24_MERCHANT_ID: ${P24_MERCHANT_ID:-}
       P24_POS_ID: ${P24_POS_ID:-}
-      P24_CRC: ${P24_CRC:-}
-      P24_API_KEY: ${P24_API_KEY:-}
+      P24_CRC: ${P24_CRC}
+      P24_API_KEY: ${P24_API_KEY}
       P24_URL_RETURN: ${P24_URL_RETURN:-http://localhost:5173/platnosc}
       P24_URL_STATUS: ${P24_URL_STATUS:-http://localhost:8080/api/payments/p24/notify}
       P24_VERIFY_NOTIFICATION_IP: ${P24_VERIFY_NOTIFICATION_IP:-false}
@@ -590,7 +598,7 @@ services:
     environment:
       POSTGRES_DB: import_order_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - postgres-import-order-data:/var/lib/postgresql/data
     healthcheck:
@@ -622,19 +630,20 @@ services:
     environment:
       EUREKA_HOST: eureka-server
       EUREKA_USER: ${EUREKA_USER:-admin}
-      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:?GATEWAY_INTERNAL_SECRET is required}
       DB_HOST: postgres-import-order
       DB_PORT: 5432
       DB_NAME: import_order_db
       DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
-      IMPORT_ORDER_TOKEN_SECRET: ${IMPORT_ORDER_TOKEN_SECRET:-ZGV2LWltcG9ydC1vcmRlci10b2tlbi1zZWNyZXQtY2hhbmdlLW1l}
+      IMPORT_ORDER_TOKEN_SECRET: ${IMPORT_ORDER_TOKEN_SECRET:?IMPORT_ORDER_TOKEN_SECRET is required}
       IMPORT_ORDER_S3_BUCKET: ${IMPORT_ORDER_S3_BUCKET:-}
       IMPORT_ORDER_S3_REGION: ${IMPORT_ORDER_S3_REGION:-eu-central-1}
-      IMPORT_ORDER_AWS_ACCESS_KEY_ID: ${IMPORT_ORDER_AWS_ACCESS_KEY_ID:-AKIAXKPUZSWF67A57RNJ}
-      IMPORT_ORDER_AWS_SECRET_ACCESS_KEY: ${IMPORT_ORDER_AWS_SECRET_ACCESS_KEY:-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}
+      IMPORT_ORDER_AWS_ACCESS_KEY_ID: ${IMPORT_ORDER_AWS_ACCESS_KEY_ID}
+      IMPORT_ORDER_AWS_SECRET_ACCESS_KEY: ${IMPORT_ORDER_AWS_SECRET_ACCESS_KEY}
       IMPORT_ORDER_TRUSTED_PROXIES: ${IMPORT_ORDER_TRUSTED_PROXIES:-0}
     restart: on-failure
 
@@ -647,7 +656,7 @@ services:
     environment:
       POSTGRES_DB: admin_db
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     volumes:
       - postgres-admin-data:/var/lib/postgresql/data
     healthcheck:
@@ -678,11 +687,12 @@ services:
     environment:
       EUREKA_HOST: eureka-server
       EUREKA_USER: ${EUREKA_USER:-admin}
-      EUREKA_PASSWORD: ${EUREKA_PASSWORD:-admin}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
+      GATEWAY_INTERNAL_SECRET: ${GATEWAY_INTERNAL_SECRET:?GATEWAY_INTERNAL_SECRET is required}
       DB_HOST: postgres-admin
       DB_PORT: 5432
       DB_NAME: admin_db
       DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
       KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     restart: on-failure

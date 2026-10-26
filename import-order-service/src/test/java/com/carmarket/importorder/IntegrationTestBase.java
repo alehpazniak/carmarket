@@ -32,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * must be running. One container is shared by every test class; S3 is mocked per class.
  */
 @SpringBootTest(properties = {
+    "gateway.internal-secret=" + IntegrationTestBase.GATEWAY_SECRET,
     "eureka.client.enabled=false",
     "spring.cloud.discovery.enabled=false",
 })
@@ -51,8 +52,8 @@ public abstract class IntegrationTestBase {
         registry.add("spring.datasource.password", POSTGRES::getPassword);
     }
 
-    /** Default gateway.internal-secret from application.yml. */
-    private static final String GATEWAY_SECRET = "bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==";
+    /** gateway.internal-secret for these tests (application.yml has no default; set below). */
+    static final String GATEWAY_SECRET = "test-gateway-signature-secret-for-integration-tests";
 
     protected static final UUID DEALER_A = UUID.randomUUID();
     protected static final UUID DEALER_B = UUID.randomUUID();

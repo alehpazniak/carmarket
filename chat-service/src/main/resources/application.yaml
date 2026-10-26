@@ -7,7 +7,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${CHAT_DB_HOST:localhost}:${CHAT_DB_PORT:5436}/${CHAT_DB_NAME:chat_db}
     username: ${CHAT_DB_USER:postgres}
-    password: ${CHAT_DB_PASSWORD:postgres}
+    password: ${CHAT_DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: update
@@ -39,17 +39,17 @@ spring:
       retries: 3
 
 gateway:
-  internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+  internal-secret: ${GATEWAY_INTERNAL_SECRET}
 
 jwt:
-  secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+  secret: ${JWT_SECRET}
   access-token-expiry-ms: 900000      # 15 minutes
   refresh-token-expiry-ms: 604800000  # 7 days
 
 eureka:
   client:
     service-url:
-      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD:admin}@${EUREKA_HOST:localhost}:8761/eureka/
+      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD}@${EUREKA_HOST:localhost}:8761/eureka/
   instance:
     prefer-ip-address: true
 

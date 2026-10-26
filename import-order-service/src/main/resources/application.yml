@@ -7,7 +7,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5440}/${DB_NAME:import_order_db}
     username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -41,7 +41,7 @@ import-order:
     lock-duration: 15m
   # Client order tokens (X-Order-Token). Own secret, at least 32 bytes; override in production.
   token:
-    secret: ${IMPORT_ORDER_TOKEN_SECRET:ZGV2LWltcG9ydC1vcmRlci10b2tlbi1zZWNyZXQtY2hhbmdlLW1l}
+    secret: ${IMPORT_ORDER_TOKEN_SECRET}
     ttl: 12h
   # Private bucket for invoices / photos. While any of the four values is empty, storage is
   # disabled: file endpoints answer 503 "Storage not configured", everything else works.
@@ -57,12 +57,12 @@ import-order:
   trusted-proxies: ${IMPORT_ORDER_TRUSTED_PROXIES:0}
 
 gateway:
-  internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+  internal-secret: ${GATEWAY_INTERNAL_SECRET}
 
 eureka:
   client:
     service-url:
-      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD:admin}@${EUREKA_HOST:localhost}:8761/eureka/
+      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD}@${EUREKA_HOST:localhost}:8761/eureka/
   instance:
     prefer-ip-address: true
 

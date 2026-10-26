@@ -40,3 +40,7 @@ application-local.yml
 ### Local tunnel overrides ###
 /config/
 auth-service/config/
+
+# Semgrep Guardian plugin login state (OAuth tokens): local only, never commit
+.semgrep/guardian.yml
+.semgrep/guardian.yml.lock

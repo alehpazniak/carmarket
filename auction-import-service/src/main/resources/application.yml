@@ -7,7 +7,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5435}/${DB_NAME:car_db}
     username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
@@ -81,19 +81,18 @@ import:
 # Shared secret for verifying the internal identity header (X-Gateway-Signature)
 # Must match the value used by api-gateway / car-service / user-service
 gateway:
-  internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+  internal-secret: ${GATEWAY_INTERNAL_SECRET}
 
 eureka:
   client:
     service-url:
-      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD:admin}@${EUREKA_HOST:localhost}:8761/eureka/
+      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD}@${EUREKA_HOST:localhost}:8761/eureka/
   instance:
     prefer-ip-address: true
 
 apibara:
   base-url: https://apibara.tech
-#  api-key: ${APIBARA_API_KEY:ak_live_juGK5bzI5Re9eFdCxwaKvi6B1q7i5i0e4b6BbiWXFZtvX4oy}      # from .env / env var, NEVER commit
-  api-key: ${APIBARA_API_KEY:ak_live_Zjt4wAZEBh7ZiPinte8lt6E1YBE8V3NDFmkLR2MNuxrbcxoN}      # from .env / env var, NEVER commit
+  api-key: ${APIBARA_API_KEY}      # from .env / env var, NEVER commit
   per-page: 20                      # Test…Pro plans: 20 (Basic too); the client also caps it by X-Per-Page-Limit
   vehicle-types:
     # Apibara Vehicle.type values the sync keeps (docs/tasks/auction-feed-sync.md, Findings F2): cars, SUVs, vans,

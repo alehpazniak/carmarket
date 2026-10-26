@@ -29,7 +29,7 @@ import static org.mockito.Mockito.when;
 /** A blocked account (users.is_active = false) can neither log in again nor refresh its session. */
 class BlockedLoginTest {
 
-    private static final String SECRET = "bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==";
+    private static final String SECRET = java.util.Base64.getEncoder().encodeToString(new java.security.SecureRandom().generateSeed(48));
 
     private final UserRepository users = mock(UserRepository.class);
     private final RefreshTokenService refreshTokens = mock(RefreshTokenService.class);
