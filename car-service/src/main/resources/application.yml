@@ -25,7 +25,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5435}/${DB_NAME:car_db}
     username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    password: ${DB_PASSWORD}
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
@@ -76,12 +76,12 @@ promotion:
     fixed-delay-ms: 600000   # how often expired promotions are cleared (10 min)
 
 gateway:
-  internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+  internal-secret: ${GATEWAY_INTERNAL_SECRET}
 
 eureka:
   client:
     service-url:
-      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD:admin}@${EUREKA_HOST:localhost}:8761/eureka/
+      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD}@${EUREKA_HOST:localhost}:8761/eureka/
   instance:
     prefer-ip-address: true
 #    hostname: 127.0.0.1
@@ -92,8 +92,8 @@ aws:
   s3:
     bucket: avtovo-images-503561426315-eu-central-1-an
     region: eu-central-1
-    access-key: ${AWS_ACCESS_KEY_ID:AKIAXKPUZSWFZZVDDJLO}
-    secret-key: ${AWS_SECRET_ACCESS_KEY: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}
+    access-key: ${AWS_ACCESS_KEY_ID}
+    secret-key: ${AWS_SECRET_ACCESS_KEY}
 
 management:
   endpoints:

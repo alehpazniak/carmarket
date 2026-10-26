@@ -11,7 +11,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:auth_db}
     username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -46,8 +46,8 @@ spring:
       client:
         registration:
           google:
-            client-id: 563509052874-eh46tvion250mhfe4nh9odal0gqjluhd.apps.googleusercontent.com
-            client-secret: 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
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
             redirect-uri: "http://localhost:8081/auth/oauth2/callback/google"
             scope:
               - email
@@ -79,8 +79,7 @@ spring:
 
 # ── JWT ────────────────────────────────────────────────────────────────────────
 jwt:
-  # secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
-  secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+  secret: ${JWT_SECRET}
   access-token-expiry-ms: 900000      # 15 minutes
   refresh-token-expiry-ms: 604800000  # 7 days
 
@@ -88,7 +87,7 @@ jwt:
 eureka:
   client:
     service-url:
-      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD:admin}@${EUREKA_HOST:localhost}:8761/eureka/
+      defaultZone: http://${EUREKA_USER:admin}:${EUREKA_PASSWORD}@${EUREKA_HOST:localhost}:8761/eureka/
   instance:
     prefer-ip-address: true
     lease-renewal-interval-in-seconds: 10
@@ -108,7 +107,7 @@ app:
     bootstrap-emails: ${ADMIN_EMAILS:}
 
 gateway:
-  internal-secret: ${GATEWAY_INTERNAL_SECRET:bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==}
+  internal-secret: ${GATEWAY_INTERNAL_SECRET}
 
 management:
   endpoints:

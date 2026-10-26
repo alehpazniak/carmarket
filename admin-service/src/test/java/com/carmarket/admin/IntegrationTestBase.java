@@ -21,6 +21,7 @@ import java.util.UUID;
  * must be running. No Kafka broker: the listener is not started and tests call the consumer directly.
  */
 @SpringBootTest(properties = {
+    "gateway.internal-secret=" + IntegrationTestBase.GATEWAY_SECRET,
     "eureka.client.enabled=false",
     "spring.cloud.discovery.enabled=false",
     "spring.kafka.listener.auto-startup=false",
@@ -41,8 +42,8 @@ public abstract class IntegrationTestBase {
         registry.add("spring.datasource.password", POSTGRES::getPassword);
     }
 
-    /** Default gateway.internal-secret from application.yml. */
-    private static final String GATEWAY_SECRET = "bXlTdXBlclNlY3JldEtleUZvckNhck1hcmtldEp3dFRva2VuMjAyNA==";
+    /** gateway.internal-secret for these tests (application.yml has no default; set below). */
+    static final String GATEWAY_SECRET = "test-gateway-signature-secret-for-integration-tests";
 
     @Autowired
     protected MockMvc mvc;
